@@ -28,14 +28,17 @@ let dirty = true
 /** Until the user moves the camera, a resize frames the model again for the new shape. */
 let userMoved = false
 
+function render(): void {
+  dirty = false
+  if (current) renderer.render(current.scene, camera)
+  else renderer.clear()
+}
+
 controls.addEventListener('change', () => (dirty = true))
 controls.addEventListener('start', () => (userMoved = true))
 renderer.setAnimationLoop(() => {
   // update() keeps returning true while damping settles.
-  if (!controls.update() && !dirty) return
-  dirty = false
-  if (current) renderer.render(current.scene, camera)
-  else renderer.clear()
+  if (controls.update() || dirty) render()
 })
 
 /** Frames the whole model, looking along `direction` (from the model towards the camera). */
@@ -71,7 +74,9 @@ function resize(): void {
   camera.aspect = width / height
   camera.updateProjectionMatrix()
   if (!userMoved) frame(defaultDirection)
-  dirty = true
+  // Resizing clears the canvas. ResizeObserver runs after this frame's animation callbacks but
+  // before it is painted, so draw now; waiting for the next frame shows an empty view in between.
+  render()
 }
 new ResizeObserver(resize).observe(canvas)
 resize()
@@ -127,7 +132,7 @@ async function show(input: PluginInput, signal: AbortSignal): Promise<void> {
     warnings.hidden = false
   }
   // Render before reporting ready, so the host never shows an empty frame.
-  renderer.render(current.scene, camera)
+  render()
 }
 
 viewer(show)

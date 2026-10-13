@@ -85,6 +85,35 @@ export async function switchInput(page: Page, input: PluginInput): Promise<void>
   }, input)
 }
 
+/**
+ * Script for a viewer page: after every resize of the canvas, records what the canvas holds at
+ * that moment, before the browser paints. Its ResizeObserver is created after the viewer's, so it
+ * runs right after the viewer has handled the resize. Kept as text so it can also run in the
+ * real host (`webContents.executeJavaScript`).
+ */
+export const resizeProbe = `(() => {
+  const canvas = document.querySelector('#view')
+  const copy = new OffscreenCanvas(1, 1)
+  const frames = (window.resizeFrames = [])
+  new ResizeObserver(() => {
+    copy.width = canvas.width
+    copy.height = canvas.height
+    const context = copy.getContext('2d')
+    context.drawImage(canvas, 0, 0)
+    const data = context.getImageData(0, 0, copy.width, copy.height).data
+    let drawn = 0
+    for (let index = 3; index < data.length; index += 16) if (data[index] > 0) drawn++
+    frames.push({ width: canvas.width, height: canvas.height, drawn: drawn / (data.length / 16) })
+  }).observe(canvas)
+})()`
+
+export interface ResizeFrame {
+  width: number
+  height: number
+  /** Share of the canvas with something drawn on it, right after the resize. */
+  drawn: number
+}
+
 export interface PixelStats {
   width: number
   height: number

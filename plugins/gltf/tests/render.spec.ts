@@ -10,9 +10,11 @@ import {
   pixelDifference,
   pixelStats,
   requestThumbnail,
+  resizeProbe,
   switchInput,
   viewerOutcome,
   type PixelStats,
+  type ResizeFrame,
 } from './pages.ts'
 
 const root = join(import.meta.dirname, '../../..')
@@ -188,6 +190,25 @@ test.describe('viewer', () => {
 
     await page.getByRole('button', { name: '重置视角' }).click()
     expect(await pixelDifference(page, start, await settledCanvas(page))).toBeLessThan(0.01)
+  })
+
+  test('keeps the model on screen while the view is resized', async ({ page }) => {
+    await openViewer(page, 'cube/cube.gltf')
+    await settledCanvas(page)
+    await page.evaluate(resizeProbe)
+    // Like dragging the edge of the view: a series of sizes, one per frame or so.
+    for (let step = 1; step <= 12; step++) {
+      await page.setViewportSize({ width: 960 - step * 25, height: 600 - step * 10 })
+      await page.waitForTimeout(30)
+    }
+    const frames = await page.evaluate(
+      () => (window as unknown as { resizeFrames: ResizeFrame[] }).resizeFrames,
+    )
+    // The first entry is the observer's initial report, before any resize.
+    const resized = frames.slice(1)
+    expect(resized.length).toBeGreaterThan(5)
+    for (const frame of resized)
+      expect(frame.drawn, `${frame.width}×${frame.height}`).toBeGreaterThan(0.1)
   })
 
   test('moves to the next file on the same page', async ({ page }) => {
