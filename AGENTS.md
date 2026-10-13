@@ -1,6 +1,6 @@
 # Working on Vormio-Plugins
 
-Official Vormio plugins: the plugin line. Read the workspace `AGENTS.md` and `WORKSPACE.md` first, then README.md here.
+Official Vormio plugins: the plugin line. Read the workspace `AGENTS.md` and `WORKSPACE.md` first, then README.md and docs/development.md here.
 
 - Work follows the host's roadmap: start a plugin capability only when the Vormio-Core version that provides its extension point is in progress or done. glTF is the only active plugin; add other formats only when asked.
 - Consume the plugin SDK only as a pinned packaged artifact in `vendor/`, with its provenance recorded. Never import Vormio-Core source or depend on a sibling checkout.
@@ -9,7 +9,7 @@ Official Vormio plugins: the plugin line. Read the workspace `AGENTS.md` and `WO
 - Each plugin's README states the exact formats and versions, capabilities, unsupported cases and third-party dependencies with their licenses. Check a dependency's license before adding it.
 - Test assets live in `fixtures/` with a recorded source and license; assets with unclear licenses never enter the repository.
 - The previous plugins in `D:\Coding\Vormio\Vormio-Plugins` are reference only: read them, rewrite deliberately, never modify them.
-- Create directories only when they get real content, following the directory structure in README.md and the directory plan in docs/roadmap.md.
+- Create directories only when they get real content, following the directory structure in docs/development.md and the directory plan in docs/roadmap.md.
 
 ## Engineering
 
