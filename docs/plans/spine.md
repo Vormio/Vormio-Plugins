@@ -1,6 +1,6 @@
 # Spine 插件设计计划
 
-状态：**已确认，0.1.0 已实现**（2026-10-13）。§11 的第 1 至 4 步已完成，结论写进了 [插件 README](../../plugins/spine/README.md)；第 5 步的手工验收已完成（见下），R1 至 R3 尚未向 Core 提出。之后的版本仍按本计划进行。
+状态：**已确认，0.1.0 已实现**（2026-10-13）。§11 的第 1 至 4 步已完成，结论写进了 [插件 README](../../plugins/spine/README.md)；第 5 步已完成：手工验收见下；R1 至 R3 已作为需求草稿写进 Vormio-Core 的 `docs/plans/composition-requests-spine.md`，等 Core 评估排期。之后的版本仍按本计划进行。
 
 **手工验收**（2026-10-13，Core master `0b1b59c` 的干净导出，未打包构建，脚本驱动，开发目录加载 `dist/spine`）：
 
