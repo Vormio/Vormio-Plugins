@@ -18,6 +18,7 @@ import { KTX2Loader } from 'three/addons/loaders/KTX2Loader.js'
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js'
 import { ModelError } from './errors.ts'
 import { readGltf, unsupportedRequiredExtensions } from './gltf-file.ts'
+import { readMainFile } from './source.ts'
 
 /** A loaded default scene and what it holds; `dispose` frees its GPU resources and images. */
 export interface Model {
@@ -116,14 +117,6 @@ export class ModelLoader {
     this.draco.dispose()
     this.ktx2.dispose()
   }
-}
-
-async function readMainFile(input: PluginInput): Promise<ArrayBuffer> {
-  const response = await fetch(input.url).catch(() => undefined)
-  if (response?.ok) return response.arrayBuffer()
-  throw new ModelError(
-    response?.status === 409 ? '文件在磁盘上已变化，重新扫描后再查看。' : '无法读取这个文件。',
-  )
 }
 
 interface Renderable {

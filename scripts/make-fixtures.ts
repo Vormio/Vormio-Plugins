@@ -208,6 +208,74 @@ function model({ name, geometry, bufferUri, texture }: ModelOptions): Document {
   return document
 }
 
+/** Wood grain in two browns, shared by the furniture models. */
+const wood = png(64, 64, (x, y) =>
+  Math.floor((x + (Math.floor(y / 16) % 2) * 4) / 8) % 2
+    ? [158, 104, 58, 255]
+    : [190, 132, 78, 255],
+)
+
+interface FurnitureOptions {
+  name: string
+  bufferUri: string
+  /** Shapes, each made once and used by any number of parts. */
+  meshes: Record<string, { geometry: Geometry; material: 'Wood' | 'Metal' }>
+  parts: { name: string; mesh: string; at: [number, number, number] }[]
+}
+
+/**
+ * A piece of furniture: a root node whose children are its parts. Parts share meshes, and the wood
+ * material uses the texture `textures/wood.png` that several models refer to.
+ */
+function furniture({ name, bufferUri, meshes, parts }: FurnitureOptions): Document {
+  const document = new Document()
+  document.getRoot().getAsset().generator = generator
+  const buffer = document.createBuffer(name).setURI(bufferUri)
+  const accessor = (
+    type: 'VEC2' | 'VEC3' | 'SCALAR',
+    array: Float32Array<ArrayBuffer> | Uint16Array<ArrayBuffer>,
+  ) => document.createAccessor().setType(type).setArray(array).setBuffer(buffer)
+  const materials = {
+    Wood: document
+      .createMaterial('Wood')
+      .setMetallicFactor(0)
+      .setRoughnessFactor(0.8)
+      .setBaseColorTexture(
+        document
+          .createTexture('Wood')
+          .setImage(wood)
+          .setMimeType('image/png')
+          .setURI('textures/wood.png'),
+      ),
+    Metal: document
+      .createMaterial('Metal')
+      .setBaseColorFactor([0.62, 0.63, 0.66, 1])
+      .setMetallicFactor(0.9)
+      .setRoughnessFactor(0.35),
+  }
+  const shapes = Object.fromEntries(
+    Object.entries(meshes).map(([meshName, { geometry, material }]) => [
+      meshName,
+      document.createMesh(meshName).addPrimitive(
+        document
+          .createPrimitive()
+          .setAttribute('POSITION', accessor('VEC3', new Float32Array(geometry.positions)))
+          .setAttribute('NORMAL', accessor('VEC3', new Float32Array(geometry.normals)))
+          .setAttribute('TEXCOORD_0', accessor('VEC2', new Float32Array(geometry.uvs)))
+          .setIndices(accessor('SCALAR', new Uint16Array(geometry.indices)))
+          .setMaterial(materials[material]),
+      ),
+    ]),
+  )
+  const root = document.createNode(name)
+  for (const part of parts)
+    root.addChild(
+      document.createNode(part.name).setMesh(shapes[part.mesh]!).setTranslation(part.at),
+    )
+  document.getRoot().setDefaultScene(document.createScene(name).addChild(root))
+  return document
+}
+
 const io = new NodeIO().registerExtensions(ALL_EXTENSIONS).registerDependencies({
   'draco3d.encoder': await draco3d.createEncoderModule(),
   'meshopt.encoder': MeshoptEncoder,
@@ -288,6 +356,46 @@ await write('globe-draco.glb', await io.writeBinary(dracoGlobe))
 const meshoptGlobe = globe()
 await meshoptGlobe.transform(meshopt({ encoder: MeshoptEncoder, level: 'medium' }))
 await write('globe-meshopt.glb', await io.writeBinary(meshoptGlobe))
+
+// Two models that share one texture, with node hierarchies and meshes used by several nodes.
+/** Four parts using the mesh "Leg", `x` and `z` from the centre, their middle at height `y`. */
+const legs = (x: number, z: number, y: number) =>
+  (
+    [
+      ['front left', -x, z],
+      ['front right', x, z],
+      ['back left', -x, -z],
+      ['back right', x, -z],
+    ] as const
+  ).map(([side, legX, legZ]) => ({
+    name: `Leg ${side}`,
+    mesh: 'Leg',
+    at: [legX, y, legZ] as [number, number, number],
+  }))
+await writeGltf(
+  'props/table.gltf',
+  furniture({
+    name: 'Table',
+    bufferUri: 'table.bin',
+    meshes: {
+      Top: { geometry: box(1.2, 0.06, 0.7), material: 'Wood' },
+      Leg: { geometry: box(0.06, 0.7, 0.06), material: 'Metal' },
+    },
+    parts: [{ name: 'Top', mesh: 'Top', at: [0, 0.73, 0] }, ...legs(0.54, 0.29, 0.35)],
+  }),
+)
+await writeGltf(
+  'props/stool.gltf',
+  furniture({
+    name: 'Stool',
+    bufferUri: 'stool.bin',
+    meshes: {
+      Seat: { geometry: box(0.4, 0.05, 0.4), material: 'Wood' },
+      Leg: { geometry: box(0.04, 0.45, 0.04), material: 'Wood' },
+    },
+    parts: [{ name: 'Seat', mesh: 'Seat', at: [0, 0.475, 0] }, ...legs(0.16, 0.16, 0.225)],
+  }),
+)
 
 // Files the plugin has to refuse or show with a warning.
 await writeGltf(

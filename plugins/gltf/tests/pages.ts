@@ -3,7 +3,7 @@
 // self-contained, because Playwright sends them as source text.
 
 import type { Page } from '@playwright/test'
-import type { PluginInput } from '@vormio/plugin-sdk'
+import type { CompositionReport, PluginInput } from '@vormio/plugin-sdk'
 
 export interface BridgeState {
   input: PluginInput
@@ -12,6 +12,7 @@ export interface BridgeState {
   violations: string[]
   listeners: ((input: PluginInput) => void)[]
   thumbnail?: (input: PluginInput, size: { maxEdge: number }) => Promise<ArrayBuffer>
+  analyze?: (input: PluginInput) => Promise<CompositionReport>
 }
 
 declare global {
@@ -54,6 +55,9 @@ export async function installBridge(page: Page): Promise<void> {
           state.failures.push({ url: input.url, message }),
         onThumbnailRequest(handler: BridgeState['thumbnail']) {
           state.thumbnail = handler
+        },
+        onAnalyzeRequest(handler: BridgeState['analyze']) {
+          state.analyze = handler
         },
       }),
     })
@@ -216,4 +220,20 @@ export async function requestThumbnail(
     },
     { input, maxEdge },
   )
+}
+
+/** Runs the analyzer page's handler on `input`; returns the report, or the error message. */
+export async function requestAnalysis(
+  page: Page,
+  input: PluginInput,
+): Promise<{ report?: CompositionReport; error?: string }> {
+  await page.waitForFunction(() => window.bridgeState.analyze !== undefined)
+  return page.evaluate(async (input) => {
+    try {
+      // The host receives the report through structured clone; JSON keeps the test to plain data.
+      return { report: JSON.parse(JSON.stringify(await window.bridgeState.analyze!(input))) }
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : String(error) }
+    }
+  }, input)
 }

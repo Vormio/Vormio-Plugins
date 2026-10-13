@@ -69,6 +69,11 @@ export async function startHost(
 
   const inputs = await listen(async (request, response) => {
     response.setHeader('Access-Control-Allow-Origin', '*')
+    if (request.method === 'OPTIONS') {
+      response.statusCode = 204
+      response.setHeader('Access-Control-Allow-Headers', 'Range')
+      return void response.end()
+    }
     const [, token = '', ...segments] = new URL(request.url ?? '/', 'http://input').pathname.split(
       '/',
     )
@@ -86,11 +91,26 @@ export async function startHost(
       const info = await stat(join(inputDirectory, path)).catch(() => undefined)
       return info?.isFile() ? 200 : 404
     })()
-    requests.push(`${status} ${path}`)
-    response.statusCode = status
-    if (status !== 200) return void response.end()
+    if (status !== 200) {
+      requests.push(`${status} ${path}`)
+      response.statusCode = status
+      return void response.end()
+    }
+    const data = await readFile(join(inputDirectory, path))
     response.setHeader('Content-Type', 'application/octet-stream')
-    response.end(await readFile(join(inputDirectory, path)))
+    response.setHeader('Accept-Ranges', 'bytes')
+    // A single byte range, as the host serves it.
+    const range = /^bytes=(\d+)-(\d*)$/.exec(request.headers.range ?? '')
+    if (range) {
+      const start = Number(range[1])
+      const end = Math.min(range[2] ? Number(range[2]) : data.length - 1, data.length - 1)
+      requests.push(`206 ${path} ${start}-${end}`)
+      response.statusCode = 206
+      response.setHeader('Content-Range', `bytes ${start}-${end}/${data.length}`)
+      return void response.end(data.subarray(start, end + 1))
+    }
+    requests.push(`200 ${path}`)
+    response.end(data)
   })
 
   const packageFiles = await listen(async (request, response) => {

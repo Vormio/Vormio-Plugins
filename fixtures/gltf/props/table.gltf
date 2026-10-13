@@ -1,0 +1,255 @@
+{
+  "asset": {
+    "generator": "Vormio-Plugins scripts/make-fixtures.ts (glTF-Transform 4.5.1)",
+    "version": "2.0"
+  },
+  "accessors": [
+    {
+      "type": "VEC3",
+      "componentType": 5126,
+      "count": 24,
+      "max": [
+        0.6000000238418579,
+        0.029999999329447746,
+        0.3499999940395355
+      ],
+      "min": [
+        -0.6000000238418579,
+        -0.029999999329447746,
+        -0.3499999940395355
+      ],
+      "bufferView": 0,
+      "byteOffset": 0
+    },
+    {
+      "type": "VEC3",
+      "componentType": 5126,
+      "count": 24,
+      "bufferView": 0,
+      "byteOffset": 12
+    },
+    {
+      "type": "VEC2",
+      "componentType": 5126,
+      "count": 24,
+      "bufferView": 0,
+      "byteOffset": 24
+    },
+    {
+      "type": "SCALAR",
+      "componentType": 5123,
+      "count": 36,
+      "bufferView": 1,
+      "byteOffset": 0
+    },
+    {
+      "type": "SCALAR",
+      "componentType": 5123,
+      "count": 36,
+      "bufferView": 1,
+      "byteOffset": 72
+    },
+    {
+      "type": "VEC3",
+      "componentType": 5126,
+      "count": 24,
+      "max": [
+        0.029999999329447746,
+        0.3499999940395355,
+        0.029999999329447746
+      ],
+      "min": [
+        -0.029999999329447746,
+        -0.3499999940395355,
+        -0.029999999329447746
+      ],
+      "bufferView": 2,
+      "byteOffset": 0
+    },
+    {
+      "type": "VEC3",
+      "componentType": 5126,
+      "count": 24,
+      "bufferView": 2,
+      "byteOffset": 12
+    },
+    {
+      "type": "VEC2",
+      "componentType": 5126,
+      "count": 24,
+      "bufferView": 2,
+      "byteOffset": 24
+    }
+  ],
+  "bufferViews": [
+    {
+      "buffer": 0,
+      "byteOffset": 0,
+      "byteLength": 768,
+      "byteStride": 32,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 768,
+      "byteLength": 144,
+      "target": 34963
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 912,
+      "byteLength": 768,
+      "byteStride": 32,
+      "target": 34962
+    }
+  ],
+  "samplers": [
+    {
+      "wrapS": 10497,
+      "wrapT": 10497
+    }
+  ],
+  "textures": [
+    {
+      "source": 0,
+      "sampler": 0
+    }
+  ],
+  "images": [
+    {
+      "name": "Wood",
+      "mimeType": "image/png",
+      "uri": "textures/wood.png"
+    }
+  ],
+  "buffers": [
+    {
+      "name": "Table",
+      "uri": "table.bin",
+      "byteLength": 1680
+    }
+  ],
+  "materials": [
+    {
+      "name": "Wood",
+      "pbrMetallicRoughness": {
+        "roughnessFactor": 0.8,
+        "metallicFactor": 0,
+        "baseColorTexture": {
+          "index": 0
+        }
+      }
+    },
+    {
+      "name": "Metal",
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          0.62,
+          0.63,
+          0.66,
+          1
+        ],
+        "roughnessFactor": 0.35,
+        "metallicFactor": 0.9
+      }
+    }
+  ],
+  "meshes": [
+    {
+      "name": "Top",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 1,
+            "TEXCOORD_0": 2
+          },
+          "mode": 4,
+          "material": 0,
+          "indices": 3
+        }
+      ]
+    },
+    {
+      "name": "Leg",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 5,
+            "NORMAL": 6,
+            "TEXCOORD_0": 7
+          },
+          "mode": 4,
+          "material": 1,
+          "indices": 4
+        }
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "name": "Table",
+      "children": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ]
+    },
+    {
+      "name": "Top",
+      "translation": [
+        0,
+        0.73,
+        0
+      ],
+      "mesh": 0
+    },
+    {
+      "name": "Leg front left",
+      "translation": [
+        -0.54,
+        0.35,
+        0.29
+      ],
+      "mesh": 1
+    },
+    {
+      "name": "Leg front right",
+      "translation": [
+        0.54,
+        0.35,
+        0.29
+      ],
+      "mesh": 1
+    },
+    {
+      "name": "Leg back left",
+      "translation": [
+        -0.54,
+        0.35,
+        -0.29
+      ],
+      "mesh": 1
+    },
+    {
+      "name": "Leg back right",
+      "translation": [
+        0.54,
+        0.35,
+        -0.29
+      ],
+      "mesh": 1
+    }
+  ],
+  "scenes": [
+    {
+      "name": "Table",
+      "nodes": [
+        0
+      ]
+    }
+  ],
+  "scene": 0
+}

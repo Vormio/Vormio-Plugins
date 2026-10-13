@@ -39,11 +39,15 @@ test('the build output is a valid plugin with the declared permissions', () => {
   }
   assert.equal(manifest.contributions.thumbnails[0]?.entry, 'thumbnail.html')
   assert.equal(manifest.contributions.viewers[0]?.entry, 'viewer.html')
+  // The analyzer reads only the model file, so it declares no companion formats.
+  assert.deepEqual(manifest.contributions.analyzers, [
+    { id: 'model', entry: 'analyzer.html', formats: ['gltf', 'glb'], companionFormats: [] },
+  ])
 })
 
 test('every file a page refers to is in the package', async () => {
   const paths = new Set(checked.files.map((file) => file.path))
-  for (const page of ['viewer.html', 'thumbnail.html']) {
+  for (const page of ['viewer.html', 'thumbnail.html', 'analyzer.html']) {
     const html = await readFile(join(directory, page), 'utf8')
     for (const [, reference] of html.matchAll(/(?:src|href)="([^"]+)"/g))
       assert.ok(paths.has(reference!), `${page} refers to missing ${reference}`)
@@ -72,10 +76,20 @@ test('every file a page refers to is in the package', async () => {
   }
 })
 
-test('the page bundle leaves out the SDK manifest schema', async () => {
-  for (const file of checked.files.filter((each) => each.path.startsWith('chunks/'))) {
+test('the page bundles leave out the SDK schemas; the analyzer leaves out three.js', async () => {
+  const scripts = checked.files.filter(
+    (each) => each.path.endsWith('.js') && !each.path.startsWith('decoders/'),
+  )
+  for (const file of scripts) {
     const script = await readFile(join(directory, file.path), 'utf8')
-    assert.doesNotMatch(script, /ZodError/)
+    assert.doesNotMatch(script, /ZodError/, file.path)
+  }
+  // The analyzer page and the chunks it imports: no renderer, no loaders.
+  const analyzer = await readFile(join(directory, 'analyzer.js'), 'utf8')
+  const imported = [...analyzer.matchAll(/from\s*["']\.\/([^"']+)["']/g)].map((match) => match[1]!)
+  for (const path of ['analyzer.js', ...imported]) {
+    const script = await readFile(join(directory, path), 'utf8')
+    assert.doesNotMatch(script, /WebGLRenderer|GLTFLoader/, path)
   }
   const total = checked.files.reduce((sum, file) => sum + file.size, 0)
   assert.ok(total < 4 * 1024 * 1024, `package is ${total} bytes`)
@@ -85,7 +99,7 @@ test('vormio-plugin pack turns the output into an installable .vormioplugin', as
   const cli = fileURLToPath(new URL('cli.js', import.meta.resolve('@vormio/plugin-sdk/node')))
   const target = join(temporary, 'gltf.vormioplugin')
   const { stdout } = await promisify(execFile)(process.execPath, [cli, 'pack', directory, target])
-  assert.match(stdout, /vormio-plugins\.gltf 0\.1\.0/)
+  assert.match(stdout, /vormio-plugins\.gltf 0\.2\.0/)
   const archive = readPackageArchive(await readFile(target))
   assert.equal(archive.checked.digest, checked.digest)
 })

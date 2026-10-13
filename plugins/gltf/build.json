@@ -1,10 +1,11 @@
 {
-  "entries": ["src/viewer.ts", "src/thumbnail.ts"],
+  "entries": ["src/viewer.ts", "src/thumbnail.ts", "src/analyzer.ts"],
   "files": {
     "manifest.json": "manifest.json",
     "viewer.html": "src/viewer.html",
     "viewer.css": "src/viewer.css",
     "thumbnail.html": "src/thumbnail.html",
+    "analyzer.html": "src/analyzer.html",
     "decoders/draco/draco_wasm_wrapper.js": "node_modules/three/examples/jsm/libs/draco/gltf/draco_wasm_wrapper.js",
     "decoders/draco/draco_decoder.wasm": "node_modules/three/examples/jsm/libs/draco/gltf/draco_decoder.wasm",
     "decoders/basis/basis_transcoder.js": "node_modules/three/examples/jsm/libs/basis/basis_transcoder.js",
