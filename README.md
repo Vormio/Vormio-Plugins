@@ -1,32 +1,32 @@
 # Vormio-Plugins
 
-Vormio 的官方插件：为宿主提供格式识别、专业预览、组成与引用解析以及诊断。插件只读取宿主授予的文件，不修改用户文件。
+Official plugins for Vormio. They give the host format recognition, specialised previews, composition and reference analysis, and diagnostics. Plugins read only the files the host grants them and never modify user files.
 
-## 插件
+## Plugins
 
-| 插件                                | ID                    | 版本  | 能力                                   |
-| ----------------------------------- | --------------------- | ----- | -------------------------------------- |
-| [glTF 模型](plugins/gltf/README.md) | `vormio-plugins.gltf` | 0.2.0 | 缩略图、三维查看器、组成与引用关系分析 |
+| Plugin                               | ID                    | Version | Capabilities                                              |
+| ------------------------------------ | --------------------- | ------- | --------------------------------------------------------- |
+| [glTF model](plugins/gltf/README.md) | `vormio-plugins.gltf` | 0.2.0   | Thumbnails, 3D viewer, composition and reference analysis |
 
-各插件的 README 写明支持的格式与版本、能力、不支持的情况以及第三方依赖的许可证。
+Each plugin's README lists the supported formats and versions, its capabilities, unsupported cases, and the licenses of its third-party dependencies.
 
-## 链接
+## Links
 
-- 开发说明（目录、构建、测试、依赖）：[docs/development.md](docs/development.md)
-- 插件规划：[docs/roadmap.md](docs/roadmap.md)
-- 插件 SDK 来源记录：[vendor/README.md](vendor/README.md)
+- Development guide (layout, build, tests, dependencies): [docs/development.md](docs/development.md)
+- Plugin roadmap: [docs/roadmap.md](docs/roadmap.md)
+- Plugin SDK provenance: [vendor/README.md](vendor/README.md)
 
-## 约定
+## Conventions
 
-- 插件 ID 形如 `vormio-plugins.<名称>`；每个插件位于 `plugins/<名称>/`。
-- 版本号遵循 semver，`manifest.json` 与插件 `package.json` 的版本保持一致。
-- 只使用 `vendor/` 中固定版本的 plugin-sdk 打包产物，不依赖 Vormio-Core 源码。
-- 插件不访问网络、任意路径或本地进程；解码器等二进制随插件包分发。
-- 测试素材放在 `fixtures/`，每份都记录来源与许可证。
+- Plugin IDs take the form `vormio-plugins.<name>`; each plugin lives in `plugins/<name>/`.
+- Versions follow semver, and `manifest.json` matches the plugin's `package.json`.
+- Plugins use only the pinned plugin-sdk package in `vendor/` and never depend on Vormio-Core source.
+- Plugins do not access the network, arbitrary paths or native processes; decoders and other binaries ship inside the plugin package.
+- Test assets live in `fixtures/`, each with a recorded source and license.
 
-## 开发
+## Development
 
-需要 Node 24.21 与 pnpm 12.6（通过 Corepack）。
+Requires Node 24.21 and pnpm 12.6 (via Corepack).
 
 ```bash
 pnpm install --frozen-lockfile
@@ -36,8 +36,8 @@ pnpm install --frozen-lockfile
 pnpm run dev gltf
 ```
 
-在 Vormio 的“插件”页选择“添加开发目录…”，指向 `dist/gltf` 并在资源库中启用；每次构建后插件会自动重载。提交前运行 `pnpm run lint`、`pnpm run typecheck` 与 `pnpm test`。打包用 `pnpm run package <插件>`，产物在 `artifacts/`。
+In Vormio, open the **插件** (Plugins) page, choose **添加开发目录…** (Add development folder…), point it at `dist/gltf` and enable the plugin in your library; it reloads after every build. Before committing, run `pnpm run lint`, `pnpm run typecheck` and `pnpm test`. To package a plugin, run `pnpm run package <plugin>`; the output goes to `artifacts/`.
 
-## 许可证
+## License
 
-[MIT](LICENSE)。插件包中包含的第三方代码保留各自的许可证，见各插件的 README。
+[MIT](LICENSE). Third-party code bundled in plugin packages keeps its own license; see each plugin's README.
