@@ -9,7 +9,7 @@ Official Vormio plugins: the plugin line. Read the workspace `AGENTS.md` and `WO
 - Each plugin's README states the exact formats and versions, capabilities, unsupported cases and third-party dependencies with their licenses. Check a dependency's license before adding it.
 - Test assets live in `fixtures/` with a recorded source and license; assets with unclear licenses never enter the repository.
 - The previous plugins in `D:\Coding\Vormio\Vormio-Plugins` are reference only: read them, rewrite deliberately, never modify them.
-- Create directories only when they get real content, following the directory plan in README.md.
+- Create directories only when they get real content, following the directory structure in README.md and the directory plan in docs/roadmap.md.
 
 ## Engineering
 
