@@ -1,0 +1,131 @@
+{
+  "asset": {
+    "generator": "Vormio-Plugins scripts/make-fixtures.ts (glTF-Transform 4.5.1)",
+    "version": "2.0"
+  },
+  "accessors": [
+    {
+      "type": "VEC3",
+      "componentType": 5126,
+      "count": 24,
+      "max": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "min": [
+        -0.5,
+        -0.5,
+        -0.5
+      ],
+      "bufferView": 0,
+      "byteOffset": 0
+    },
+    {
+      "type": "VEC3",
+      "componentType": 5126,
+      "count": 24,
+      "bufferView": 0,
+      "byteOffset": 12
+    },
+    {
+      "type": "VEC2",
+      "componentType": 5126,
+      "count": 24,
+      "bufferView": 0,
+      "byteOffset": 24
+    },
+    {
+      "type": "SCALAR",
+      "componentType": 5123,
+      "count": 36,
+      "bufferView": 1,
+      "byteOffset": 0
+    }
+  ],
+  "bufferViews": [
+    {
+      "buffer": 0,
+      "byteOffset": 0,
+      "byteLength": 768,
+      "byteStride": 32,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 768,
+      "byteLength": 72,
+      "target": 34963
+    }
+  ],
+  "samplers": [
+    {
+      "wrapS": 10497,
+      "wrapT": 10497
+    }
+  ],
+  "textures": [
+    {
+      "source": 0,
+      "sampler": 0
+    }
+  ],
+  "images": [
+    {
+      "name": "missing-texture",
+      "mimeType": "image/png",
+      "uri": "textures/absent.png"
+    }
+  ],
+  "buffers": [
+    {
+      "name": "missing-texture",
+      "uri": "data:application/octet-stream;base64,AAAAvwAAAL8AAAA/AAAAAAAAAAAAAIA/AAAAAAAAgD8AAAA/AAAAvwAAAD8AAAAAAAAAAAAAgD8AAIA/AACAPwAAAD8AAAA/AAAAPwAAAAAAAAAAAACAPwAAgD8AAAAAAAAAvwAAAD8AAAA/AAAAAAAAAAAAAIA/AAAAAAAAAAAAAAA/AAAAvwAAAL8AAAAAAAAAAAAAgL8AAAAAAACAPwAAAL8AAAC/AAAAvwAAAAAAAAAAAACAvwAAgD8AAIA/AAAAvwAAAD8AAAC/AAAAAAAAAAAAAIC/AACAPwAAAAAAAAA/AAAAPwAAAL8AAAAAAAAAAAAAgL8AAAAAAAAAAAAAAD8AAAC/AAAAPwAAgD8AAAAAAAAAAAAAAAAAAIA/AAAAPwAAAL8AAAC/AACAPwAAAAAAAAAAAACAPwAAgD8AAAA/AAAAPwAAAL8AAIA/AAAAAAAAAAAAAIA/AAAAAAAAAD8AAAA/AAAAPwAAgD8AAAAAAAAAAAAAAAAAAAAAAAAAvwAAAL8AAAC/AACAvwAAAAAAAAAAAAAAAAAAgD8AAAC/AAAAvwAAAD8AAIC/AAAAAAAAAAAAAIA/AACAPwAAAL8AAAA/AAAAPwAAgL8AAAAAAAAAAAAAgD8AAAAAAAAAvwAAAD8AAAC/AACAvwAAAAAAAAAAAAAAAAAAAAAAAAC/AAAAPwAAAD8AAAAAAACAPwAAAAAAAAAAAACAPwAAAD8AAAA/AAAAPwAAAAAAAIA/AAAAAAAAgD8AAIA/AAAAPwAAAD8AAAC/AAAAAAAAgD8AAAAAAACAPwAAAAAAAAC/AAAAPwAAAL8AAAAAAACAPwAAAAAAAAAAAAAAAAAAAL8AAAC/AAAAvwAAAAAAAIC/AAAAAAAAAAAAAIA/AAAAPwAAAL8AAAC/AAAAAAAAgL8AAAAAAACAPwAAgD8AAAA/AAAAvwAAAD8AAAAAAACAvwAAAAAAAIA/AAAAAAAAAL8AAAC/AAAAPwAAAAAAAIC/AAAAAAAAAAAAAAAAAAABAAIAAAACAAMABAAFAAYABAAGAAcACAAJAAoACAAKAAsADAANAA4ADAAOAA8AEAARABIAEAASABMAFAAVABYAFAAWABcA",
+      "byteLength": 840
+    }
+  ],
+  "materials": [
+    {
+      "name": "missing-texture",
+      "pbrMetallicRoughness": {
+        "roughnessFactor": 0.7,
+        "metallicFactor": 0,
+        "baseColorTexture": {
+          "index": 0
+        }
+      }
+    }
+  ],
+  "meshes": [
+    {
+      "name": "missing-texture",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 1,
+            "TEXCOORD_0": 2
+          },
+          "mode": 4,
+          "material": 0,
+          "indices": 3
+        }
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "name": "missing-texture",
+      "mesh": 0
+    }
+  ],
+  "scenes": [
+    {
+      "name": "missing-texture",
+      "nodes": [
+        0
+      ]
+    }
+  ],
+  "scene": 0
+}

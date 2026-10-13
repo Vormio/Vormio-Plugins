@@ -1,0 +1,34 @@
+{
+  "name": "vormio-plugins",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Official Vormio plugins",
+  "type": "module",
+  "engines": {
+    "node": ">=24.21.0 <25"
+  },
+  "packageManager": "pnpm@12.6.0",
+  "scripts": {
+    "build": "node scripts/build.ts",
+    "dev": "node scripts/build.ts --watch",
+    "typecheck": "tsc -p tsconfig.json",
+    "lint": "prettier --check .",
+    "format": "prettier --write .",
+    "test": "node scripts/build.ts && node --test \"plugins/*/tests/*.test.ts\" && playwright test",
+    "pack": "node scripts/pack.ts",
+    "fixtures": "node scripts/make-fixtures.ts"
+  },
+  "devDependencies": {
+    "@gltf-transform/core": "4.5.1",
+    "@gltf-transform/extensions": "4.5.1",
+    "@gltf-transform/functions": "4.5.1",
+    "@playwright/test": "1.63.0",
+    "@types/node": "^24.19.2",
+    "@vormio/plugin-sdk": "file:vendor/vormio-plugin-sdk-0.0.2.tgz",
+    "draco3dgltf": "1.5.7",
+    "esbuild": "0.28.2",
+    "meshoptimizer": "1.3.0",
+    "prettier": "3.9.10",
+    "typescript": "~6.0.3"
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "apiVersion": 1,
+  "id": "vormio-plugins.gltf",
+  "version": "0.1.0",
+  "name": "glTF 模型",
+  "description": "glTF 2.0 与 GLB 模型的缩略图和只读三维查看器：旋转、缩放、取景，显示配套贴图。",
+  "contributions": {
+    "thumbnails": [
+      {
+        "id": "model",
+        "entry": "thumbnail.html",
+        "formats": ["gltf", "glb"],
+        "companionFormats": ["bin", "png", "jpg", "jpeg", "webp", "avif", "ktx2"]
+      }
+    ],
+    "viewers": [
+      {
+        "id": "model",
+        "entry": "viewer.html",
+        "formats": ["gltf", "glb"],
+        "companionFormats": ["bin", "png", "jpg", "jpeg", "webp", "avif", "ktx2"]
+      }
+    ]
+  }
+}

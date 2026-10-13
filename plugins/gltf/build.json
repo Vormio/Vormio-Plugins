@@ -1,0 +1,17 @@
+{
+  "entries": ["src/viewer.ts", "src/thumbnail.ts"],
+  "files": {
+    "manifest.json": "manifest.json",
+    "viewer.html": "src/viewer.html",
+    "viewer.css": "src/viewer.css",
+    "thumbnail.html": "src/thumbnail.html",
+    "decoders/draco/draco_wasm_wrapper.js": "node_modules/three/examples/jsm/libs/draco/gltf/draco_wasm_wrapper.js",
+    "decoders/draco/draco_decoder.wasm": "node_modules/three/examples/jsm/libs/draco/gltf/draco_decoder.wasm",
+    "decoders/basis/basis_transcoder.js": "node_modules/three/examples/jsm/libs/basis/basis_transcoder.js",
+    "decoders/basis/basis_transcoder.wasm": "node_modules/three/examples/jsm/libs/basis/basis_transcoder.wasm",
+    "licenses/NOTICE.txt": "licenses/NOTICE.txt",
+    "licenses/THREE.txt": "node_modules/three/LICENSE",
+    "licenses/APACHE-2.0.txt": "licenses/APACHE-2.0.txt",
+    "licenses/MESHOPTIMIZER.txt": "licenses/MESHOPTIMIZER.txt"
+  }
+}

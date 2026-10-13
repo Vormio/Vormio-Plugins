@@ -1,0 +1,19 @@
+glTF plugin for Vormio: third-party components in this package
+
+three.js 0.186.1 (bundled into viewer.js, thumbnail.js and chunks/)
+  Copyright 2010-2026 three.js authors. MIT License, see THREE.txt.
+  Includes GLTFLoader, DRACOLoader, KTX2Loader, OrbitControls and RoomEnvironment
+  from three/examples/jsm.
+
+meshoptimizer 1.1 decoder (bundled, from three/examples/jsm/libs/meshopt_decoder.module.js)
+  Copyright 2016-2026 Arseny Kapoulkine. MIT License, see MESHOPTIMIZER.txt.
+
+Draco glTF decoder (decoders/draco/, from three/examples/jsm/libs/draco/gltf/)
+  Copyright The Draco Authors. Apache License 2.0, see APACHE-2.0.txt.
+  https://github.com/google/draco
+
+Basis Universal transcoder (decoders/basis/, from three/examples/jsm/libs/basis/)
+  Copyright Binomial LLC. Apache License 2.0, see APACHE-2.0.txt.
+  https://github.com/BinomialLLC/basis_universal
+
+The decoder files are copied unmodified from the three@0.186.1 npm package.

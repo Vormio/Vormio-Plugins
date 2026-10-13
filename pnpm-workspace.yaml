@@ -1,0 +1,7 @@
+# The root holds the build, test and fixture tooling; each plugin under plugins/ is a package with
+# the dependencies that end up in its built output.
+packages:
+  - plugins/*
+verifyDepsBeforeRun: error
+allowBuilds:
+  esbuild: true
