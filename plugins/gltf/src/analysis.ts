@@ -116,9 +116,8 @@ export function reportedUri(uri: string): string | undefined {
 }
 
 /**
- * The size the host checks against `limits.size`: UTF-8 bytes of the report as JSON (Core counts
- * bytes since 2664854; the 0.0.3 SDK's own parseReport still counts characters, which is never
- * more, so a report within this size passes both).
+ * The size the host checks against `limits.size`: UTF-8 bytes of the report as JSON, as the SDK's
+ * parseReport measures it. Computed here because importing parseReport would bundle zod.
  */
 export function serializedSize(report: CompositionReport): number {
   return new TextEncoder().encode(JSON.stringify(report)).byteLength

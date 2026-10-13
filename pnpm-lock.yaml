@@ -572,7 +572,7 @@ packages:
     resolution: {integrity: sha512-h8fgEd/DpoS9CBrjEQXR+dIDraopAEfu4wYVNY2tEPwk60stPWhvZMf4Foo5FakuQ7HFZoa8WceaWFervK2Ovg==}
 
   '@vormio/plugin-sdk@file:vendor/vormio-plugin-sdk-0.0.3.tgz':
-    resolution: {integrity: sha512-uDUBkgqV0/hQ05OG7I2B8H1+qTvqGKiBE8GeiRBO/QSvzaq+VGXoWO+mqsqKVDzbEZJf1zkABscEeNRRpNoLHg==, tarball: file:vendor/vormio-plugin-sdk-0.0.3.tgz}
+    resolution: {integrity: sha512-e15VzWPiqvQNqq/t5PcOhd4DHfZa7/WVnz75Gkr2RPM3LgsUOs7dBUQhd+rLCtY46nBjwj0+DPKd4+gMMqpDog==, tarball: file:vendor/vormio-plugin-sdk-0.0.3.tgz}
     version: 0.0.3
     engines: {node: '>=24.21.0'}
     hasBin: true

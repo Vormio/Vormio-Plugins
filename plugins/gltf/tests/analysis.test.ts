@@ -362,7 +362,7 @@ test('a very large file gives a partial report within the limits', () => {
 })
 
 test('a deep node hierarchy is walked once', () => {
-  // A chain of 12,000 nodes. (The host's own check of such a report is slow: see the README.)
+  // A chain of 12,000 nodes.
   const count = 12_000
   const json: GltfJson = {
     asset: { version: '2.0' },
@@ -378,6 +378,10 @@ test('a deep node hierarchy is walked once', () => {
   assert.equal(nodes.length, limits.subresources - 1)
   assert.equal(nodes[0]!.parent, 'scenes/0')
   assert.ok(nodes.slice(1).every((each, index) => each.parent === `nodes/${index}`))
+  // The host's check of such a report is linear too (since the SDK from Core 2664854).
+  const checked = performance.now()
+  accepted(report)
+  assert.ok(performance.now() - checked < 3000, 'the SDK checks a deep hierarchy in linear time')
 })
 
 test('the size limit counts UTF-8 bytes, as the host does', () => {
@@ -390,10 +394,22 @@ test('the size limit counts UTF-8 bytes, as the host does', () => {
     scenes: [{ nodes: Array.from({ length: count - 1 }, (_, index) => index) }],
     nodes: Array.from({ length: count - 1 }, (_, index) => ({ name: name(index) })),
   }
-  const untrimmed = JSON.stringify({ subresources: json.nodes, references: [], diagnostics: [] })
-  assert.ok(
-    untrimmed.length < limits.size && new TextEncoder().encode(untrimmed).byteLength > limits.size,
-  )
+  const untrimmed: CompositionReport = {
+    subresources: (json.nodes as { name: string }[]).map((node, index) => ({
+      key: `nodes/${index}`,
+      kind: '节点',
+      name: node.name,
+    })),
+    references: [],
+    diagnostics: [],
+  }
+  assert.ok(JSON.stringify(untrimmed).length < limits.size)
+  assert.ok(serializedSize(untrimmed) > limits.size)
+  // The vendored SDK refuses it, as the host does (an SDK that counts characters would not).
+  assert.deepEqual(parseReport(untrimmed), {
+    ok: false,
+    problems: ['The report is larger than 4 MiB'],
+  })
 
   const report = accepted(analyzeGltf(json, 'gltf'))
   assert.ok(serializedSize(report) <= limits.size, `${serializedSize(report)} bytes`)
