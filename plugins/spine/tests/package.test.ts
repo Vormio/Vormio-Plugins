@@ -26,23 +26,31 @@ before(async () => {
 })
 after(() => rm(temporary, { recursive: true, force: true }))
 
-test('the build output declares only the atlas analyzer, with no companion reads', () => {
+test('the build output declares atlas files only; previews read PNG and JPEG pages', () => {
   const { manifest } = checked
   assert.equal(manifest.id, 'vormio-plugins.spine')
-  assert.deepEqual(manifest.contributions.thumbnails, [])
-  assert.deepEqual(manifest.contributions.viewers, [])
-  // JSON is left out until the host lets an analyzer decline files that are not Spine.
+  const companionFormats = ['png', 'jpg', 'jpeg']
+  assert.deepEqual(manifest.contributions.thumbnails, [
+    { id: 'atlas', entry: 'thumbnail.html', formats: ['atlas'], companionFormats },
+  ])
+  assert.deepEqual(manifest.contributions.viewers, [
+    { id: 'atlas', entry: 'viewer.html', formats: ['atlas'], companionFormats },
+  ])
+  // The analyzer never reads the pages. JSON is left out until the host lets an analyzer decline
+  // files that are not Spine.
   assert.deepEqual(manifest.contributions.analyzers, [
     { id: 'atlas', entry: 'analyzer.html', formats: ['atlas'], companionFormats: [] },
   ])
 })
 
-test('the page and its script are in the package; no inline scripts or SDK schemas', async () => {
+test('the pages and their scripts are in the package; no inline scripts or SDK schemas', async () => {
   const paths = new Set(checked.files.map((file) => file.path))
-  const html = await readFile(join(directory, 'analyzer.html'), 'utf8')
-  for (const [, reference] of html.matchAll(/(?:src|href)="([^"]+)"/g))
-    assert.ok(paths.has(reference!), `analyzer.html refers to missing ${reference}`)
-  assert.doesNotMatch(html, /<script(?![^>]*\bsrc=)[^>]*>/)
+  for (const page of ['analyzer.html', 'thumbnail.html', 'viewer.html']) {
+    const html = await readFile(join(directory, page), 'utf8')
+    for (const [, reference] of html.matchAll(/(?:src|href)="([^"]+)"/g))
+      assert.ok(paths.has(reference!), `${page} refers to missing ${reference}`)
+    assert.doesNotMatch(html, /<script(?![^>]*\bsrc=)[^>]*>/)
+  }
   for (const path of paths) {
     if (!path.endsWith('.js')) continue
     const script = await readFile(join(directory, path), 'utf8')
@@ -60,7 +68,7 @@ test('vormio-plugin pack turns the output into an installable .vormioplugin', as
   const cli = fileURLToPath(new URL('cli.js', import.meta.resolve('@vormio/plugin-sdk/node')))
   const target = join(temporary, 'spine.vormioplugin')
   const { stdout } = await promisify(execFile)(process.execPath, [cli, 'pack', directory, target])
-  assert.match(stdout, /vormio-plugins\.spine 0\.1\.0/)
+  assert.match(stdout, /vormio-plugins\.spine 0\.2\.0/)
   const archive = readPackageArchive(await readFile(target))
   assert.equal(archive.checked.digest, checked.digest)
 })

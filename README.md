@@ -4,10 +4,10 @@ Official plugins for Vormio. They give the host format recognition, specialised 
 
 ## Plugins
 
-| Plugin                                              | ID                     | Version | Capabilities                                                                   |
-| --------------------------------------------------- | ---------------------- | ------- | ------------------------------------------------------------------------------ |
-| [glTF model](plugins/gltf/README.md)                | `vormio-plugins.gltf`  | 0.2.0   | Thumbnails, 3D viewer, composition and reference analysis                      |
-| [Spine skeletal animation](plugins/spine/README.md) | `vormio-plugins.spine` | 0.1.0   | Composition and texture-page reference analysis for texture atlases (`.atlas`) |
+| Plugin                                              | ID                     | Version | Capabilities                                                                                                                      |
+| --------------------------------------------------- | ---------------------- | ------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| [glTF model](plugins/gltf/README.md)                | `vormio-plugins.gltf`  | 0.2.0   | Thumbnails, 3D viewer, composition and reference analysis                                                                         |
+| [Spine skeletal animation](plugins/spine/README.md) | `vormio-plugins.spine` | 0.2.0   | Texture atlases (`.atlas`): thumbnails, a viewer with region outlines and search, composition and texture-page reference analysis |
 
 Each plugin's README lists the supported formats and versions, its capabilities, unsupported cases, and the licenses of its third-party dependencies.
 

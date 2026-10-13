@@ -298,6 +298,11 @@ await write(
   'problems/truncated.atlas',
   atlas('present.png', 'size: 32, 32', 'a', 'bounds: 0, 0, 8, 8', 'b', 'bounds: 0, 8,'),
 )
+// No page image exists, so there is nothing to draw a thumbnail from.
+await write(
+  'problems/no-images.atlas',
+  atlas('absent.png', 'size: 16, 16', 'a', 'bounds: 0, 0, 8, 8'),
+)
 await write('problems/not-an-atlas.atlas', atlas('Shopping list', 'apples', 'pears'))
 await write(
   'problems/broken-references.json',

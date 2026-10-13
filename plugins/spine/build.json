@@ -1,7 +1,10 @@
 {
-  "entries": ["src/analyzer.ts"],
+  "entries": ["src/analyzer.ts", "src/thumbnail.ts", "src/viewer.ts"],
   "files": {
     "manifest.json": "manifest.json",
-    "analyzer.html": "src/analyzer.html"
+    "analyzer.html": "src/analyzer.html",
+    "thumbnail.html": "src/thumbnail.html",
+    "viewer.html": "src/viewer.html",
+    "viewer.css": "src/viewer.css"
   }
 }

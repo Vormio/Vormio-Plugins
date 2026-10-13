@@ -1,9 +1,14 @@
-// Reads a Spine / libGDX texture atlas and builds its composition report: pages and the regions on
-// them, and the image file of each page. Both the 4.x syntax (`bounds`, `offsets`) and the 3.x
-// syntax (`xy`, `size`, `orig`, `offset`) are read. Only names and `index` are interpreted; other
-// fields are checked for shape. No DOM, so it runs in Node tests as well as in the analyzer page.
+// Reads a Spine / libGDX texture atlas: pages, the regions on them and where each region lies on its
+// page. Both the 4.x syntax (`bounds`, `offsets`) and the 3.x syntax (`xy`, `size`, `orig`,
+// `offset`) are read. `analyzeAtlas` turns the result into a composition report; the thumbnail and
+// the viewer draw from it. No DOM, so it runs in Node tests as well as in the plugin pages.
 
-import type { CompositionReport, ReportReference, ReportSubresource } from '@vormio/plugin-sdk'
+import type {
+  CompositionReport,
+  ReportDiagnostic,
+  ReportReference,
+  ReportSubresource,
+} from '@vormio/plugin-sdk'
 import {
   compact,
   diagnosticList,
@@ -40,18 +45,36 @@ const regionFields: Record<string, number> = {
   index: 1,
 }
 
-interface Page {
+export interface AtlasPage {
+  /** The image file name as written, relative to the atlas. */
   name: string
   line: number
+  /** `size` of the page, if given. */
+  size?: { width: number; height: number }
 }
-interface Region {
+
+export interface AtlasRegion {
   name: string
+  /** Index into the atlas's pages. */
   page: number
   line: number
+  /** Frame number, -1 when the region is not a frame. */
   index: number
-  /** Whether a position was given (`bounds`, or `xy` and `size`). */
-  placed: boolean
+  /** Rotation on the page in degrees (`rotate: true` is 90). */
+  degrees: number
+  /** The region's size before rotation, as Spine uses it. */
+  width: number
+  height: number
+  /** The area the region covers on its page, in page pixels from the top left. */
+  rect?: { x: number; y: number; width: number; height: number }
 }
+
+export interface Atlas {
+  pages: AtlasPage[]
+  regions: AtlasRegion[]
+}
+
+type Diagnose = (severity: ReportDiagnostic['severity'], message: string, key?: string) => void
 
 /** A `name: value` line, or undefined when the line has no colon. */
 function field(line: string): { name: string; values: string[] } | undefined {
@@ -68,29 +91,33 @@ function field(line: string): { name: string; values: string[] } | undefined {
 
 const isInteger = (value: string) => /^-?\d+$/.test(value)
 const isNumber = (value: string) => /^-?(\d+\.?\d*|\.\d+)$/.test(value)
+export const pageKey = (index: number) => `pages/${index}`
+export const regionKey = (index: number) => `regions/${index}`
 
 /**
- * The address to report for a page. Atlases hold file names, not URIs, but the host decodes
- * percent-encoding and drops anything after `?` or `#`; those three characters are encoded so the
- * name reaches the host as written.
+ * The address of a page relative to the atlas. Atlases hold file names, not URIs, but the host
+ * decodes percent-encoding and drops anything after `?` or `#`; those three characters are encoded
+ * so the name reaches the host as written.
  */
 export function pageUri(name: string): string {
   return name.replace(/[%?#]/g, (char) => `%${char.charCodeAt(0).toString(16).toUpperCase()}`)
 }
 
-/** Analyzes the text of an .atlas file. */
-export function analyzeAtlas(text: string): CompositionReport {
-  const { diagnostics, diagnose } = diagnosticList()
+/**
+ * Parses the text of an .atlas file. Problems that still leave a usable atlas go to `diagnose`;
+ * text that is not an atlas throws SpineError.
+ */
+export function parseAtlas(text: string, diagnose: Diagnose = () => undefined): Atlas {
   const lines = text.replace(/^﻿/, '').split(/\r\n|\r|\n/)
-  const pages: Page[] = []
-  const regions: Region[] = []
-  let page: Page | undefined
-  let region: Region | undefined
+  const pages: AtlasPage[] = []
+  const regions: AtlasRegion[] = []
+  /** Numbers of the region's position fields, combined once the region is complete. */
+  const positions: { bounds?: number[]; xy?: number[]; size?: number[] }[] = []
+  let page: AtlasPage | undefined
+  let region: AtlasRegion | undefined
   /** Whether the line after the current page's name was a field, as exporters always write. */
   let pageHasFields = false
 
-  const pageKey = (index: number) => `pages/${index}`
-  const regionKey = (index: number) => `regions/${index}`
   const checkNumbers = (
     values: string[],
     count: number,
@@ -122,8 +149,17 @@ export function analyzeAtlas(text: string): CompositionReport {
         region = undefined
       } else {
         if (!pageHasFields) failNotAtlas(page.line)
-        region = { name: line, page: pages.length - 1, line: lineNumber, index: -1, placed: false }
+        region = {
+          name: line,
+          page: pages.length - 1,
+          line: lineNumber,
+          index: -1,
+          degrees: 0,
+          width: 0,
+          height: 0,
+        }
         regions.push(region)
+        positions.push({})
       }
       return
     }
@@ -140,22 +176,66 @@ export function analyzeAtlas(text: string): CompositionReport {
       const where = `第 ${lineNumber} 行页面字段 ${entry.name} `
       if (!(entry.name in pageFields))
         diagnose('info', `第 ${lineNumber} 行的页面字段 ${entry.name} 无法识别。`, key)
-      else if (pageFields[entry.name] !== undefined)
-        checkNumbers(entry.values, pageFields[entry.name]!, entry.name === 'size', where, key)
+      else if (
+        pageFields[entry.name] !== undefined &&
+        checkNumbers(entry.values, pageFields[entry.name]!, entry.name === 'size', where, key) &&
+        entry.name === 'size'
+      )
+        page.size = { width: Number(entry.values[0]), height: Number(entry.values[1]) }
       return
     }
     const key = regionKey(regions.length - 1)
+    if (entry.name === 'rotate') {
+      const value = entry.values.join(',')
+      if (value === 'true') region.degrees = 90
+      else if (value === 'false') region.degrees = 0
+      else if (isNumber(value)) region.degrees = Number(value)
+      else diagnose('warning', `第 ${lineNumber} 行区域字段 rotate 的值无法识别。`, key)
+      return
+    }
     const count = regionFields[entry.name]
     if (count === undefined) return
     if (!checkNumbers(entry.values, count, true, `第 ${lineNumber} 行区域字段 ${entry.name} `, key))
       return
-    if (entry.name === 'index') region.index = Number(entry.values[0])
-    if (entry.name === 'bounds' || entry.name === 'xy') region.placed = true
+    const numbers = entry.values.map(Number)
+    if (entry.name === 'index') region.index = numbers[0]!
+    else if (entry.name === 'bounds' || entry.name === 'xy' || entry.name === 'size')
+      positions[regions.length - 1]![entry.name] = numbers
   })
   if (page && !pageHasFields) failNotAtlas(page.line)
   if (pages.length === 0) throw new SpineError('图集中没有任何页面。')
 
-  // --- Subresources and references --------------------------------------------------------------
+  // Where each region lies: `bounds` gives position and size; 3.x writes `xy` and `size`. Sizes
+  // are before rotation, so a region turned by 90 degrees covers its height across the page.
+  regions.forEach((each, index) => {
+    const { bounds, xy, size } = positions[index]!
+    const [x, y, width, height] = bounds ?? (xy && size ? [...xy, ...size] : [])
+    if (x === undefined || y === undefined || width === undefined || height === undefined) {
+      diagnose(
+        'warning',
+        `第 ${each.line} 行的区域 ${each.name} 没有位置（bounds 或 xy）。`,
+        regionKey(index),
+      )
+      return
+    }
+    each.width = width
+    each.height = height
+    const turned = Math.abs(each.degrees % 180) === 90
+    each.rect = turned ? { x, y, width: height, height: width } : { x, y, width, height }
+  })
+  return { pages, regions }
+}
+
+/** The display name of a region: frames carry their number. */
+export function regionName(region: AtlasRegion): string {
+  return region.index >= 0 ? `${region.name}（帧 ${region.index}）` : region.name
+}
+
+/** Analyzes the text of an .atlas file. */
+export function analyzeAtlas(text: string): CompositionReport {
+  const { diagnostics, diagnose } = diagnosticList()
+  const { pages, regions } = parseAtlas(text, diagnose)
+
   const subresources: ReportSubresource[] = []
   const fileReferences: ReportReference[] = []
   pages.forEach((each, index) => {
@@ -179,7 +259,7 @@ export function analyzeAtlas(text: string): CompositionReport {
   const seen = new Map<string, number>()
   regions.forEach((each, index) => {
     const key = regionKey(index)
-    const name = each.index >= 0 ? `${each.name}（帧 ${each.index}）` : each.name
+    const name = regionName(each)
     subresources.push(
       compact({
         key,
@@ -188,8 +268,6 @@ export function analyzeAtlas(text: string): CompositionReport {
         parent: pageKey(each.page),
       }),
     )
-    if (!each.placed)
-      diagnose('warning', `第 ${each.line} 行的区域 ${each.name} 没有位置（bounds 或 xy）。`, key)
     // Spine looks regions up by name and index across the whole atlas.
     const identity = `${each.name}\0${each.index}`
     const first = seen.get(identity)
