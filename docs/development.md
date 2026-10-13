@@ -11,9 +11,14 @@ Vormio-Plugins/
 ├─ docs/                  工程文档：插件规划与设计计划
 ├─ vendor/                Core 发布的 plugin-sdk 打包产物（固定版本，附来源记录）
 ├─ plugins/
-│  └─ gltf/               每个插件一个目录：manifest、build.json、源码、README、测试、许可证文本
-├─ fixtures/              测试素材（每份都记录来源与许可证）
-├─ scripts/               构建、打包与素材生成脚本
+│  ├─ gltf/               每个插件一个目录：manifest、build.json、源码、README、测试、许可证文本
+│  └─ spine/
+├─ shared/                多个插件共用的代码，由插件按相对路径导入、打进各自的包
+│  ├─ report.ts           组成报告：宿主上限、名称清理、地址、超限时裁剪
+│  ├─ testing/            测试用的替身宿主与页面桥接
+│  └─ tests/              shared 自己的 Node 测试
+├─ fixtures/              测试素材，每种格式一个目录（每份都记录来源与许可证）
+├─ scripts/               构建、打包与素材生成脚本；fixtures/ 中每种格式一个素材脚本
 ├─ dist/                  构建输出（不入库），每个插件一个可作开发目录的文件夹
 └─ artifacts/             打包输出的 .vormioplugin（不入库）
 ```
@@ -32,15 +37,15 @@ pnpm install --frozen-lockfile
 pnpm exec playwright install chromium-headless-shell
 ```
 
-| 命令                       | 作用                                                                                                                                         |
-| -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| `pnpm run build [插件…]`   | 构建到 `dist/<插件>/`，只写入有变化的文件并删除多余文件                                                                                      |
-| `pnpm run dev [插件…]`     | 同上，并在插件目录变化时重新构建                                                                                                             |
-| `pnpm run package [插件…]` | 构建后用 `vormio-plugin pack` 生成 `artifacts/<插件 ID>-<版本>.vormioplugin`（不是 `pnpm pack`：那是 pnpm 自带的命令，会把整个仓库打成 tgz） |
-| `pnpm run lint`            | Prettier 格式检查                                                                                                                            |
-| `pnpm run typecheck`       | TypeScript 类型检查（插件源码、测试与脚本）                                                                                                  |
-| `pnpm test`                | 构建，运行 Node 测试（`plugins/*/tests/*.test.ts`），再在 Chromium 中运行渲染测试（`*.spec.ts`）                                             |
-| `pnpm run fixtures`        | 重新生成 `fixtures/gltf/`                                                                                                                    |
+| 命令                        | 作用                                                                                                                                         |
+| --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pnpm run build [插件…]`    | 构建到 `dist/<插件>/`，只写入有变化的文件并删除多余文件                                                                                      |
+| `pnpm run dev [插件…]`      | 同上，并在插件目录变化时重新构建                                                                                                             |
+| `pnpm run package [插件…]`  | 构建后用 `vormio-plugin pack` 生成 `artifacts/<插件 ID>-<版本>.vormioplugin`（不是 `pnpm pack`：那是 pnpm 自带的命令，会把整个仓库打成 tgz） |
+| `pnpm run lint`             | Prettier 格式检查                                                                                                                            |
+| `pnpm run typecheck`        | TypeScript 类型检查（插件源码、测试与脚本）                                                                                                  |
+| `pnpm test`                 | 构建，运行 Node 测试（`plugins/*/tests/*.test.ts` 与 `shared/tests/*.test.ts`），再在 Chromium 中运行页面测试（`*.spec.ts`）                 |
+| `pnpm run fixtures [格式…]` | 用 `scripts/fixtures/<格式>.ts` 重新生成 `fixtures/<格式>/`（`gltf`、`spine`；不写时全部），每次结果相同                                     |
 
 每次改动都运行 `lint`、`typecheck` 与 `test`。
 

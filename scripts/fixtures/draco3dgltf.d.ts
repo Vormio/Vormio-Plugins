@@ -1,4 +1,4 @@
-// draco3dgltf ships no types; scripts/make-fixtures.ts only needs the encoder factory.
+// draco3dgltf ships no types; the glTF fixtures only needs the encoder factory.
 declare module 'draco3dgltf' {
   const draco3d: {
     createEncoderModule(): Promise<unknown>

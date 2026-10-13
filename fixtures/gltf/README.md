@@ -1,13 +1,13 @@
 # glTF 测试素材
 
-**来源**：全部是本仓库原创，由 [`scripts/make-fixtures.ts`](../../scripts/make-fixtures.ts) 程序生成：几何体、颜色和 PNG 编码都在脚本中写成，不含任何第三方模型、贴图或扫描数据。文件由 glTF-Transform 4.5.1 写出，Draco 与 meshopt 压缩使用 draco3dgltf 1.5.7 与 meshoptimizer 1.3.0 的编码器（只是生成工具，产物中不含它们的代码）。
+**来源**：全部是本仓库原创，由 [`scripts/fixtures/gltf.ts`](../../scripts/fixtures/gltf.ts) 程序生成：几何体、颜色和 PNG 编码都在脚本中写成，不含任何第三方模型、贴图或扫描数据。文件由 glTF-Transform 4.5.1 写出，Draco 与 meshopt 压缩使用 draco3dgltf 1.5.7 与 meshoptimizer 1.3.0 的编码器（只是生成工具，产物中不含它们的代码）。
 
 **许可证**：与本仓库相同。仓库尚未选定许可证；选定后这些素材随之适用。
 
 重新生成（结果会覆盖除本说明外的全部文件）：
 
 ```bash
-pnpm run fixtures
+pnpm run fixtures gltf
 ```
 
 ## 文件

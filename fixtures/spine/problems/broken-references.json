@@ -1,0 +1,49 @@
+{
+  "skeleton": {
+    "spine": "4.2.43"
+  },
+  "bones": [
+    {
+      "name": "root"
+    },
+    {
+      "name": "tail",
+      "parent": "missing-bone"
+    }
+  ],
+  "slots": [
+    {
+      "name": "tail",
+      "bone": "nowhere"
+    }
+  ],
+  "skins": [
+    {
+      "name": "default",
+      "attachments": {
+        "tail": {
+          "tail": {
+            "type": "linkedmesh",
+            "parent": "absent-mesh"
+          }
+        },
+        "ghost": {
+          "ghost": {}
+        }
+      }
+    }
+  ],
+  "animations": {
+    "wag": {
+      "bones": {
+        "tail": {},
+        "fin": {}
+      },
+      "events": [
+        {
+          "name": "splash"
+        }
+      ]
+    }
+  }
+}

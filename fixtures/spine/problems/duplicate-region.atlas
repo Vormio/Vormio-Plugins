@@ -1,0 +1,12 @@
+present.png
+size: 32, 32
+a
+bounds: 0, 0, 8, 8
+a
+bounds: 8, 0, 8, 8
+b
+index: 1
+bounds: 0, 8, 8, 8
+b
+index: 2
+bounds: 8, 8, 8, 8

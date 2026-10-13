@@ -3,7 +3,7 @@
 
 import { join } from 'node:path'
 import { expect, test, type Page } from '@playwright/test'
-import { startHost, type MockHost } from './host.ts'
+import { startHost, type MockHost } from '../../../shared/testing/host.ts'
 import {
   installBridge,
   pageUrl,
@@ -15,7 +15,7 @@ import {
   viewerOutcome,
   type PixelStats,
   type ResizeFrame,
-} from './pages.ts'
+} from '../../../shared/testing/pages.ts'
 
 const root = join(import.meta.dirname, '../../..')
 let host: MockHost

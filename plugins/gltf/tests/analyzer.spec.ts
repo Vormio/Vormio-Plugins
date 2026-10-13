@@ -7,8 +7,8 @@ import { parseReport } from '@vormio/plugin-sdk'
 import { expect, test, type Page } from '@playwright/test'
 import { analyzeGltf } from '../src/analysis.ts'
 import { readGltf } from '../src/gltf-file.ts'
-import { startHost, type MockHost } from './host.ts'
-import { installBridge, pageUrl, requestAnalysis } from './pages.ts'
+import { startHost, type MockHost } from '../../../shared/testing/host.ts'
+import { installBridge, pageUrl, requestAnalysis } from '../../../shared/testing/pages.ts'
 
 const root = join(import.meta.dirname, '../../..')
 const fixtures = join(root, 'fixtures/gltf')

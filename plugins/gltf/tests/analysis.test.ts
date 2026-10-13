@@ -3,14 +3,8 @@ import { readdir, readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { test } from 'node:test'
 import { parseReport, reportLimits, type CompositionReport } from '@vormio/plugin-sdk'
-import {
-  analyzeGltf,
-  limits,
-  plainText,
-  pointer,
-  reportedUri,
-  serializedSize,
-} from '../src/analysis.ts'
+import { limits, plainText, pointer, reportedUri, serializedSize } from '../../../shared/report.ts'
+import { analyzeGltf } from '../src/analysis.ts'
 import { readGltf, type GltfJson } from '../src/gltf-file.ts'
 
 const fixtures = join(import.meta.dirname, '../../../fixtures/gltf')
@@ -33,13 +27,6 @@ const links = (report: CompositionReport, from?: string) =>
   report.references
     .filter((each) => each.key !== undefined && each.from === from)
     .map((each) => `${each.role} → ${each.key}`)
-
-test('the limits match the SDK', () => {
-  assert.equal(limits.subresources, reportLimits.subresources)
-  assert.equal(limits.references, reportLimits.references)
-  assert.equal(limits.diagnostics, reportLimits.diagnostics)
-  assert.equal(limits.size, reportLimits.bytes)
-})
 
 test('a model with an external buffer and texture', async () => {
   const report = await analyzeFixture('cube/cube.gltf')

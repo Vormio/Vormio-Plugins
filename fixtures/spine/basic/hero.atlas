@@ -1,0 +1,30 @@
+hero.png
+size: 128, 64
+filter: Linear, Linear
+pma: true
+torso
+bounds: 2, 2, 30, 60
+head-front
+bounds: 34, 2, 30, 30
+head-blink01
+bounds: 66, 2, 30, 30
+head-blink02
+bounds: 98, 2, 30, 30
+head-blink03
+bounds: 34, 34, 30, 28
+offsets: 0, 0, 30, 30
+arm
+bounds: 66, 34, 12, 40
+rotate: 90
+
+hero_2.png
+size: 64, 64
+filter: Linear, Linear
+pma: true
+cape
+bounds: 2, 2, 40, 40
+cape-armored
+bounds: 2, 2, 40, 40
+helmet
+bounds: 44, 2, 18, 32
+offsets: 7, 0, 32, 32
