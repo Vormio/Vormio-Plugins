@@ -32,31 +32,8 @@ async function readJson<T>(path: string): Promise<T> {
   return JSON.parse(await readFile(path, 'utf8')) as T
 }
 
-const sdkPath = /[\\/]@vormio[\\/]plugin-sdk[\\/]/
-
-/**
- * The SDK's browser entry also re-exports the manifest schema, which would pull zod (~450 KB) into
- * every page. None of the SDK's modules has side effects, but its package.json does not say so, so
- * this tells esbuild, which can then drop what a page does not use.
- */
-const sdkWithoutSideEffects: esbuild.Plugin = {
-  name: 'sdk-without-side-effects',
-  setup(build) {
-    build.onResolve({ filter: /^(@vormio\/plugin-sdk|\.)/ }, async (args) => {
-      if (args.pluginData === 'resolving') return undefined
-      if (!args.path.startsWith('@vormio/') && !sdkPath.test(args.importer)) return undefined
-      const result = await build.resolve(args.path, {
-        kind: args.kind,
-        importer: args.importer,
-        resolveDir: args.resolveDir,
-        pluginData: 'resolving',
-      })
-      if (result.errors.length || !sdkPath.test(result.path)) return undefined
-      return { path: result.path, namespace: result.namespace, sideEffects: false }
-    })
-  },
-}
-
+// The SDK declares "sideEffects": false (since 0.0.3), so esbuild leaves its manifest and report
+// schemas, and zod with them, out of pages that use only the runtime helpers.
 function bundleOptions(directory: string, config: BuildConfig, dev: boolean): esbuild.BuildOptions {
   return {
     absWorkingDir: directory,
@@ -73,7 +50,6 @@ function bundleOptions(directory: string, config: BuildConfig, dev: boolean): es
     legalComments: 'eof',
     write: false,
     logLevel: 'warning',
-    plugins: [sdkWithoutSideEffects],
   }
 }
 

@@ -182,8 +182,8 @@ importers:
         specifier: ^24.19.2
         version: 24.19.2
       '@vormio/plugin-sdk':
-        specifier: file:vendor/vormio-plugin-sdk-0.0.2.tgz
-        version: file:vendor/vormio-plugin-sdk-0.0.2.tgz
+        specifier: file:vendor/vormio-plugin-sdk-0.0.3.tgz
+        version: file:vendor/vormio-plugin-sdk-0.0.3.tgz
       draco3dgltf:
         specifier: 1.5.7
         version: 1.5.7
@@ -203,8 +203,8 @@ importers:
   plugins/gltf:
     dependencies:
       '@vormio/plugin-sdk':
-        specifier: file:../../vendor/vormio-plugin-sdk-0.0.2.tgz
-        version: file:vendor/vormio-plugin-sdk-0.0.2.tgz
+        specifier: file:../../vendor/vormio-plugin-sdk-0.0.3.tgz
+        version: file:vendor/vormio-plugin-sdk-0.0.3.tgz
       three:
         specifier: 0.186.1
         version: 0.186.1
@@ -571,9 +571,9 @@ packages:
   '@types/webxr@0.5.24':
     resolution: {integrity: sha512-h8fgEd/DpoS9CBrjEQXR+dIDraopAEfu4wYVNY2tEPwk60stPWhvZMf4Foo5FakuQ7HFZoa8WceaWFervK2Ovg==}
 
-  '@vormio/plugin-sdk@file:vendor/vormio-plugin-sdk-0.0.2.tgz':
-    resolution: {integrity: sha512-5H2tQSMHaZX7hqtUFdC7dDhG2l5WLzS/Q7E4HzRryeYYUYpY4f6R+kJtxOpYNDTPbi0aTOOSjEElTW2D3qFPww==, tarball: file:vendor/vormio-plugin-sdk-0.0.2.tgz}
-    version: 0.0.2
+  '@vormio/plugin-sdk@file:vendor/vormio-plugin-sdk-0.0.3.tgz':
+    resolution: {integrity: sha512-uDUBkgqV0/hQ05OG7I2B8H1+qTvqGKiBE8GeiRBO/QSvzaq+VGXoWO+mqsqKVDzbEZJf1zkABscEeNRRpNoLHg==, tarball: file:vendor/vormio-plugin-sdk-0.0.3.tgz}
+    version: 0.0.3
     engines: {node: '>=24.21.0'}
     hasBin: true
 
@@ -912,7 +912,7 @@ snapshots:
 
   '@types/webxr@0.5.24': {}
 
-  '@vormio/plugin-sdk@file:vendor/vormio-plugin-sdk-0.0.2.tgz':
+  '@vormio/plugin-sdk@file:vendor/vormio-plugin-sdk-0.0.3.tgz':
     dependencies:
       zod: 4.6.6
 

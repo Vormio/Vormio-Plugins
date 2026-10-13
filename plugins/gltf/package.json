@@ -5,7 +5,7 @@
   "description": "glTF 2.0 / GLB thumbnails and read-only viewer for Vormio",
   "type": "module",
   "dependencies": {
-    "@vormio/plugin-sdk": "file:../../vendor/vormio-plugin-sdk-0.0.2.tgz",
+    "@vormio/plugin-sdk": "file:../../vendor/vormio-plugin-sdk-0.0.3.tgz",
     "three": "0.186.1"
   },
   "devDependencies": {
