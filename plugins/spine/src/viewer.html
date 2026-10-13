@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <title>Spine 图集查看器</title>
+    <link rel="stylesheet" href="viewer.css" />
+    <script type="module" src="viewer.js"></script>
+  </head>
+  <body>
+    <main class="stage">
+      <canvas
+        id="view"
+        tabindex="0"
+        aria-label="图集页面与区域框。拖动平移，滚轮缩放，点击区域选中，双击区域放大。"
+      ></canvas>
+      <ul id="warnings" class="panel warnings" role="status" hidden></ul>
+      <div class="toolbar" role="toolbar" aria-label="视图">
+        <select id="page" aria-label="页面" hidden></select>
+        <button id="boxes" type="button" title="显示或隐藏区域框（B）" aria-pressed="true">
+          区域框
+        </button>
+        <button id="fit" type="button" title="让整个页面回到视野中（F）" disabled>适应</button>
+      </div>
+      <footer class="panel footer">
+        <span id="info"></span>
+        <span id="detail"></span>
+      </footer>
+    </main>
+    <aside class="sidebar" aria-label="区域">
+      <input id="search" type="search" placeholder="搜索区域" aria-label="搜索区域" />
+      <ul id="regions"></ul>
+      <p id="more" hidden></p>
+    </aside>
+  </body>
+</html>

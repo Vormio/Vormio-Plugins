@@ -1,10 +1,26 @@
 {
   "apiVersion": 1,
   "id": "vormio-plugins.spine",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "name": "Spine 骨骼动画",
-  "description": "Spine 与 libGDX 纹理图集（.atlas）的组成分析：列出页面与区域，以及每页引用的贴图文件。",
+  "description": "Spine 与 libGDX 纹理图集（.atlas）的缩略图、查看器（贴图页上的区域框，可以搜索与定位区域）与组成分析（页面、区域与每页引用的贴图文件）。",
   "contributions": {
+    "thumbnails": [
+      {
+        "id": "atlas",
+        "entry": "thumbnail.html",
+        "formats": ["atlas"],
+        "companionFormats": ["png", "jpg", "jpeg"]
+      }
+    ],
+    "viewers": [
+      {
+        "id": "atlas",
+        "entry": "viewer.html",
+        "formats": ["atlas"],
+        "companionFormats": ["png", "jpg", "jpeg"]
+      }
+    ],
     "analyzers": [
       {
         "id": "atlas",

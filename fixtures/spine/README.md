@@ -1,6 +1,6 @@
 # Spine 测试素材
 
-**来源**：全部是本仓库原创，由 [`scripts/fixtures/spine.ts`](../../scripts/fixtures/spine.ts) 程序生成：骨骼 JSON、图集文本和贴图页 PNG 都在脚本中写成，依据的是 Esoteric Software 公开的格式说明，不含任何 Spine 官方示例或其他第三方内容。它们是结构样本，不是 Spine 编辑器的真实导出：覆盖分析器读取的内容，不能用来验证渲染。
+**来源**：全部是本仓库原创，由 [`scripts/fixtures/spine.ts`](../../scripts/fixtures/spine.ts) 程序生成：骨骼 JSON、图集文本和贴图页 PNG 都在脚本中写成，依据的是 Esoteric Software 公开的格式说明，不含任何 Spine 官方示例或其他第三方内容。它们是结构样本，不是 Spine 编辑器的真实导出：覆盖分析器读取的内容；贴图页是纯色块加白色的上、左边线，用来检查缩略图与查看器的颜色和比例，不能用来验证骨骼渲染。
 
 **许可证**：与本仓库相同（MIT，见 [LICENSE](../../LICENSE)）。
 
@@ -23,6 +23,7 @@ pnpm run fixtures spine
 | `problems/missing-page.atlas`、`problems/present.png`                  | 第二页 `absent.png` 不存在                                                                                                                                | 图集显示缺失引用；`present.png` 被引用                                                    |
 | `problems/duplicate-region.atlas`                                      | 两个同名区域 `a`；`b` 的帧 1 与帧 2                                                                                                                       | 一条重名警告；`b` 的两帧不算重名                                                          |
 | `problems/truncated.atlas`                                             | 截断在最后一个区域的 `bounds` 中间                                                                                                                        | 保留已读到的内容，两条警告                                                                |
+| `problems/no-images.atlas`                                             | 唯一的页面 `absent.png` 不存在                                                                                                                            | 缩略图失败：“贴图页都无法显示：absent.png（文件不存在）”；查看器只显示区域框并说明原因    |
 | `problems/not-an-atlas.atlas`                                          | 普通文本                                                                                                                                                  | 分析失败：“不是 Spine 或 libGDX 图集”                                                     |
 | `problems/broken-references.json`                                      | 父骨骼、插槽的骨骼、附件的插槽、链接网格的父网格、动画的骨骼与事件都不存在                                                                                | 六条警告，引用略去                                                                        |
 | `problems/spine-3.7.json`                                              | Spine 3.7 骨骼，`skins` 是对象                                                                                                                            | 分析失败：“不支持 Spine 3.7.94 的骨骼文件”                                                |
