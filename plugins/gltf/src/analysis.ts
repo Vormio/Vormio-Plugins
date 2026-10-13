@@ -18,7 +18,7 @@ export const limits = {
   subresources: 10_000,
   references: 50_000,
   diagnostics: 500,
-  /** Serialized size, as the host measures it (JSON.stringify length). */
+  /** Serialized size: UTF-8 bytes of the report as JSON, as the host measures it. */
   size: 4 * 1024 * 1024,
   uri: 2048,
   name: 200,
@@ -113,6 +113,15 @@ export function reportedUri(uri: string): string | undefined {
   if (!/^data:/i.test(uri)) return undefined
   const comma = uri.indexOf(',')
   return comma > 0 && comma < limits.uri ? uri.slice(0, comma + 1) : 'data:'
+}
+
+/**
+ * The size the host checks against `limits.size`: UTF-8 bytes of the report as JSON (Core counts
+ * bytes since 2664854; the 0.0.3 SDK's own parseReport still counts characters, which is never
+ * more, so a report within this size passes both).
+ */
+export function serializedSize(report: CompositionReport): number {
+  return new TextEncoder().encode(JSON.stringify(report)).byteLength
 }
 
 /** The object without its undefined properties, which a report leaves out. */
@@ -567,8 +576,8 @@ function withinLimits(
   }
 
   let report = assemble()
-  // The size limit counts characters of the serialized report; keep some room for the notes.
-  for (let round = 0; round < 50 && JSON.stringify(report).length > limits.size - 4096; round++) {
+  // Keep some room for the notes added on the way.
+  for (let round = 0; round < 50 && serializedSize(report) > limits.size - 4096; round++) {
     if (!notes.some((note) => note.startsWith('报告'))) notes.push('报告超过 4 MiB，只列出一部分。')
     if (references.length > fileCount) {
       const keep = Math.max(fileCount, Math.floor(references.length * 0.8))

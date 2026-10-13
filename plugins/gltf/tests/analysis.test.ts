@@ -3,7 +3,14 @@ import { readdir, readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { test } from 'node:test'
 import { parseReport, reportLimits, type CompositionReport } from '@vormio/plugin-sdk'
-import { analyzeGltf, limits, plainText, pointer, reportedUri } from '../src/analysis.ts'
+import {
+  analyzeGltf,
+  limits,
+  plainText,
+  pointer,
+  reportedUri,
+  serializedSize,
+} from '../src/analysis.ts'
 import { readGltf, type GltfJson } from '../src/gltf-file.ts'
 
 const fixtures = join(import.meta.dirname, '../../../fixtures/gltf')
@@ -343,7 +350,7 @@ test('a very large file gives a partial report within the limits', () => {
   assert.equal(report.partial, true)
   assert.ok(report.subresources.length <= reportLimits.subresources)
   assert.ok(report.references.length <= reportLimits.references)
-  assert.ok(JSON.stringify(report).length <= reportLimits.bytes)
+  assert.ok(serializedSize(report) <= reportLimits.bytes)
   // The files it names survive; nodes are dropped before other objects.
   assert.equal(files(report)[0]?.uri, 'kept.png')
   assert.ok(report.subresources.some((each) => each.key === 'images/0'))
@@ -371,4 +378,27 @@ test('a deep node hierarchy is walked once', () => {
   assert.equal(nodes.length, limits.subresources - 1)
   assert.equal(nodes[0]!.parent, 'scenes/0')
   assert.ok(nodes.slice(1).every((each, index) => each.parent === `nodes/${index}`))
+})
+
+test('the size limit counts UTF-8 bytes, as the host does', () => {
+  // 10,000 nodes with 200-character Chinese names: about 2.3 million characters, but over 6 MB in
+  // UTF-8. Counting characters would let this report through untrimmed.
+  const count = 10_000
+  const name = (index: number) => `${'节'.repeat(190)}${String(index).padStart(10, '0')}`
+  const json: GltfJson = {
+    asset: { version: '2.0' },
+    scenes: [{ nodes: Array.from({ length: count - 1 }, (_, index) => index) }],
+    nodes: Array.from({ length: count - 1 }, (_, index) => ({ name: name(index) })),
+  }
+  const untrimmed = JSON.stringify({ subresources: json.nodes, references: [], diagnostics: [] })
+  assert.ok(
+    untrimmed.length < limits.size && new TextEncoder().encode(untrimmed).byteLength > limits.size,
+  )
+
+  const report = accepted(analyzeGltf(json, 'gltf'))
+  assert.ok(serializedSize(report) <= limits.size, `${serializedSize(report)} bytes`)
+  assert.equal(report.partial, true)
+  assert.ok(report.diagnostics.some((each) => each.message === '报告超过 4 MiB，只列出一部分。'))
+  // Only as much as needed is dropped: most of the nodes stay.
+  assert.ok(report.subresources.length > count / 2, `${report.subresources.length} subresources`)
 })
