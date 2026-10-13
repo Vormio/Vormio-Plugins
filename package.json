@@ -15,7 +15,7 @@
     "lint": "prettier --check .",
     "format": "prettier --write .",
     "test": "node scripts/build.ts && node --test \"plugins/*/tests/*.test.ts\" && playwright test",
-    "pack": "node scripts/pack.ts",
+    "package": "node scripts/pack.ts",
     "fixtures": "node scripts/make-fixtures.ts"
   },
   "devDependencies": {

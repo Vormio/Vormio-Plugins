@@ -83,7 +83,7 @@ pnpm run build gltf
 输出到 `dist/gltf/`。在 Vormio 的“插件”页选择“添加开发目录…”，指向这个目录即可；`pnpm run dev gltf` 会在源码变化时更新它，Vormio 随之重载插件。
 
 ```bash
-pnpm run pack gltf
+pnpm run package gltf
 ```
 
 生成 `artifacts/vormio-plugins.gltf-0.1.0.vormioplugin`（内部调用 `vormio-plugin pack`）。

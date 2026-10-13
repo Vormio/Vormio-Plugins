@@ -60,15 +60,15 @@ pnpm install --frozen-lockfile
 pnpm exec playwright install chromium-headless-shell
 ```
 
-| 命令                     | 作用                                                                                             |
-| ------------------------ | ------------------------------------------------------------------------------------------------ |
-| `pnpm run build [插件…]` | 构建到 `dist/<插件>/`，只写入有变化的文件并删除多余文件                                          |
-| `pnpm run dev [插件…]`   | 同上，并在插件目录变化时重新构建                                                                 |
-| `pnpm run pack [插件…]`  | 构建后用 `vormio-plugin pack` 生成 `artifacts/<插件 ID>-<版本>.vormioplugin`                     |
-| `pnpm run lint`          | Prettier 格式检查                                                                                |
-| `pnpm run typecheck`     | TypeScript 类型检查（插件源码、测试与脚本）                                                      |
-| `pnpm test`              | 构建，运行 Node 测试（`plugins/*/tests/*.test.ts`），再在 Chromium 中运行渲染测试（`*.spec.ts`） |
-| `pnpm run fixtures`      | 重新生成 `fixtures/gltf/`                                                                        |
+| 命令                       | 作用                                                                                                                                         |
+| -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pnpm run build [插件…]`   | 构建到 `dist/<插件>/`，只写入有变化的文件并删除多余文件                                                                                      |
+| `pnpm run dev [插件…]`     | 同上，并在插件目录变化时重新构建                                                                                                             |
+| `pnpm run package [插件…]` | 构建后用 `vormio-plugin pack` 生成 `artifacts/<插件 ID>-<版本>.vormioplugin`（不是 `pnpm pack`：那是 pnpm 自带的命令，会把整个仓库打成 tgz） |
+| `pnpm run lint`            | Prettier 格式检查                                                                                                                            |
+| `pnpm run typecheck`       | TypeScript 类型检查（插件源码、测试与脚本）                                                                                                  |
+| `pnpm test`                | 构建，运行 Node 测试（`plugins/*/tests/*.test.ts`），再在 Chromium 中运行渲染测试（`*.spec.ts`）                                             |
+| `pnpm run fixtures`        | 重新生成 `fixtures/gltf/`                                                                                                                    |
 
 每次改动都运行 `lint`、`typecheck` 与 `test`。
 

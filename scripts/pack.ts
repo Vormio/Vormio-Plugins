@@ -1,7 +1,7 @@
 // Builds plugins and packs each into artifacts/<id>-<version>.vormioplugin with the SDK's
 // `vormio-plugin pack`, which validates the manifest and every file first.
 //
-//   node scripts/pack.ts [plugin ...]
+//   node scripts/pack.ts [plugin ...]   (pnpm run package; `pnpm pack` is pnpm's own command)
 
 import { execFileSync } from 'node:child_process'
 import { mkdir, readFile, rm } from 'node:fs/promises'
