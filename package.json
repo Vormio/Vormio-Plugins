@@ -14,7 +14,7 @@
     "typecheck": "tsc -p tsconfig.json",
     "lint": "prettier --check .",
     "format": "prettier --write .",
-    "test": "node scripts/build.ts && node --test \"plugins/*/tests/*.test.ts\" && playwright test",
+    "test": "node scripts/build.ts && node --test \"plugins/*/tests/*.test.ts\" \"shared/tests/*.test.ts\" && playwright test",
     "package": "node scripts/pack.ts",
     "fixtures": "node scripts/make-fixtures.ts"
   },

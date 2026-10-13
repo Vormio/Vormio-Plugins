@@ -1,0 +1,9 @@
+present.png
+size: 32, 32
+a
+bounds: 0, 0, 8, 8
+
+absent.png
+size: 32, 32
+b
+bounds: 0, 0, 8, 8

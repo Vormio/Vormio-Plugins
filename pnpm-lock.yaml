@@ -213,6 +213,12 @@ importers:
         specifier: 0.186.0
         version: 0.186.0
 
+  plugins/spine:
+    dependencies:
+      '@vormio/plugin-sdk':
+        specifier: file:../../vendor/vormio-plugin-sdk-0.0.3.tgz
+        version: file:vendor/vormio-plugin-sdk-0.0.3.tgz
+
 packages:
 
   '@dimforge/rapier3d-compat@0.12.0':

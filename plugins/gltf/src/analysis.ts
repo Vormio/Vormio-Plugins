@@ -2,30 +2,17 @@
 // refers to what, and the files it names. Buffers and images are never read. No DOM, so it runs in
 // Node tests as well as in the analyzer page.
 
-import type {
-  CompositionReport,
-  ReportDiagnostic,
-  ReportReference,
-  ReportSubresource,
-} from '@vormio/plugin-sdk'
+import type { CompositionReport, ReportReference, ReportSubresource } from '@vormio/plugin-sdk'
+import {
+  compact,
+  diagnosticList,
+  limits,
+  plainText,
+  pointer,
+  reportedUri,
+  withinLimits,
+} from '../../../shared/report.ts'
 import { unsupportedRequiredExtensions, type GltfJson } from './gltf-file.ts'
-
-/**
- * The host's report limits. The SDK exports them as `reportLimits`, but importing a value from its
- * report module would bundle its schema and zod into the page; a test keeps the two equal.
- */
-export const limits = {
-  subresources: 10_000,
-  references: 50_000,
-  diagnostics: 500,
-  /** Serialized size: UTF-8 bytes of the report as JSON, as the host measures it. */
-  size: 4 * 1024 * 1024,
-  uri: 2048,
-  name: 200,
-  label: 80,
-  evidence: 300,
-  message: 500,
-}
 
 /** The collections that become subresources, in display order, with their display kinds. */
 const collections = [
@@ -86,59 +73,10 @@ const objectAt = (value: unknown, ...path: string[]): Json | undefined => {
   return isObject(current) ? current : undefined
 }
 
-/** A JSON pointer (RFC 6901) into the file's JSON. */
-export function pointer(...parts: (string | number)[]): string {
-  return parts
-    .map((part) => `/${String(part).replaceAll('~', '~0').replaceAll('/', '~1')}`)
-    .join('')
-}
-
-/** Display text: control characters become spaces, overlong text ends in an ellipsis. */
-export function plainText(text: string, max: number): string {
-  // eslint-disable-next-line no-control-regex
-  const clean = text.replace(/[\u0000-\u001f\u007f]/g, ' ')
-  if (clean.length <= max) return clean
-  let cut = clean.slice(0, max - 1)
-  if (/[\ud800-\udbff]$/.test(cut)) cut = cut.slice(0, -1)
-  return `${cut}…`
-}
-
-/**
- * The address to report for `uri`, as written. The host classifies any `data:` address as
- * embedded, so an overlong one is shortened to its header; other overlong addresses cannot be
- * reported and return undefined.
- */
-export function reportedUri(uri: string): string | undefined {
-  if (uri.length <= limits.uri) return uri
-  if (!/^data:/i.test(uri)) return undefined
-  const comma = uri.indexOf(',')
-  return comma > 0 && comma < limits.uri ? uri.slice(0, comma + 1) : 'data:'
-}
-
-/**
- * The size the host checks against `limits.size`: UTF-8 bytes of the report as JSON, as the SDK's
- * parseReport measures it. Computed here because importing parseReport would bundle zod.
- */
-export function serializedSize(report: CompositionReport): number {
-  return new TextEncoder().encode(JSON.stringify(report)).byteLength
-}
-
-/** The object without its undefined properties, which a report leaves out. */
-function compact<T extends object>(value: T): T {
-  return Object.fromEntries(Object.entries(value).filter(([, each]) => each !== undefined)) as T
-}
-
 /** Analyzes the JSON of a .gltf file or of a GLB's JSON chunk. */
 export function analyzeGltf(json: GltfJson, container: 'gltf' | 'glb'): CompositionReport {
-  const diagnostics: ReportDiagnostic[] = []
-  const reported = new Set<string>()
+  const { diagnostics, diagnose } = diagnosticList()
   let partial = false
-  const diagnose = (severity: ReportDiagnostic['severity'], message: string, key?: string) => {
-    // The same problem found along several paths is reported once.
-    if (reported.has(`${key}\0${message}`)) return
-    reported.add(`${key}\0${message}`)
-    diagnostics.push(compact({ severity, message: plainText(message, limits.message), key }))
-  }
 
   // --- The objects ------------------------------------------------------------------------
   const lightsHolder = objectAt(json, 'extensions', 'KHR_lights_punctual')
@@ -508,82 +446,5 @@ export function analyzeGltf(json: GltfJson, container: 'gltf' | 'glb'): Composit
       `文件要求的扩展本插件不支持：${unsupported.join('、')}。查看器与缩略图不会显示这个文件。`,
     )
 
-  return withinLimits(subresources, fileReferences, internal, diagnostics, partial)
-}
-
-/**
- * Keeps a report inside the host's limits. Files the glTF names come first, so they are the last
- * to be dropped; nodes are dropped before other objects. Anything dropped marks the report partial.
- */
-function withinLimits(
-  allSubresources: ReportSubresource[],
-  fileReferences: ReportReference[],
-  internal: ReportReference[],
-  diagnostics: ReportDiagnostic[],
-  partial: boolean,
-): CompositionReport {
-  let subresources = allSubresources
-  const notes: string[] = []
-  const dropSubresources = (count: number) => {
-    const dropped = new Set<string>()
-    for (const collection of dropOrder) {
-      for (let index = subresources.length - 1; index >= 0 && dropped.size < count; index--)
-        if (subresources[index]!.key.startsWith(`${collection}/`))
-          dropped.add(subresources[index]!.key)
-      if (dropped.size >= count) break
-    }
-    subresources = subresources.filter((each) => !dropped.has(each.key))
-  }
-  if (subresources.length > limits.subresources) {
-    dropSubresources(subresources.length - limits.subresources)
-    notes.push(`对象超过 ${limits.subresources.toLocaleString('en-US')} 个，只列出一部分。`)
-  }
-
-  let references: ReportReference[] = []
-  let fileCount = 0
-  const assemble = (): CompositionReport => {
-    const kept = new Set(subresources.map((each) => each.key))
-    const known = (key: string | undefined) => key === undefined || kept.has(key)
-    const files = fileReferences.filter((each) => known(each.from))
-    fileCount = files.length
-    references = [...files, ...internal.filter((each) => known(each.from) && known(each.key))]
-    if (references.length > limits.references) {
-      references = references.slice(0, limits.references)
-      if (!notes.some((note) => note.startsWith('引用')))
-        notes.push(`引用超过 ${limits.references.toLocaleString('en-US')} 条，只列出一部分。`)
-    }
-    const shown = diagnostics.map((each) =>
-      known(each.key) ? each : compact({ ...each, key: undefined }),
-    )
-    const room = limits.diagnostics - notes.length
-    const listed = shown.length > room ? shown.slice(0, room - 1) : shown
-    if (shown.length > room)
-      listed.push({
-        severity: 'info',
-        message: `另有 ${shown.length - listed.length} 条诊断没有列出。`,
-      })
-    return {
-      subresources: subresources.map((each) =>
-        each.parent !== undefined && !kept.has(each.parent)
-          ? compact({ ...each, parent: undefined })
-          : each,
-      ),
-      references,
-      diagnostics: [...listed, ...notes.map((message) => ({ severity: 'info' as const, message }))],
-      ...(partial || notes.length ? { partial: true } : {}),
-    }
-  }
-
-  let report = assemble()
-  // Keep some room for the notes added on the way.
-  for (let round = 0; round < 50 && serializedSize(report) > limits.size - 4096; round++) {
-    if (!notes.some((note) => note.startsWith('报告'))) notes.push('报告超过 4 MiB，只列出一部分。')
-    if (references.length > fileCount) {
-      const keep = Math.max(fileCount, Math.floor(references.length * 0.8))
-      internal = internal.slice(0, Math.max(0, internal.length - (references.length - keep)))
-    } else if (subresources.length > 0) dropSubresources(Math.ceil(subresources.length * 0.2))
-    else fileReferences = fileReferences.slice(0, Math.floor(fileReferences.length * 0.8))
-    report = assemble()
-  }
-  return report
+  return withinLimits({ subresources, fileReferences, internal, diagnostics, partial, dropOrder })
 }

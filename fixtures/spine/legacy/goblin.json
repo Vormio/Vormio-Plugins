@@ -1,0 +1,116 @@
+{
+  "skeleton": {
+    "hash": "vormio-fixture-goblin",
+    "spine": "3.8.99",
+    "width": 80,
+    "height": 120
+  },
+  "bones": [
+    {
+      "name": "root"
+    },
+    {
+      "name": "body",
+      "parent": "root",
+      "length": 50,
+      "rotation": 90
+    },
+    {
+      "name": "head",
+      "parent": "body",
+      "length": 25,
+      "x": 50
+    }
+  ],
+  "slots": [
+    {
+      "name": "body",
+      "bone": "body",
+      "attachment": "body"
+    },
+    {
+      "name": "head",
+      "bone": "head",
+      "attachment": "head"
+    }
+  ],
+  "skins": [
+    {
+      "name": "default",
+      "attachments": {
+        "body": {
+          "body": {
+            "type": "mesh",
+            "uvs": [
+              0,
+              0,
+              1,
+              0,
+              1,
+              1,
+              0,
+              1
+            ],
+            "triangles": [
+              0,
+              1,
+              2,
+              2,
+              3,
+              0
+            ],
+            "vertices": [
+              -20,
+              -40,
+              20,
+              -40,
+              20,
+              0,
+              -20,
+              0
+            ],
+            "hull": 4,
+            "width": 40,
+            "height": 40
+          }
+        },
+        "head": {
+          "head": {
+            "width": 30,
+            "height": 30
+          }
+        }
+      }
+    }
+  ],
+  "animations": {
+    "nod": {
+      "bones": {
+        "head": {
+          "rotate": [
+            {
+              "angle": 10
+            },
+            {
+              "time": 0.5
+            }
+          ]
+        }
+      },
+      "deform": {
+        "default": {
+          "body": {
+            "body": [
+              {
+                "vertices": [
+                  0,
+                  1
+                ]
+              }
+            ]
+          }
+        }
+      }
+    }
+  }
+}

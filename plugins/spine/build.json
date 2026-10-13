@@ -1,0 +1,7 @@
+{
+  "entries": ["src/analyzer.ts"],
+  "files": {
+    "manifest.json": "manifest.json",
+    "analyzer.html": "src/analyzer.html"
+  }
+}

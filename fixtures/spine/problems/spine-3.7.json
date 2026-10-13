@@ -1,0 +1,26 @@
+{
+  "skeleton": {
+    "spine": "3.7.94"
+  },
+  "bones": [
+    {
+      "name": "root"
+    }
+  ],
+  "slots": [
+    {
+      "name": "body",
+      "bone": "root"
+    }
+  ],
+  "skins": {
+    "default": {
+      "body": {
+        "body": {
+          "width": 10,
+          "height": 10
+        }
+      }
+    }
+  }
+}

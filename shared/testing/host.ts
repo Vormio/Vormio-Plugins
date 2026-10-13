@@ -61,9 +61,15 @@ export async function startHost(
   inputDirectory: string,
 ): Promise<MockHost> {
   const manifest = JSON.parse(await readFile(join(pluginDirectory, 'manifest.json'), 'utf8')) as {
-    contributions: { viewers: { companionFormats: string[] }[] }
+    contributions: Record<string, { companionFormats?: string[] }[]>
   }
-  const companionFormats = new Set(manifest.contributions.viewers[0]!.companionFormats)
+  // The host checks each page against its own contribution; one set for all pages is close enough
+  // for these tests, where a plugin's pages declare the same companions or none.
+  const companionFormats = new Set(
+    Object.values(manifest.contributions).flatMap((list) =>
+      list.flatMap((each) => each.companionFormats ?? []),
+    ),
+  )
   const bindings = new Map<string, string>()
   const requests: string[] = []
 

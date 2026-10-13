@@ -16,5 +16,5 @@
     "noEmit": true,
     "allowImportingTsExtensions": true
   },
-  "include": ["plugins/*/src", "plugins/*/tests", "scripts", "playwright.config.ts"]
+  "include": ["plugins/*/src", "plugins/*/tests", "shared", "scripts", "playwright.config.ts"]
 }

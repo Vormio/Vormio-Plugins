@@ -1,0 +1,445 @@
+{
+  "skeleton": {
+    "hash": "vormio-fixture-hero",
+    "spine": "4.2.43",
+    "x": -60,
+    "y": 0,
+    "width": 120,
+    "height": 200,
+    "images": "./images/",
+    "audio": "./audio/"
+  },
+  "bones": [
+    {
+      "name": "root"
+    },
+    {
+      "name": "hip",
+      "parent": "root",
+      "y": 80
+    },
+    {
+      "name": "torso",
+      "parent": "hip",
+      "length": 60,
+      "rotation": 90
+    },
+    {
+      "name": "head",
+      "parent": "torso",
+      "length": 30,
+      "x": 60
+    },
+    {
+      "name": "arm-l",
+      "parent": "torso",
+      "length": 40,
+      "x": 50,
+      "rotation": 160
+    },
+    {
+      "name": "arm-r",
+      "parent": "torso",
+      "length": 40,
+      "x": 50,
+      "rotation": -160
+    },
+    {
+      "name": "cape",
+      "parent": "torso",
+      "length": 50,
+      "x": 55,
+      "rotation": 180
+    }
+  ],
+  "slots": [
+    {
+      "name": "cape",
+      "bone": "cape",
+      "attachment": "cape"
+    },
+    {
+      "name": "arm-r",
+      "bone": "arm-r",
+      "attachment": "arm"
+    },
+    {
+      "name": "torso",
+      "bone": "torso",
+      "attachment": "torso"
+    },
+    {
+      "name": "head",
+      "bone": "head",
+      "attachment": "head"
+    },
+    {
+      "name": "arm-l",
+      "bone": "arm-l",
+      "attachment": "arm"
+    },
+    {
+      "name": "clip",
+      "bone": "root",
+      "attachment": "clip"
+    },
+    {
+      "name": "spline",
+      "bone": "root",
+      "attachment": "spline"
+    },
+    {
+      "name": "hitbox",
+      "bone": "hip",
+      "attachment": "hitbox"
+    },
+    {
+      "name": "muzzle",
+      "bone": "arm-r",
+      "attachment": "muzzle"
+    }
+  ],
+  "ik": [
+    {
+      "name": "arm-ik",
+      "bones": [
+        "arm-l"
+      ],
+      "target": "hip",
+      "mix": 0.5
+    }
+  ],
+  "transform": [
+    {
+      "name": "head-follow",
+      "bones": [
+        "head"
+      ],
+      "target": "torso",
+      "mixRotate": 0.3
+    }
+  ],
+  "path": [
+    {
+      "name": "cape-path",
+      "bones": [
+        "cape"
+      ],
+      "target": "spline"
+    }
+  ],
+  "physics": [
+    {
+      "name": "cape-sway",
+      "bone": "cape",
+      "inertia": 0.5
+    }
+  ],
+  "skins": [
+    {
+      "name": "default",
+      "attachments": {
+        "cape": {
+          "cape": {
+            "type": "mesh",
+            "uvs": [
+              0,
+              0,
+              1,
+              0,
+              1,
+              1,
+              0,
+              1
+            ],
+            "triangles": [
+              0,
+              1,
+              2,
+              2,
+              3,
+              0
+            ],
+            "vertices": [
+              -20,
+              -40,
+              20,
+              -40,
+              20,
+              0,
+              -20,
+              0
+            ],
+            "hull": 4,
+            "width": 40,
+            "height": 40
+          }
+        },
+        "arm-r": {
+          "arm": {
+            "width": 40,
+            "height": 12
+          }
+        },
+        "torso": {
+          "torso": {
+            "width": 30,
+            "height": 60
+          }
+        },
+        "head": {
+          "head": {
+            "path": "head-front",
+            "width": 30,
+            "height": 30
+          },
+          "head-blink": {
+            "path": "head-blink",
+            "sequence": {
+              "count": 3,
+              "start": 1,
+              "digits": 2
+            },
+            "width": 30,
+            "height": 30
+          }
+        },
+        "arm-l": {
+          "arm": {
+            "width": 40,
+            "height": 12
+          }
+        },
+        "clip": {
+          "clip": {
+            "type": "clipping",
+            "end": "cape",
+            "vertexCount": 3,
+            "vertices": [
+              0,
+              0,
+              1,
+              0,
+              0,
+              1
+            ]
+          }
+        },
+        "spline": {
+          "spline": {
+            "type": "path",
+            "vertexCount": 3,
+            "vertices": [
+              0,
+              0,
+              1,
+              1,
+              2,
+              2
+            ],
+            "lengths": [
+              3
+            ]
+          }
+        },
+        "hitbox": {
+          "hitbox": {
+            "type": "boundingbox",
+            "vertexCount": 3,
+            "vertices": [
+              0,
+              0,
+              1,
+              0,
+              0,
+              1
+            ]
+          }
+        },
+        "muzzle": {
+          "muzzle": {
+            "type": "point",
+            "x": 40,
+            "rotation": 0
+          }
+        }
+      }
+    },
+    {
+      "name": "armored",
+      "bones": [
+        "cape"
+      ],
+      "physics": [
+        "cape-sway"
+      ],
+      "attachments": {
+        "cape": {
+          "cape": {
+            "type": "linkedmesh",
+            "parent": "cape",
+            "skin": "default",
+            "path": "cape-armored"
+          }
+        },
+        "head": {
+          "head": {
+            "name": "helmet",
+            "width": 32,
+            "height": 32
+          }
+        }
+      }
+    }
+  ],
+  "events": {
+    "footstep": {
+      "audio": "footstep.wav",
+      "volume": 0.8
+    },
+    "shout": {
+      "string": "hey"
+    }
+  },
+  "animations": {
+    "idle": {
+      "bones": {
+        "torso": {
+          "rotate": [
+            {
+              "value": 90
+            },
+            {
+              "time": 1,
+              "value": 92
+            }
+          ]
+        }
+      },
+      "slots": {
+        "head": {
+          "attachment": [
+            {
+              "time": 0.8,
+              "name": "head-blink"
+            },
+            {
+              "time": 1,
+              "name": "head"
+            }
+          ]
+        }
+      },
+      "attachments": {
+        "default": {
+          "head": {
+            "head-blink": {
+              "sequence": [
+                {
+                  "time": 0.8,
+                  "mode": "once"
+                }
+              ]
+            }
+          }
+        }
+      },
+      "physics": {
+        "": {
+          "reset": [
+            {
+              "time": 0
+            }
+          ]
+        }
+      }
+    },
+    "walk": {
+      "bones": {
+        "hip": {
+          "translate": [
+            {
+              "x": 0
+            },
+            {
+              "time": 0.5,
+              "x": 10
+            }
+          ]
+        },
+        "arm-l": {
+          "rotate": [
+            {
+              "value": 160
+            }
+          ]
+        }
+      },
+      "ik": {
+        "arm-ik": [
+          {
+            "mix": 1
+          }
+        ]
+      },
+      "transform": {
+        "head-follow": [
+          {
+            "mixRotate": 0.5
+          }
+        ]
+      },
+      "path": {
+        "cape-path": {
+          "position": [
+            {
+              "value": 0.2
+            }
+          ]
+        }
+      },
+      "physics": {
+        "cape-sway": {
+          "inertia": [
+            {
+              "value": 0.8
+            }
+          ]
+        }
+      },
+      "attachments": {
+        "default": {
+          "cape": {
+            "cape": {
+              "deform": [
+                {
+                  "vertices": [
+                    0,
+                    1
+                  ]
+                }
+              ]
+            }
+          }
+        }
+      },
+      "events": [
+        {
+          "time": 0.2,
+          "name": "footstep"
+        }
+      ],
+      "drawOrder": [
+        {
+          "time": 0.5,
+          "offsets": [
+            {
+              "slot": "arm-r",
+              "offset": 3
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,9 @@
+../textures/props sheet.png
+size: 32, 32
+crate
+bounds: 0, 0, 16, 16
+
+../textures/badge #1 100%.png
+size: 32, 32
+badge
+bounds: 0, 0, 16, 16
