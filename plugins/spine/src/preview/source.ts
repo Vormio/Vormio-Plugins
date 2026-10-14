@@ -7,7 +7,7 @@ import {
 } from '@vormio/plugin-sdk'
 import { fileUri } from '../../../../shared/uri.ts'
 import { NotSpineError, SpineError } from '../errors.ts'
-import { readSkeletonJson } from '../skeleton.ts'
+import { atlasName, readSkeletonJson } from '../skeleton.ts'
 import { skeletonVersion } from './version.ts'
 
 /** A skeleton file as a runtime reads it: binary data, or the parsed JSON. */
@@ -56,12 +56,6 @@ const reasons: Record<CompanionStatus | 'undecodable', string> = {
   changed: '文件在磁盘上已变化，需要重新扫描',
   unavailable: '暂时无法读取',
   undecodable: '无法解码这张图片',
-}
-
-/** The atlas that goes with a skeleton by name: `hero.skel` → `hero.atlas`. */
-export function atlasName(skeletonName: string): string {
-  const dot = skeletonName.lastIndexOf('.')
-  return `${dot > 0 ? skeletonName.slice(0, dot) : skeletonName}.atlas`
 }
 
 /**

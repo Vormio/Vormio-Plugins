@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { test } from 'node:test'
-import { atlasName } from '../src/preview/source.ts'
+import { atlasName } from '../src/skeleton.ts'
 import { runtimeLine, skeletonVersion } from '../src/preview/version.ts'
 
 const fixtures = join(import.meta.dirname, '../../../fixtures/spine/preview')

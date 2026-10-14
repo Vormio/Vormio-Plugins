@@ -4,9 +4,10 @@ import { NotSpineError } from './errors.ts'
 import { analyzeSkeleton, readSkeletonJson } from './skeleton.ts'
 import { readText } from './source.ts'
 
-// The report comes from the file alone: the page images an atlas names are reported as written,
-// never read, so the analyzer declares no companion formats. Other tools use `.json` too: JSON that
-// is not a Spine skeleton is not applicable, and the host shows no composition for it.
+// The report comes from the file alone: the page images an atlas names are reported as written and
+// a skeleton's atlas of the same name as inferred, neither of them read, so the analyzer declares
+// no companion formats. Other tools use `.json` too: JSON that is not a Spine skeleton is not
+// applicable, and the host shows no composition for it.
 analyzer(async (input) => {
   const text = await readText(input)
   if (input.extension !== 'json') return analyzeAtlas(text)
@@ -17,5 +18,5 @@ analyzer(async (input) => {
     if (error instanceof NotSpineError) return notApplicable()
     throw error
   }
-  return analyzeSkeleton(skeleton)
+  return analyzeSkeleton(skeleton, input.name)
 })

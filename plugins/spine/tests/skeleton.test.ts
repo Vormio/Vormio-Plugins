@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
-import { join } from 'node:path'
+import { basename, join } from 'node:path'
 import { test } from 'node:test'
 import { parseReport, type CompositionReport } from '@vormio/plugin-sdk'
 import { limits, serializedSize } from '../../../shared/report.ts'
@@ -13,10 +13,12 @@ function accepted(report: CompositionReport): CompositionReport {
   assert.ok(parsed.ok, parsed.ok ? '' : parsed.problems.join('\n'))
   return report
 }
-const analyzeText = (text: string) => accepted(analyzeSkeleton(readSkeletonJson(text)))
+const analyzeText = (text: string, name = 'hero.json') =>
+  accepted(analyzeSkeleton(readSkeletonJson(text), name))
 const analyzeFixture = async (path: string) =>
-  analyzeText(await readFile(join(fixtures, path), 'utf8'))
-const analyzeJson = (value: object) => analyzeText(JSON.stringify(value))
+  analyzeText(await readFile(join(fixtures, path), 'utf8'), basename(path))
+const analyzeJson = (value: object, name?: string) => analyzeText(JSON.stringify(value), name)
+const inferred = (report: CompositionReport) => report.references.filter((each) => each.inferred)
 const links = (report: CompositionReport, from: string) =>
   report.references.filter((each) => each.from === from).map((each) => `${each.role} → ${each.key}`)
 const messages = (report: CompositionReport) => report.diagnostics.map((each) => each.message)
@@ -71,8 +73,50 @@ test('a 4.2 skeleton: every kind of object, in display order', async () => {
     'footstep（音频 footstep.wav）',
   )
   assert.deepEqual(report.diagnostics, [])
-  // Nothing in the skeleton is reported as a file: it does not name its atlas.
-  assert.ok(report.references.every((each) => each.uri === undefined))
+  // The only file is the atlas of the same name, which the skeleton does not write.
+  assert.deepEqual(
+    report.references.filter((each) => each.uri !== undefined),
+    [{ uri: 'hero.atlas', role: '图集', inferred: '与骨骼文件同名' }],
+  )
+})
+
+test('the atlas of the same name is an inferred reference, whether or not it exists', () => {
+  const drawn = (type: string) => ({
+    ...minimal,
+    slots: [{ name: 's', bone: 'root' }],
+    skins: [{ name: 'default', attachments: { s: { a: { type } } } }],
+  })
+  // Region, mesh and linked mesh attachments are drawn from atlas regions.
+  for (const type of ['region', 'mesh', 'linkedmesh'])
+    assert.deepEqual(
+      inferred(analyzeJson(drawn(type), 'orphan.json')),
+      [{ uri: 'orphan.atlas', role: '图集', inferred: '与骨骼文件同名' }],
+      type,
+    )
+  // A skeleton that draws nothing from an atlas does not need one.
+  assert.deepEqual(inferred(analyzeJson(minimal)), [])
+  for (const type of ['boundingbox', 'point', 'path', 'clipping'])
+    assert.deepEqual(inferred(analyzeJson(drawn(type))), [], type)
+  // The address is the file name, encoded as the previews read it; only the last extension goes.
+  assert.deepEqual(
+    inferred(analyzeJson(drawn('region'), 'hero #2 100%.v2.json')).map((each) => each.uri),
+    ['hero %232 100%25.v2.atlas'],
+  )
+})
+
+test('two skeletons sharing one atlas: only the one with its name infers it', () => {
+  // Spine pairs by name only; an atlas named differently needs a manual association.
+  const skeleton = {
+    ...minimal,
+    slots: [{ name: 's', bone: 'root' }],
+    skins: [{ name: 'default', attachments: { s: { a: {} } } }],
+  }
+  assert.deepEqual(
+    ['hero.json', 'hero-armored.json'].map((name) =>
+      inferred(analyzeJson(skeleton, name)).map((each) => each.uri),
+    ),
+    [['hero.atlas'], ['hero-armored.atlas']],
+  )
 })
 
 test('bones form a hierarchy; slots and constraints refer to bones', async () => {
@@ -151,7 +195,7 @@ test('broken references are left out with a warning', async () => {
 test('versions: 3.7 and older fail, newer than 4.2 is analyzed with a warning', async () => {
   const old = await readFile(join(fixtures, 'problems/spine-3.7.json'), 'utf8')
   assert.throws(
-    () => analyzeSkeleton(readSkeletonJson(old)),
+    () => analyzeSkeleton(readSkeletonJson(old), 'spine-3.7.json'),
     (error) =>
       error instanceof SpineError &&
       !(error instanceof NotSpineError) &&
