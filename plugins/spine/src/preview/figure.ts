@@ -32,6 +32,20 @@ export interface Differences {
   updateWorldTransform(skeleton: Skeleton, physics: Physics): void
   /** Advances the skeleton's own time, which physics use; 4.1 has none. */
   advance(skeleton: Skeleton, seconds: number): void
+  /**
+   * Reads an atlas, giving each page, in order, the texture `texture` makes for it. From 4.0 the
+   * atlas is read first and each page given its texture after, which is the default; 3.8 asks for
+   * the textures while it reads.
+   */
+  readAtlas?(text: string, texture: (name: string, pma: boolean) => Texture): ReadAtlas
+}
+
+type Texture = Spine43.GLTexture
+
+/** An atlas whose pages have their textures, and whether to draw it premultiplied. */
+export interface ReadAtlas {
+  atlas: Spine43.TextureAtlas
+  pma: boolean
 }
 
 /** The camera: the skeleton point at the canvas centre and skeleton units per device pixel. */
@@ -95,10 +109,27 @@ export function createRuntime(line: RuntimeLine, spine: Spine, differ: Differenc
   const empty = new OffscreenCanvas(1, 1)
   empty.getContext('2d')
   const blank = empty.transferToImageBitmap()
+  // Stands in for textures where only the page names are wanted. 3.8 also takes each page's size
+  // from its texture's image.
+  const placeholder = {
+    setFilters() {},
+    setWraps() {},
+    dispose() {},
+    getImage: () => ({ width: 1, height: 1 }),
+  } as unknown as Texture
+
+  const readAtlas =
+    differ.readAtlas ??
+    ((text: string, texture: (name: string, pma: boolean) => Texture): ReadAtlas => {
+      const atlas = new spine.TextureAtlas(text)
+      for (const page of atlas.pages) page.setTexture(texture(page.name, page.pma))
+      return { atlas, pma: atlas.pages.some((page) => page.pma) }
+    })
 
   return {
     line,
-    pageNames: (atlasText) => new spine.TextureAtlas(atlasText).pages.map((page) => page.name),
+    pageNames: (atlasText) =>
+      readAtlas(atlasText, () => placeholder).atlas.pages.map((page) => page.name),
 
     scene(canvas, attributes) {
       const gl = canvas.getContext('webgl', attributes)
@@ -107,21 +138,18 @@ export function createRuntime(line: RuntimeLine, spine: Spine, differ: Differenc
     },
 
     load(scene, bytes, atlasText, pages) {
-      const atlas = new spine.TextureAtlas(atlasText)
       const problems: string[] = []
-      atlas.pages.forEach((page, index) => {
-        const loaded = pages[index]?.image
+      let index = 0
+      const { atlas, pma } = readAtlas(atlasText, (name, pagePma) => {
+        const loaded = pages[index++]?.image
         if (!loaded || 'problem' in loaded)
-          problems.push(`${page.name}（${loaded ? loaded.problem : '没有读取'}）`)
-        page.setTexture(
-          differ.texture(scene, loaded && 'image' in loaded ? loaded.image : blank, page.pma),
-        )
+          problems.push(`${name}（${loaded ? loaded.problem : '没有读取'}）`)
+        return differ.texture(scene, loaded && 'image' in loaded ? loaded.image : blank, pagePma)
       })
-      const pma = atlas.pages.some((page) => page.pma)
       let data: Spine43.SkeletonData
       try {
-        // As a byte array over the whole buffer: the 4.0 reader takes the array's buffer and
-        // reads it from the start.
+        // As a byte array over the whole buffer: the 3.8 and 4.0 readers take the array's buffer
+        // and read it from the start.
         data = new spine.SkeletonBinary(new spine.AtlasAttachmentLoader(atlas)).readSkeletonData(
           new Uint8Array(bytes),
         )
@@ -144,8 +172,13 @@ export function createRuntime(line: RuntimeLine, spine: Spine, differ: Differenc
         }
         differ.updateWorldTransform(skeleton, physics)
       }
+      // getBounds rather than getBoundsRect, which 3.8 lacks.
+      const offset = new spine.Vector2()
+      const size = new spine.Vector2()
+      const temp: number[] = []
       const bounds = (): Bounds | undefined => {
-        const rect = skeleton.getBoundsRect()
+        skeleton.getBounds(offset, size, temp)
+        const rect = { x: offset.x, y: offset.y, width: size.x, height: size.y }
         return hasArea(rect) ? rect : undefined
       }
       const useSkin = (name: string) => {

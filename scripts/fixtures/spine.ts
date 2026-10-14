@@ -421,6 +421,25 @@ const figureAtlas = (pageName: string) =>
       `bounds: ${x}, ${y}, ${width}, ${height}`,
     ]),
   )
+/** The same regions in the 3.x syntax, which the 3.8 runtime reads; it does not know `bounds`. */
+const figureAtlas38 = (pageName: string) =>
+  atlas(
+    '',
+    pageName,
+    'size: 72,72',
+    'format: RGBA8888',
+    'filter: Linear,Linear',
+    'repeat: none',
+    ...figureRegions.flatMap(({ name, x, y, width, height }) => [
+      name,
+      '  rotate: false',
+      `  xy: ${x}, ${y}`,
+      `  size: ${width}, ${height}`,
+      `  orig: ${width}, ${height}`,
+      '  offset: 0, 0',
+      '  index: -1',
+    ]),
+  )
 const red: Rgba = [220, 38, 38, 255]
 
 await write('preview/hero.skel', writeSkeleton(figure('4.2.43'), '4.2'))
@@ -440,6 +459,12 @@ await write('preview/scout.atlas', figureAtlas('scout.png'))
 await write(
   'preview/scout.png',
   figurePage([[234, 179, 8, 255], [37, 99, 235, 255], red, [124, 58, 237, 255]]),
+)
+await write('preview/ranger.skel', writeSkeleton(figure('3.8.99'), '3.8'))
+await write('preview/ranger.atlas', figureAtlas38('ranger.png'))
+await write(
+  'preview/ranger.png',
+  figurePage([[234, 88, 12, 255], [22, 163, 74, 255], red, [124, 58, 237, 255]]),
 )
 await write('preview/squire.skel', writeSkeleton(figure('4.1.24'), '4.1'))
 await write('preview/squire.atlas', figureAtlas('squire.png'))
@@ -465,13 +490,13 @@ await write(
   ),
 )
 await write('preview/empty.atlas', figureAtlas('hero.png'))
-// Versions without a runtime in the plugin: a newer header, and the 3.x header, where the hash is
-// a string. Only the header matters, so the rest is left out.
+// Versions without a runtime in the plugin: a newer header, and an older one, where the hash is a
+// string. Only the header matters, so the rest is left out.
 await write('preview/spine-5.0.skel', writeSkeleton(figure('5.0.00'), '4.3').subarray(0, 32))
 const text = (value: string) => [value.length + 1, ...new TextEncoder().encode(value)]
 await write(
-  'preview/spine-3.8.skel',
-  Uint8Array.from([...text('vormio-fixture'), ...text('3.8.99'), 0, 0, 0, 0]),
+  'preview/spine-3.7.skel',
+  Uint8Array.from([...text('vormio-fixture'), ...text('3.7.94'), 0, 0, 0, 0]),
 )
 
 console.log(`fixtures written to ${output}`)

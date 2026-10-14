@@ -1,6 +1,9 @@
 # vendor
 
-Vormio-Core 发布的插件 SDK 打包产物。本仓库只通过这里的固定版本使用 SDK，不导入 Core 源码，也不依赖同级检出。
+固定版本的外部产物，每份都记录来源与 SHA-256：
+
+- Vormio-Core 发布的插件 SDK 打包产物。本仓库只通过这里的固定版本使用 SDK，不导入 Core 源码，也不依赖同级检出。
+- Spine 3.8 运行时（`spine-ts-3.8/`），见文末。它不在 npm 上，Spine 插件把它打进包里。
 
 | 文件                                  | 版本  | 来源                                                                                                | SHA-256                                                            |
 | ------------------------------------- | ----- | --------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
@@ -21,4 +24,23 @@ Vormio-Core 发布的插件 SDK 打包产物。本仓库只通过这里的固定
 
 ```bash
 sha256sum vendor/vormio-plugin-sdk-0.0.5-6cf994f.tgz
+```
+
+## Spine 3.8 运行时
+
+| 文件                          | 来源                                                                                                                              | SHA-256                                                            |
+| ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| `spine-ts-3.8/spine-webgl.js` | `EsotericSoftware/spine-runtimes` 的 `3.8` 分支，提交 `28727aff223afd731effbdee2b8f745211c95423`，`spine-ts/build/spine-webgl.js` | `4b108bad314c152bf0ff7a7f56fce5c98073f05a2bfa53e880d6c24b6f7c3aa5` |
+| `spine-ts-3.8/LICENSE`        | 同一提交的 `LICENSE`（Spine Runtimes 许可协议，2019-05-01 版）                                                                    | `6142ee6cc2c03d3a918793e4750ae772bd3755c534d4a35e559e301acf51ec39` |
+
+- 官方只在 Spine Runtimes 仓库中提供 3.8 的 spine-ts，没有 npm 包（`@esotericsoftware/spine-*` 从 4.0 开始）。这个提交是 `3.8` 分支上最后一次改动 `spine-ts` 的提交（2022-01-21）；2026-10-14 取下时，分支最新提交中的文件与它逐字节相同。
+- `spine-webgl.js` 是预先构建的脚本，不是 ES 模块：它定义全局变量 `spine`，WebGL 的类在 `spine.webgl` 中。Spine 插件把它原样复制为包内的 `runtimes/spine-webgl-3.8.js`，显示 3.8 骨骼时才加载；许可协议复制为 `licenses/SPINE-RUNTIMES-3.8.txt`。文件中没有 `eval`。末尾的 source map 注释指向的文件不在包内，只影响开发者工具。
+- 这两个文件不经 Prettier 格式化（见 `.prettierignore`），保持与来源相同。
+
+更新时：从同一分支取新的提交，替换两个文件，更新上表（提交号、SHA-256），运行全部测试。
+
+校验：
+
+```bash
+sha256sum vendor/spine-ts-3.8/spine-webgl.js vendor/spine-ts-3.8/LICENSE
 ```
