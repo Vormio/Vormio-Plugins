@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import { test } from 'node:test'
 import { parseReport, type CompositionReport } from '@vormio/plugin-sdk'
 import { limits, serializedSize } from '../../../shared/report.ts'
-import { analyzeAtlas, pageUri } from '../src/atlas.ts'
+import { analyzeAtlas } from '../src/atlas.ts'
 import { SpineError } from '../src/errors.ts'
 
 const fixtures = join(import.meta.dirname, '../../../fixtures/spine')
@@ -64,8 +64,6 @@ test('page names are file names: % ? and # are encoded so the host reads them as
   )
   // The display name stays as written.
   assert.equal(report.subresources[1]?.name, '../textures/badge #1 100%.png')
-  assert.equal(pageUri('a?b#c%d.png'), 'a%3Fb%23c%25d.png')
-  assert.equal(decodeURIComponent(pageUri('a?b#c%d.png')), 'a?b#c%d.png')
 })
 
 test('frames and duplicates: index is part of the name; a repeated name and index is a warning', async () => {

@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <title>Spine 骨骼查看器</title>
+    <link rel="stylesheet" href="skeleton-viewer.css" />
+    <script type="module" src="skeleton-viewer.js"></script>
+  </head>
+  <body>
+    <canvas id="view" tabindex="0" aria-label="骨骼预览。拖动平移，滚轮缩放。"></canvas>
+    <ul id="warnings" class="panel warnings" role="status" hidden></ul>
+    <div class="toolbar" role="toolbar" aria-label="预览">
+      <select id="skin" aria-label="皮肤" hidden></select>
+      <select id="animation" aria-label="动画" disabled></select>
+      <button id="play" type="button" title="播放或暂停（空格）" disabled>播放</button>
+      <button id="loop" type="button" title="循环播放" aria-pressed="true" disabled>循环</button>
+      <select id="speed" aria-label="播放速度" disabled>
+        <option value="0.25">0.25×</option>
+        <option value="0.5">0.5×</option>
+        <option value="1" selected>1×</option>
+        <option value="2">2×</option>
+      </select>
+      <button id="fit" type="button" title="让骨骼回到视野中（F）" disabled>适应</button>
+    </div>
+    <footer class="panel footer">
+      <span id="info"></span>
+      <span id="detail"></span>
+      <span id="license">包含 Spine Runtimes：每个使用者都需要自己的 Spine Editor 许可证</span>
+    </footer>
+  </body>
+</html>

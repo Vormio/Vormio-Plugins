@@ -12,9 +12,10 @@ Vormio-Plugins/
 ├─ vendor/                Core 发布的 plugin-sdk 打包产物（固定版本，附来源记录）
 ├─ plugins/
 │  ├─ gltf/               每个插件一个目录：manifest、build.json、源码、README、测试、许可证文本
-│  └─ spine/
+│  └─ spine/              包含 Spine Runtimes，许可条件见它的 README
 ├─ shared/                多个插件共用的代码，由插件按相对路径导入、打进各自的包
 │  ├─ report.ts           组成报告：宿主上限、名称清理、地址、超限时裁剪
+│  ├─ uri.ts              文件里写的文件名转成宿主能还原的相对地址
 │  ├─ testing/            测试用的替身宿主与页面桥接
 │  └─ tests/              shared 自己的 Node 测试
 ├─ fixtures/              测试素材，每种格式一个目录（每份都记录来源与许可证）
@@ -59,7 +60,7 @@ pnpm exec playwright install chromium-headless-shell
 
 ## 开发工具与许可证
 
-插件包中包含的第三方代码与许可证，见各插件的 README（glTF：three.js MIT，Draco 与 Basis Universal 解码器 Apache-2.0，meshoptimizer 解码器 MIT）。只在开发、测试与生成素材时使用、不进入插件包的工具：
+插件包中包含的第三方代码与许可证，见各插件的 README（glTF：three.js MIT，Draco 与 Basis Universal 解码器 Apache-2.0，meshoptimizer 解码器 MIT；Spine：Spine Runtimes，按 Spine Runtimes 许可协议，每个使用者都需要自己的 Spine Editor 许可证）。Spine Runtimes 只进入 `plugins/spine/`，其他插件不依赖它。只在开发、测试与生成素材时使用、不进入插件包的工具：
 
 | 工具                                        | 版本             | 许可证     | 用途                        |
 | ------------------------------------------- | ---------------- | ---------- | --------------------------- |
@@ -71,3 +72,5 @@ pnpm exec playwright install chromium-headless-shell
 | @gltf-transform/core、extensions、functions | 4.5.1            | MIT        | 生成测试素材                |
 | draco3dgltf                                 | 1.5.7            | Apache-2.0 | 生成素材时的 Draco 编码器   |
 | meshoptimizer                               | 1.3.0            | MIT        | 生成素材时的 meshopt 编码器 |
+
+`scripts/fixtures/spine-binary.ts` 按 Spine Runtimes 的二进制读取器写出 `.skel` 素材，是 Spine Runtimes 的派生代码，与仓库其他部分不同，受 Spine Runtimes 许可协议约束；它只在生成素材时运行，不进入插件包。

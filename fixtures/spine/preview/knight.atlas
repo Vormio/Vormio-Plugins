@@ -1,0 +1,11 @@
+knight.png
+size: 72, 72
+filter: Linear, Linear
+body
+bounds: 2, 2, 32, 48
+head
+bounds: 38, 2, 32, 32
+helmet
+bounds: 38, 38, 32, 32
+arm
+bounds: 2, 54, 32, 16

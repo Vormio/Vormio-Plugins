@@ -1,5 +1,6 @@
 import { readCompanion, type CompanionStatus, type PluginInput } from '@vormio/plugin-sdk'
-import { pageUri, type AtlasPage } from './atlas.ts'
+import { fileUri } from '../../../shared/uri.ts'
+import type { AtlasPage } from './atlas.ts'
 import { SpineError } from './errors.ts'
 
 /** The whole input file as text. */
@@ -27,10 +28,10 @@ export type PageImage = { image: ImageBitmap } | { problem: string }
 
 /**
  * Reads and decodes the image of `page`, next to the atlas. Atlas page names are file names, so
- * they go through `pageUri`; backslashes are folder separators as on Windows.
+ * they go through `fileUri`; backslashes are folder separators as on Windows.
  */
 export async function loadPage(input: PluginInput, page: AtlasPage): Promise<PageImage> {
-  const result = await readCompanion(input, pageUri(page.name).replaceAll('\\', '/'))
+  const result = await readCompanion(input, fileUri(page.name).replaceAll('\\', '/'))
   if (result.status !== 'ok') return { problem: reasons[result.status] }
   try {
     return { image: await createImageBitmap(new Blob([result.bytes])) }
