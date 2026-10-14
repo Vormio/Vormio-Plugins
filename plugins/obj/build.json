@@ -1,0 +1,11 @@
+{
+  "entries": ["src/viewer.ts", "src/thumbnail.ts", "src/analyzer.ts"],
+  "files": {
+    "manifest.json": "manifest.json",
+    "viewer.html": "src/viewer.html",
+    "viewer.css": "src/viewer.css",
+    "thumbnail.html": "src/thumbnail.html",
+    "analyzer.html": "src/analyzer.html",
+    "licenses/THREE.txt": "node_modules/three/LICENSE"
+  }
+}

@@ -13,10 +13,12 @@ Vormio-Plugins/
 ├─ vendor/                固定版本的外部产物，附来源记录：Core 发布的 plugin-sdk 打包产物、Spine 3.7 与 3.8 运行时
 ├─ plugins/
 │  ├─ gltf/               每个插件一个目录：manifest、build.json、源码、README、测试、许可证文本
+│  ├─ obj/                OBJ 与 MTL；取景与灯光是 glTF 插件的副本（shared/ 不能导入 three.js）
 │  └─ spine/              包含 Spine Runtimes，许可条件见它的 README
 ├─ shared/                多个插件共用的代码，由插件按相对路径导入、打进各自的包
 │  ├─ report.ts           组成报告：宿主上限、名称清理、地址、超限时裁剪
 │  ├─ uri.ts              文件里写的文件名转成宿主能还原的相对地址
+│  ├─ companions.ts       配套文件读取失败的原因（经 readCompanion 查明）与显示路径
 │  ├─ testing/            测试用的替身宿主与页面桥接
 │  └─ tests/              shared 自己的 Node 测试
 ├─ fixtures/              测试素材，每种格式一个目录（每份都记录来源与许可证）
@@ -48,7 +50,7 @@ pnpm exec playwright install chromium-headless-shell
 | `pnpm run lint`             | Prettier 格式检查                                                                                                                            |
 | `pnpm run typecheck`        | TypeScript 类型检查（插件源码、测试与脚本）                                                                                                  |
 | `pnpm test`                 | 构建，运行 Node 测试（`plugins/*/tests/*.test.ts` 与 `shared/tests/*.test.ts`），再在 Chromium 中运行页面测试（`*.spec.ts`）                 |
-| `pnpm run fixtures [格式…]` | 用 `scripts/fixtures/<格式>.ts` 重新生成 `fixtures/<格式>/`（`gltf`、`spine`；不写时全部），每次结果相同                                     |
+| `pnpm run fixtures [格式…]` | 用 `scripts/fixtures/<格式>.ts` 重新生成 `fixtures/<格式>/`（`gltf`、`obj`、`spine`；不写时全部），每次结果相同                              |
 
 每次改动都运行 `lint`、`typecheck` 与 `test`。
 
@@ -104,7 +106,7 @@ SPINE_37_EXAMPLES=<示例文件夹> node --test plugins/spine/tests/preview-bina
 
 ## 开发工具与许可证
 
-插件包中包含的第三方代码与许可证，见各插件的 README（glTF：three.js MIT，Draco 与 Basis Universal 解码器 Apache-2.0，meshoptimizer 解码器 MIT；Spine：Spine Runtimes，按 Spine Runtimes 许可协议，每个使用者都需要自己的 Spine Editor 许可证）。Spine Runtimes 只进入 `plugins/spine/`，其他插件不依赖它。只在开发、测试与生成素材时使用、不进入插件包的工具：
+插件包中包含的第三方代码与许可证，见各插件的 README（glTF：three.js MIT，Draco 与 Basis Universal 解码器 Apache-2.0，meshoptimizer 解码器 MIT；OBJ：three.js MIT；Spine：Spine Runtimes，按 Spine Runtimes 许可协议，每个使用者都需要自己的 Spine Editor 许可证）。Spine Runtimes 只进入 `plugins/spine/`，其他插件不依赖它。只在开发、测试与生成素材时使用、不进入插件包的工具：
 
 | 工具                                        | 版本             | 许可证     | 用途                        |
 | ------------------------------------------- | ---------------- | ---------- | --------------------------- |

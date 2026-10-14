@@ -1,0 +1,117 @@
+:root {
+  color-scheme: light dark;
+  --backdrop: #f2f2f3;
+  --backdrop-edge: #dcdce0;
+  --text: #27272a;
+  --muted: #71717a;
+  --panel: rgb(255 255 255 / 78%);
+  --border: rgb(0 0 0 / 10%);
+  --warning: #9a3412;
+  font:
+    12px/1.5 system-ui,
+    'Microsoft YaHei UI',
+    sans-serif;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --backdrop: #2a2a2d;
+    --backdrop-edge: #161618;
+    --text: #f4f4f5;
+    --muted: #a1a1aa;
+    --panel: rgb(24 24 27 / 78%);
+    --border: rgb(255 255 255 / 12%);
+    --warning: #fdba74;
+  }
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  color: var(--text);
+  background: radial-gradient(circle at 50% 40%, var(--backdrop), var(--backdrop-edge));
+  user-select: none;
+}
+
+#view {
+  display: block;
+  width: 100%;
+  height: 100%;
+  outline: none;
+  touch-action: none;
+  cursor: grab;
+}
+
+#view:active {
+  cursor: grabbing;
+}
+
+.panel {
+  position: absolute;
+  margin: 0;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+  backdrop-filter: blur(8px);
+}
+
+.warnings {
+  top: 12px;
+  left: 12px;
+  max-width: min(480px, calc(100% - 200px));
+  max-height: 40%;
+  overflow: auto;
+  list-style: none;
+  color: var(--warning);
+  user-select: text;
+}
+
+.toolbar {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: flex;
+  gap: 6px;
+}
+
+button {
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  font: inherit;
+  background: var(--panel);
+  backdrop-filter: blur(8px);
+  cursor: pointer;
+}
+
+button:hover:not(:disabled) {
+  border-color: var(--muted);
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.footer {
+  bottom: 12px;
+  left: 12px;
+  display: flex;
+  gap: 12px;
+  color: var(--muted);
+}
+
+#info:empty {
+  display: none;
+}
+
+/* Narrow views keep the controls; the hint goes. */
+@media (width < 640px) {
+  .hint {
+    display: none;
+  }
+}

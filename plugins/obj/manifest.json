@@ -1,0 +1,37 @@
+{
+  "apiVersion": 3,
+  "id": "vormio-plugins.obj",
+  "version": "0.1.0",
+  "name": "OBJ 模型",
+  "description": "Wavefront OBJ 模型的缩略图、只读三维查看器（旋转、缩放、取景，按 MTL 材质库显示颜色与贴图）与组成分析（对象、组、材质与引用的材质库）；MTL 材质库的组成分析（材质与引用的贴图）。编译产生的 .obj 目标文件交给其他插件或类型图标。",
+  "contributions": {
+    "thumbnails": [
+      {
+        "id": "model",
+        "entry": "thumbnail.html",
+        "formats": ["obj"],
+        "companionFormats": ["mtl", "png", "jpg", "jpeg", "tga", "bmp"]
+      }
+    ],
+    "viewers": [
+      {
+        "id": "model",
+        "entry": "viewer.html",
+        "formats": ["obj"],
+        "companionFormats": ["mtl", "png", "jpg", "jpeg", "tga", "bmp"]
+      }
+    ],
+    "analyzers": [
+      {
+        "id": "model",
+        "entry": "analyzer.html",
+        "formats": ["obj"]
+      },
+      {
+        "id": "material",
+        "entry": "analyzer.html",
+        "formats": ["mtl"]
+      }
+    ]
+  }
+}

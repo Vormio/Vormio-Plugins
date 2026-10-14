@@ -1,0 +1,7 @@
+newmtl Targa
+Kd 1 1 1
+map_Kd orange.tga
+
+newmtl Bitmap
+Kd 1 1 1
+map_Kd green.bmp

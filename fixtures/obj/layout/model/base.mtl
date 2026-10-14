@@ -1,0 +1,5 @@
+newmtl Body
+Kd 0.8 0.1 0.1
+
+newmtl Label
+Kd 1 1 1

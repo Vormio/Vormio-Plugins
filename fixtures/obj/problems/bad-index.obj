@@ -1,0 +1,9 @@
+o Broken
+v 0 0 0
+v 1 0 0
+v 0 1 0
+f 1 2 3
+f 1 2 9
+f 0 2 3
+curv 0 1 1 2
+zz unknown
