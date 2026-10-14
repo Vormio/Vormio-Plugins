@@ -4,6 +4,7 @@ import { createRequire } from 'node:module'
 import { join } from 'node:path'
 import { test } from 'node:test'
 import {
+  animationNames,
   GltfFileError,
   readGltf,
   supportedExtensions,
@@ -99,4 +100,17 @@ test('the supported extensions match the bundled GLTFLoader', async () => {
     names.filter((name) => name !== 'KHR_binary_glTF').sort(),
     [...supportedExtensions].sort(),
   )
+})
+
+test('animation names: as written, or numbered when there is none', async () => {
+  assert.deepEqual(animationNames(readGltf(await read('animated/robot.glb')).json), [
+    'Wave',
+    '动画 2',
+  ])
+  assert.deepEqual(animationNames({ animations: [{ name: ' ' }, null, { name: 'Run' }] }), [
+    '动画 1',
+    '动画 2',
+    'Run',
+  ])
+  assert.deepEqual(animationNames({}), [])
 })

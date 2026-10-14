@@ -88,8 +88,9 @@ test.describe('thumbnails', () => {
     const { stats } = await thumbnailOf(page, 'crate/scene/crate.gltf')
     expect(stats.opaque).toBeGreaterThan(0.15)
     expect(stats.hues.orange).toBeGreaterThan(0.1)
-    expect(host.requests).toEqual([
-      '200 crate/scene/crate.gltf',
+    // The loader reads the buffer and the texture at the same time, in either order.
+    expect(host.requests[0]).toBe('200 crate/scene/crate.gltf')
+    expect(host.requests.slice(1).sort()).toEqual([
       '200 crate/buffers/crate.bin',
       '200 crate/textures/crate color.png',
     ])
@@ -226,6 +227,83 @@ test.describe('viewer', () => {
     expect(outcome).toEqual({ ready: true })
     await expect(page.locator('#warnings')).toBeVisible()
     await expect(page.locator('#warnings')).toContainText('textures/absent.png（文件不存在）')
+  })
+
+  test('plays the first animation, pauses, and goes to a time with the slider', async ({
+    page,
+  }) => {
+    const { outcome } = await openViewer(page, 'animated/robot.glb')
+    // Ready without animation frames: the first frame of "Wave" was drawn before reporting.
+    expect(outcome).toEqual({ ready: true })
+    await expect(page.locator('#info')).toHaveText('48 个三角形 · 2 段动画')
+    await expect(page.locator('#playback')).toBeVisible()
+    await expect(page.locator('#clip option')).toHaveText(['Wave（2.00 秒）', '动画 2（1.00 秒）'])
+    const play = page.locator('#play')
+    await expect(play).toHaveText('暂停')
+
+    // Playing: the picture and the clock keep changing.
+    const canvas = page.locator('#view')
+    const first = (await canvas.screenshot()).toString('base64')
+    await page.waitForTimeout(400)
+    const later = (await canvas.screenshot()).toString('base64')
+    expect(await pixelDifference(page, first, later)).toBeGreaterThan(0.002)
+    await expect(page.locator('#clock')).not.toHaveText('0.00 / 2.00 秒')
+
+    // Paused: nothing moves.
+    await play.click()
+    await expect(play).toHaveText('播放')
+    const paused = await settledCanvas(page)
+    await page.waitForTimeout(300)
+    expect(await settledCanvas(page)).toBe(paused)
+
+    // The slider: the same time gives the same picture.
+    const seek = (time: number) =>
+      page.locator('#time').evaluate((input: HTMLInputElement, time) => {
+        input.value = String(time)
+        input.dispatchEvent(new Event('input', { bubbles: true }))
+        input.dispatchEvent(new Event('change', { bubbles: true }))
+      }, time)
+    await seek(1)
+    await expect(page.locator('#clock')).toHaveText('1.00 / 2.00 秒')
+    const bent = await settledCanvas(page)
+    await seek(0)
+    const straight = await settledCanvas(page)
+    expect(await pixelDifference(page, bent, straight)).toBeGreaterThan(0.002)
+    await seek(1)
+    expect(await pixelDifference(page, bent, await settledCanvas(page))).toBeLessThan(0.001)
+
+    // The space bar plays again; it is not taken from the buttons.
+    await canvas.focus()
+    await page.keyboard.press(' ')
+    await expect(play).toHaveText('暂停')
+  })
+
+  test('another clip, reduced motion, and a file without animations', async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' })
+    await openViewer(page, 'animated/robot.glb')
+    await expect(page.locator('#play')).toHaveText('播放')
+    await expect(page.locator('#clock')).toHaveText('0.00 / 2.00 秒')
+    const still = await settledCanvas(page)
+    await page.waitForTimeout(300)
+    expect(await settledCanvas(page)).toBe(still)
+
+    // The second clip moves only the blue cube; it starts at its own beginning.
+    const blueBefore = (await pixelStats(page, still)).hues.blue
+    await page.locator('#clip').selectOption('1')
+    await expect(page.locator('#clock')).toHaveText('0.00 / 1.00 秒')
+    await page.locator('#time').evaluate((input: HTMLInputElement) => {
+      input.value = '0.5'
+      input.dispatchEvent(new Event('input', { bubbles: true }))
+    })
+    const raised = await pixelStats(page, await settledCanvas(page))
+    expect(raised.hues.blue).toBeGreaterThan(0.001)
+    expect(Math.abs(raised.hues.blue - blueBefore)).toBeLessThan(blueBefore)
+
+    const cube = await host.input('cube/cube.gltf')
+    await switchInput(page, cube)
+    expect(await viewerOutcome(page, cube.url)).toEqual({ ready: true })
+    await expect(page.locator('#playback')).toBeHidden()
+    await expect(page.locator('#info')).toHaveText('12 个三角形')
   })
 
   test('explains why a file cannot be shown', async ({ page }) => {

@@ -135,3 +135,15 @@ function checkVersion(json: GltfJson): void {
   if (typeof minVersion === 'string' && minVersion !== '2.0')
     throw new GltfFileError(`这个文件要求 glTF ${minVersion} 或更高，只支持 glTF 2.0。`)
 }
+
+/**
+ * The names the viewer shows for the file's animations, in file order (as GLTFLoader returns its
+ * clips): the name in the file, or "动画 N" for one without a name.
+ */
+export function animationNames(json: GltfJson): string[] {
+  const animations = Array.isArray(json.animations) ? (json.animations as unknown[]) : []
+  return animations.map((animation, index) => {
+    const name = (animation as { name?: unknown } | null)?.name
+    return typeof name === 'string' && name.trim() ? name : `动画 ${index + 1}`
+  })
+}

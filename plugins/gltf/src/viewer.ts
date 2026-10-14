@@ -1,10 +1,17 @@
 import { viewer, type PluginInput } from '@vormio/plugin-sdk'
-import { PerspectiveCamera, Vector3, WebGLRenderer } from 'three'
+import {
+  AnimationMixer,
+  LoopRepeat,
+  PerspectiveCamera,
+  Vector3,
+  WebGLRenderer,
+  type AnimationAction,
+} from 'three'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import { describeProblem, explainFailures } from './companions.ts'
 import { failureMessage } from './errors.ts'
 import { defaultDirection, frameModel } from './framing.ts'
-import { ModelLoader, type Model } from './model.ts'
+import { measure, ModelLoader, type Model } from './model.ts'
 import { prepareRenderer, stageScene } from './stage.ts'
 
 const canvas = document.querySelector<HTMLCanvasElement>('#view')!
@@ -12,6 +19,11 @@ const info = document.querySelector<HTMLElement>('#info')!
 const warnings = document.querySelector<HTMLUListElement>('#warnings')!
 const fitButton = document.querySelector<HTMLButtonElement>('#fit')!
 const resetButton = document.querySelector<HTMLButtonElement>('#reset')!
+const playback = document.querySelector<HTMLElement>('#playback')!
+const clipSelect = document.querySelector<HTMLSelectElement>('#clip')!
+const playButton = document.querySelector<HTMLButtonElement>('#play')!
+const timeInput = document.querySelector<HTMLInputElement>('#time')!
+const clock = document.querySelector<HTMLElement>('#clock')!
 
 const renderer = new WebGLRenderer({ canvas, antialias: true, alpha: true })
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2))
@@ -23,10 +35,23 @@ controls.enableDamping = true
 controls.screenSpacePanning = true
 controls.zoomToCursor = true
 
-let current: { model: Model; scene: ReturnType<typeof stageScene> } | undefined
+let current:
+  | {
+      model: Model
+      scene: ReturnType<typeof stageScene>
+      /** Present when the file has animations; `action` plays the chosen clip. */
+      mixer?: AnimationMixer
+      action?: AnimationAction
+    }
+  | undefined
 let dirty = true
 /** Until the user moves the camera, a resize frames the model again for the new shape. */
 let userMoved = false
+let playing = false
+/** While the time slider is dragged, it sets the time instead of the clock. */
+let scrubbing = false
+/** When the previous frame was drawn while playing, for the time step of the next one. */
+let previousFrame: number | undefined
 
 function render(): void {
   dirty = false
@@ -36,7 +61,15 @@ function render(): void {
 
 controls.addEventListener('change', () => (dirty = true))
 controls.addEventListener('start', () => (userMoved = true))
-renderer.setAnimationLoop(() => {
+renderer.setAnimationLoop((now: number) => {
+  if (playing && !scrubbing && current?.action) {
+    // At most 0.1 s per frame, so coming back to a hidden page does not jump ahead.
+    const step = previousFrame === undefined ? 0 : Math.min((now - previousFrame) / 1000, 0.1)
+    current.mixer!.update(step)
+    showTime()
+    dirty = true
+  }
+  previousFrame = playing ? now : undefined
   // update() keeps returning true while damping settles.
   if (controls.update() || dirty) render()
 })
@@ -56,8 +89,9 @@ function frame(direction: Vector3): void {
   dirty = true
 }
 
-/** Frames again from the current viewing direction (F). */
+/** Frames the current pose again from the current viewing direction (F). */
 function fit(): void {
+  if (current?.action) Object.assign(current.model, measure(current.model.root))
   frame(camera.position.clone().sub(controls.target))
 }
 
@@ -87,15 +121,99 @@ addEventListener('keydown', (event) => {
   if (event.altKey || event.ctrlKey || event.metaKey || event.repeat) return
   if (event.key === 'f' || event.key === 'F') fit()
   else if (event.key === 'r' || event.key === 'R') reset()
+  else if (event.key === ' ') {
+    // Buttons, the clip list and the slider handle the space bar themselves.
+    const target = event.target
+    if (
+      target instanceof HTMLButtonElement ||
+      target instanceof HTMLSelectElement ||
+      target instanceof HTMLInputElement
+    )
+      return
+    event.preventDefault()
+    setPlaying(!playing)
+  }
 })
 
+// --- Animation ------------------------------------------------------------------------------------
+
+function showTime(): void {
+  const action = current?.action
+  if (!action) return
+  const duration = action.getClip().duration
+  const time = Math.min(action.time, duration)
+  clock.textContent = `${time.toFixed(2)} / ${duration.toFixed(2)} 秒`
+  if (!scrubbing) timeInput.value = String(time)
+}
+
+function setPlaying(value: boolean): void {
+  if (!current?.action) return
+  playing = value
+  playButton.textContent = playing ? '暂停' : '播放'
+  playButton.setAttribute('aria-pressed', String(playing))
+}
+
+/** Plays the clip at `index` from its start, keeping whether it plays or is paused. */
+function choose(index: number): void {
+  if (!current?.mixer) return
+  const { clip } = current.model.animations[index]!
+  current.mixer.stopAllAction()
+  current.action = current.mixer.clipAction(clip).setLoop(LoopRepeat, Infinity).play()
+  current.action.time = 0
+  current.mixer.update(0)
+  timeInput.max = String(clip.duration)
+  showTime()
+  dirty = true
+}
+
+function seek(time: number): void {
+  if (!current?.action) return
+  current.action.time = time
+  current.mixer!.update(0)
+  showTime()
+  dirty = true
+}
+
+clipSelect.addEventListener('change', () => choose(Number(clipSelect.value)))
+playButton.addEventListener('click', () => setPlaying(!playing))
+timeInput.addEventListener('pointerdown', () => (scrubbing = true))
+timeInput.addEventListener('input', () => seek(Number(timeInput.value)))
+for (const type of ['pointerup', 'pointercancel', 'change'])
+  timeInput.addEventListener(type, () => (scrubbing = false))
+
+/** Shows the controls for a model with animations, posed at the start of its first clip. */
+function prepareAnimations(model: Model): void {
+  if (!current || !model.animations.length) return
+  current.mixer = new AnimationMixer(model.root)
+  clipSelect.replaceChildren(
+    ...model.animations.map(({ name, clip }, index) => {
+      const option = document.createElement('option')
+      option.value = String(index)
+      option.textContent = `${name}（${clip.duration.toFixed(2)} 秒）`
+      return option
+    }),
+  )
+  clipSelect.disabled = model.animations.length < 2
+  choose(0)
+  // The first frame decides the framing. Playing starts with the first animation frame, which
+  // comes only once the host shows the page.
+  Object.assign(model, measure(model.root))
+  setPlaying(!matchMedia('(prefers-reduced-motion: reduce)').matches)
+  playback.hidden = false
+}
+
 function clear(): void {
+  current?.mixer?.stopAllAction()
+  current?.mixer?.uncacheRoot(current.model.root)
   current?.model.dispose()
   current = undefined
   info.textContent = ''
   warnings.replaceChildren()
   warnings.hidden = true
   fitButton.disabled = resetButton.disabled = true
+  playback.hidden = true
+  playing = false
+  previousFrame = undefined
   dirty = true
 }
 
@@ -114,10 +232,12 @@ async function show(input: PluginInput, signal: AbortSignal): Promise<void> {
   }
 
   current = { model, scene: stageScene(environment, model.root) }
+  prepareAnimations(model)
   userMoved = false
   frame(defaultDirection)
   fitButton.disabled = resetButton.disabled = false
-  info.textContent = `${model.triangles.toLocaleString('zh-CN')} 个三角形`
+  const clips = model.animations.length ? ` · ${model.animations.length} 段动画` : ''
+  info.textContent = `${model.triangles.toLocaleString('zh-CN')} 个三角形${clips}`
   if (problems.length) {
     const heading = document.createElement('li')
     heading.textContent = '以下贴图无法显示，相应材质只用颜色显示：'

@@ -1,6 +1,7 @@
 import type { PluginInput } from '@vormio/plugin-sdk'
 import {
   Box3,
+  type AnimationClip,
   LoaderUtils,
   LoadingManager,
   Matrix4,
@@ -17,7 +18,7 @@ import { GLTFLoader, type GLTF } from 'three/addons/loaders/GLTFLoader.js'
 import { KTX2Loader } from 'three/addons/loaders/KTX2Loader.js'
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js'
 import { ModelError } from './errors.ts'
-import { readGltf, unsupportedRequiredExtensions } from './gltf-file.ts'
+import { animationNames, readGltf, unsupportedRequiredExtensions } from './gltf-file.ts'
 import { readMainFile } from './source.ts'
 
 /** A loaded default scene and what it holds; `dispose` frees its GPU resources and images. */
@@ -27,6 +28,8 @@ export interface Model {
   /** World positions of every vertex (x, y, z), for framing; absent for very large models. */
   points?: Float32Array
   triangles: number
+  /** The file's animations in file order, with the names the viewer shows. */
+  animations: { name: string; clip: AnimationClip }[]
   /** Addresses of files and embedded images that could not be loaded. */
   failed: string[]
   dispose(): void
@@ -60,6 +63,7 @@ export class ModelLoader {
   async load(input: PluginInput, signal?: AbortSignal): Promise<Model> {
     const bytes = await readMainFile(input)
     const { json } = readGltf(bytes)
+    const names = animationNames(json)
     const unsupported = unsupportedRequiredExtensions(json)
     if (unsupported.length)
       throw new ModelError(`这个文件需要不支持的 glTF 扩展：${unsupported.join('、')}。`)
@@ -97,8 +101,7 @@ export class ModelLoader {
       dispose()
       throw new ModelError('这个文件中没有场景。')
     }
-    root.updateMatrixWorld(true)
-    const box = new Box3().setFromObject(root)
+    const { box, points } = measure(root)
     if (box.isEmpty()) {
       dispose()
       throw new ModelError('这个文件的默认场景中没有可以显示的几何体。')
@@ -106,8 +109,9 @@ export class ModelLoader {
     return {
       root,
       box,
-      points: worldPositions(root),
+      points,
       triangles: countTriangles(root),
+      animations: gltf.animations.map((clip, index) => ({ name: names[index] ?? clip.name, clip })),
       failed: [...failed],
       dispose,
     }
@@ -134,6 +138,20 @@ interface Renderable {
   material?: Material | Material[]
   skeleton?: { dispose(): void }
   dispose?: () => void
+}
+
+/**
+ * The bounds and vertex positions of `root` in its current pose: the rest pose after loading, or the
+ * pose an animation has put it in. Skinning and morph targets are applied to the vertices.
+ */
+export function measure(root: Object3D): { box: Box3; points?: Float32Array } {
+  root.updateMatrixWorld(true)
+  // A skinned mesh keeps the bounds of the pose it was last measured in.
+  root.traverse((object) => {
+    const mesh = object as Renderable & { computeBoundingBox?: () => void }
+    if (mesh.isSkinnedMesh) mesh.computeBoundingBox?.()
+  })
+  return { box: new Box3().setFromObject(root), points: worldPositions(root) }
 }
 
 /** Beyond this many vertices (instances included), framing uses the bounding box instead. */
