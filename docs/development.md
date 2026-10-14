@@ -10,7 +10,7 @@ Vormio-Plugins/
 ├─ pnpm-workspace.yaml    plugins/* 各是一个包；唯一的锁文件 pnpm-lock.yaml
 ├─ release.json           官方目录收录的插件（发布配置，见“发布官方目录”）
 ├─ docs/                  工程文档：插件规划与设计计划
-├─ vendor/                固定版本的外部产物，附来源记录：Core 发布的 plugin-sdk 打包产物、Spine 3.8 运行时
+├─ vendor/                固定版本的外部产物，附来源记录：Core 发布的 plugin-sdk 打包产物、Spine 3.7 与 3.8 运行时
 ├─ plugins/
 │  ├─ gltf/               每个插件一个目录：manifest、build.json、源码、README、测试、许可证文本
 │  └─ spine/              包含 Spine Runtimes，许可条件见它的 README
