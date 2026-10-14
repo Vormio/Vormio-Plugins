@@ -336,7 +336,7 @@ await write(
 )
 await write('problems/not-spine.json', json({ name: 'some-package', version: '1.0.0' }))
 
-// --- preview: binary skeletons the Spine runtimes can render -----------------------------------------
+// --- preview: skeletons the Spine runtimes can render, in binary and JSON -----------------------------
 //
 // A figure of three region attachments: a body with an arm on its right and a head on top. Each
 // region is one solid colour on the page, so a test can tell from the colours which attachments
@@ -422,13 +422,34 @@ const figureAtlas = (pageName: string) =>
       `bounds: ${x}, ${y}, ${width}, ${height}`,
     ]),
   )
+/** The same regions in the 3.x syntax, which the 3.8 runtime reads; it does not know `bounds`. */
+const figureAtlas38 = (pageName: string) =>
+  atlas(
+    '',
+    pageName,
+    'size: 72,72',
+    'format: RGBA8888',
+    'filter: Linear,Linear',
+    'repeat: none',
+    ...figureRegions.flatMap(({ name, x, y, width, height }) => [
+      name,
+      '  rotate: false',
+      `  xy: ${x}, ${y}`,
+      `  size: ${width}, ${height}`,
+      `  orig: ${width}, ${height}`,
+      '  offset: 0, 0',
+      '  index: -1',
+    ]),
+  )
 const red: Rgba = [220, 38, 38, 255]
 
 /**
  * The same figure as a JSON skeleton, following the public format description. Spine exports
- * either form next to the same atlas; 4.2 and 4.3 read these parts of the JSON alike.
+ * either form next to the same atlas. From 3.8 to 4.3 these parts of the JSON are alike, except
+ * that a 3.x rotate key gives its angle as `angle` and 4.x as `value`.
  */
 function figureJson(skeleton: BinarySkeleton): string {
+  const angle = skeleton.version.startsWith('3.') ? 'angle' : 'value'
   const bone = (index: number) => skeleton.bones[index]!.name
   /** Entries by bone or slot index, keyed by its name instead; undefined when there are none. */
   const named = <T, U>(
@@ -459,7 +480,7 @@ function figureJson(skeleton: BinarySkeleton): string {
         name,
         {
           bones: named(skeleton.bones, rotate, (keys) => ({
-            rotate: keys.map(([time, value]) => ({ time, value })),
+            rotate: keys.map(([time, value]) => ({ time, [angle]: value })),
           })),
           slots: named(skeleton.slots, attachment, (keys) => ({
             attachment: keys.map(([time, name]) => ({ time, name })),
@@ -484,6 +505,27 @@ await write(
   'preview/knight.png',
   figurePage([[124, 58, 237, 255], [234, 88, 12, 255], red, [22, 163, 74, 255]]),
 )
+await write('preview/scout.skel', writeSkeleton(figure('4.0.64'), '4.0'))
+await write('preview/scout.json', figureJson(figure('4.0.64')))
+await write('preview/scout.atlas', figureAtlas('scout.png'))
+await write(
+  'preview/scout.png',
+  figurePage([[234, 179, 8, 255], [37, 99, 235, 255], red, [124, 58, 237, 255]]),
+)
+await write('preview/ranger.skel', writeSkeleton(figure('3.8.99'), '3.8'))
+await write('preview/ranger.json', figureJson(figure('3.8.99')))
+await write('preview/ranger.atlas', figureAtlas38('ranger.png'))
+await write(
+  'preview/ranger.png',
+  figurePage([[234, 88, 12, 255], [22, 163, 74, 255], red, [124, 58, 237, 255]]),
+)
+await write('preview/squire.skel', writeSkeleton(figure('4.1.24'), '4.1'))
+await write('preview/squire.json', figureJson(figure('4.1.24')))
+await write('preview/squire.atlas', figureAtlas('squire.png'))
+await write(
+  'preview/squire.png',
+  figurePage([[22, 163, 74, 255], [124, 58, 237, 255], red, [37, 99, 235, 255]]),
+)
 // No orphan.atlas next to it.
 await write('preview/orphan.skel', writeSkeleton(figure('4.2.43'), '4.2'))
 // Its atlas names a page that does not exist.
@@ -502,18 +544,18 @@ await write(
   ),
 )
 await write('preview/empty.atlas', figureAtlas('hero.png'))
-// Versions without a runtime in the plugin: a 4.1 header, and the 3.x header, where the hash is a
+// Versions without a runtime in the plugin: a newer header, and an older one, where the hash is a
 // string. Only the header matters, so the rest is left out.
-await write('preview/spine-4.1.skel', writeSkeleton(figure('4.1.24'), '4.2').subarray(0, 32))
+await write('preview/spine-5.0.skel', writeSkeleton(figure('5.0.00'), '4.3').subarray(0, 32))
 const text = (value: string) => [value.length + 1, ...new TextEncoder().encode(value)]
 await write(
-  'preview/spine-3.8.skel',
-  Uint8Array.from([...text('vormio-fixture'), ...text('3.8.99'), 0, 0, 0, 0]),
+  'preview/spine-3.7.skel',
+  Uint8Array.from([...text('vormio-fixture'), ...text('3.7.94'), 0, 0, 0, 0]),
 )
-// A 3.8 JSON skeleton: Spine, but no runtime in the plugin reads it.
+// A 3.7 JSON skeleton (skins are an object): Spine, but no runtime in the plugin reads it.
 await write(
-  'preview/spine-3.8.json',
-  json({ skeleton: { spine: '3.8.99' }, bones: [{ name: 'root' }], slots: [], skins: [] }),
+  'preview/spine-3.7.json',
+  json({ skeleton: { spine: '3.7.94' }, bones: [{ name: 'root' }], slots: [], skins: {} }),
 )
 // JSON that is not Spine: the previews decline it. An object, an array, and text that is not JSON
 // at all, such as JSON with comments.

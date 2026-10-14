@@ -27,7 +27,7 @@ export async function readParts(
   const line = runtimeLine(skeleton.version)
   if (!line)
     throw new SpineError(
-      `Spine ${skeleton.version} 的数据：插件只包含 Spine ${runtimeLines.join(' 与 ')} 的运行时。`,
+      `Spine ${skeleton.version} 的数据：插件只包含这些版本的运行时：${runtimeLines.join('、')}。`,
     )
   const atlas = await readAtlas(input)
   const runtime = await loadRuntime(line)

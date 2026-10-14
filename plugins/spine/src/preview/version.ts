@@ -2,7 +2,7 @@
 // read the rest depends on it. No DOM, so it runs in Node tests as well as in the plugin pages.
 
 /** The Spine runtimes in the package, by major and minor version. */
-export const runtimeLines = ['4.2', '4.3'] as const
+export const runtimeLines = ['3.8', '4.0', '4.1', '4.2', '4.3'] as const
 export type RuntimeLine = (typeof runtimeLines)[number]
 
 /** A varint+ at `offset`: 7 bits per byte, low bits first; undefined past the end. */

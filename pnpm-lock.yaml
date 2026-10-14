@@ -218,6 +218,12 @@ importers:
       '@vormio/plugin-sdk':
         specifier: file:../../vendor/vormio-plugin-sdk-0.0.6-02188f0.tgz
         version: file:vendor/vormio-plugin-sdk-0.0.6-02188f0.tgz
+      spine-webgl-4.0:
+        specifier: npm:@esotericsoftware/spine-webgl@4.0.31
+        version: '@esotericsoftware/spine-webgl@4.0.31'
+      spine-webgl-4.1:
+        specifier: npm:@esotericsoftware/spine-webgl@4.1.56
+        version: '@esotericsoftware/spine-webgl@4.1.56'
       spine-webgl-4.2:
         specifier: npm:@esotericsoftware/spine-webgl@4.2.120
         version: '@esotericsoftware/spine-webgl@4.2.120'
@@ -389,11 +395,23 @@ packages:
     cpu: [x64]
     os: [win32]
 
+  '@esotericsoftware/spine-core@4.0.31':
+    resolution: {integrity: sha512-SiP87Xudw8qfg6t1Gv4NVoqP+Tw0eaCj1ApS+GXLdCvb/i5FNQevqEt4RgEvD8j1vJy+WVriPLMJYQSdaSehgA==}
+
+  '@esotericsoftware/spine-core@4.1.56':
+    resolution: {integrity: sha512-sJbqIof+yE7LbkImbJt2cHfYcGBqadABttx8RY3ggu4JCa0sZLGdh+tWwe0+aRoN/91VI0rGSgG16fmkZ7Hc8Q==}
+
   '@esotericsoftware/spine-core@4.2.120':
     resolution: {integrity: sha512-X62MPnfiZTWok4Wk5Q5DqaAUBUFypKpb94IVd1W/j4eLHhg0HH3tve4HvIlkgxDpls2NokHaAtzjxX12rJknOA==}
 
   '@esotericsoftware/spine-core@4.3.13':
     resolution: {integrity: sha512-iGs/40qOWSQYicABebDzFSwFOS1Nsm0dCCS8sGqbpVuThRKdLYeI1cVJpmATSpEmtcetEABTmh97NoBnt7XLDw==}
+
+  '@esotericsoftware/spine-webgl@4.0.31':
+    resolution: {integrity: sha512-G6j31+caQJck/4UN8TVaTKnU0RPysI7ECMkCxcXBGsTmv98m0O5Wx18YgeIf//Bg8KAO+mZ/DmwzeScwGG9HPA==}
+
+  '@esotericsoftware/spine-webgl@4.1.56':
+    resolution: {integrity: sha512-LNr/X4B81/rC96mzFV+L5LPnqaIj1v3RBCKTagmFlAd/2MtXcxwEatIQVPq487NigFwlrkvmxQuMpl1TRf3xxw==}
 
   '@esotericsoftware/spine-webgl@4.2.120':
     resolution: {integrity: sha512-xhITm18dZ6DclPaI1jEiTVOoXYQASsubbDEs3Ik1AjmVSXdNFtvdvzLVwhPQ8eHu1OXsxtWfuW+wpGHib8V4hw==}
@@ -785,9 +803,21 @@ snapshots:
   '@esbuild/win32-x64@0.28.2':
     optional: true
 
+  '@esotericsoftware/spine-core@4.0.31': {}
+
+  '@esotericsoftware/spine-core@4.1.56': {}
+
   '@esotericsoftware/spine-core@4.2.120': {}
 
   '@esotericsoftware/spine-core@4.3.13': {}
+
+  '@esotericsoftware/spine-webgl@4.0.31':
+    dependencies:
+      '@esotericsoftware/spine-core': 4.0.31
+
+  '@esotericsoftware/spine-webgl@4.1.56':
+    dependencies:
+      '@esotericsoftware/spine-core': 4.1.56
 
   '@esotericsoftware/spine-webgl@4.2.120':
     dependencies:

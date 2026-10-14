@@ -15,6 +15,11 @@
     "skeleton-thumbnail.html": "src/skeleton-thumbnail.html",
     "skeleton-viewer.html": "src/skeleton-viewer.html",
     "skeleton-viewer.css": "src/skeleton-viewer.css",
-    "licenses/SPINE-RUNTIMES.txt": "node_modules/spine-webgl-4.3/LICENSE"
+    "runtimes/spine-webgl-3.8.js": "../../vendor/spine-ts-3.8/spine-webgl.js",
+    "licenses/SPINE-RUNTIMES-3.8.txt": "../../vendor/spine-ts-3.8/LICENSE",
+    "licenses/SPINE-RUNTIMES-4.0.txt": "node_modules/spine-webgl-4.0/LICENSE",
+    "licenses/SPINE-RUNTIMES-4.1.txt": "node_modules/spine-webgl-4.1/LICENSE",
+    "licenses/SPINE-RUNTIMES-4.2.txt": "node_modules/spine-webgl-4.2/LICENSE",
+    "licenses/SPINE-RUNTIMES-4.3.txt": "node_modules/spine-webgl-4.3/LICENSE"
   }
 }

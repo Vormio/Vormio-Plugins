@@ -1,6 +1,6 @@
 {
   "skeleton": {
-    "spine": "3.8.99"
+    "spine": "3.7.94"
   },
   "bones": [
     {
@@ -8,5 +8,5 @@
     }
   ],
   "slots": [],
-  "skins": []
+  "skins": {}
 }

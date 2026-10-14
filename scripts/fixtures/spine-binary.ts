@@ -1,12 +1,14 @@
-// Writes binary Spine skeletons (.skel) for the test fixtures, in the 4.2 or the 4.3 layout. Only
+// Writes binary Spine skeletons (.skel) for the test fixtures, in the 3.8 and 4.0 to 4.3 layouts. Only
 // what the preview fixtures use is covered: bones, slots, region attachments, skins, and rotate and
 // attachment timelines; every constraint, event and other timeline list is written empty.
 //
-// The public binary format description still shows the 3.8 layout, so the field order here follows
-// the SkeletonBinary readers of the Spine Runtimes (spine-core 4.2.120 and 4.3.13). This file is
+// The public binary format description is not detailed or current enough to write data the
+// runtimes accept, so the field order here follows the SkeletonBinary readers of the Spine Runtimes
+// (spine-ts 3.8 at 28727aff, spine-core 4.0.31, 4.1.56, 4.2.120 and 4.3.13).
+// This file is
 // therefore a derivative of the Spine Runtimes and, unlike the rest of the repository, is subject to
 // the Spine Runtimes License Agreement below, which redistribution must include. The Spine plugin
-// ships the same text as licenses/SPINE-RUNTIMES.txt. It is a development tool and never ends up
+// ships the license of each runtime line in licenses/. It is a development tool and never ends up
 // in a plugin package.
 
 /*
@@ -38,7 +40,84 @@
  * THE SPINE RUNTIMES, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-export type BinaryLayout = '4.2' | '4.3'
+export type BinaryLayout = '3.8' | '4.0' | '4.1' | '4.2' | '4.3'
+
+/** What differs between the layouts, as far as this writer goes. */
+interface Traits {
+  /**
+   * 4.0 made the hash two ints and put a timeline count at the start of each animation. In 3.8 a
+   * key's curve follows the key and a timeline has no Bézier count; from 4.0 the curve into a key
+   * follows that key.
+   */
+  modern: boolean
+  /** 4.2 added the reference scale to the header. */
+  referenceScale: boolean
+  /** 4.3 writes the inherit mode of a bone before its length. */
+  inheritFirst: boolean
+  /** Constraint lists after the slots, and in each named skin: IK, transform, path, physics. */
+  constraintLists: number
+  /**
+   * 4.2 starts an attachment with a flags byte that says which fields follow, and writes skin
+   * names as strings. Before, an attachment starts with its name (null for its key) and its type,
+   * and skin names are shared strings.
+   */
+  flags: boolean
+  /** 4.1 ends a region attachment with its sequence, a boolean when there is none. */
+  sequence: boolean
+  /** Empty timeline lists after the bone timelines. */
+  emptyTimelineLists: number
+}
+
+const layouts: Record<BinaryLayout, Traits> = {
+  // IK, transform, path; then IK, transform, path, deform, draw order and event timelines.
+  '3.8': {
+    modern: false,
+    referenceScale: false,
+    inheritFirst: false,
+    constraintLists: 3,
+    flags: false,
+    sequence: false,
+    emptyTimelineLists: 6,
+  },
+  '4.0': {
+    modern: true,
+    referenceScale: false,
+    inheritFirst: false,
+    constraintLists: 3,
+    flags: false,
+    sequence: false,
+    emptyTimelineLists: 6,
+  },
+  '4.1': {
+    modern: true,
+    referenceScale: false,
+    inheritFirst: false,
+    constraintLists: 3,
+    flags: false,
+    sequence: true,
+    emptyTimelineLists: 6,
+  },
+  // Adds physics constraints and their timelines.
+  '4.2': {
+    modern: true,
+    referenceScale: true,
+    inheritFirst: false,
+    constraintLists: 4,
+    flags: true,
+    sequence: false,
+    emptyTimelineLists: 7,
+  },
+  // One list for every kind of constraint; adds slider and draw order folder timelines.
+  '4.3': {
+    modern: true,
+    referenceScale: true,
+    inheritFirst: true,
+    constraintLists: 1,
+    flags: true,
+    sequence: false,
+    emptyTimelineLists: 9,
+  },
+}
 
 export interface BinaryRegion {
   /** The attachment's name, when it differs from its key in the skin. */
@@ -117,6 +196,7 @@ class Output {
 
 export function writeSkeleton(skeleton: BinarySkeleton, layout: BinaryLayout): Uint8Array {
   const out = new Output()
+  const traits = layouts[layout]
 
   // Shared strings: every name the runtime reads as a reference into the table.
   const strings: string[] = []
@@ -140,13 +220,17 @@ export function writeSkeleton(skeleton: BinarySkeleton, layout: BinaryLayout): U
   for (const animation of skeleton.animations)
     for (const keys of Object.values(animation.attachment ?? {}))
       for (const [, name] of keys) share(name)
+  if (!traits.flags) for (const skin of skeleton.skins.slice(1)) share(skin.name)
 
-  // Header: hash as two ints, version, the setup pose bounds and reference scale; no nonessential
-  // data (fps, image and audio paths, colours).
-  out.int32(0x766f726d)
-  out.int32(0x696f2d31)
+  // Header: hash (two ints, or in 3.8 a string), version, the setup pose bounds and (4.2) reference
+  // scale; no nonessential data (fps, image and audio paths, colours).
+  if (traits.modern) {
+    out.int32(0x766f726d)
+    out.int32(0x696f2d31)
+  } else out.string('vormio-fixture')
   out.string(skeleton.version)
-  for (const value of [-100, 0, 200, 200, 100]) out.float(value)
+  for (const value of [-100, 0, 200, 200]) out.float(value)
+  if (traits.referenceScale) out.float(100)
   out.boolean(false)
   out.varint(strings.length)
   for (const value of strings) out.string(value)
@@ -162,13 +246,13 @@ export function writeSkeleton(skeleton: BinarySkeleton, layout: BinaryLayout): U
     out.float(1) // scaleY
     out.float(0) // shearX
     out.float(0) // shearY
-    // Inherit mode 0 is "normal"; 4.3 moved it before the length.
-    if (layout === '4.2') {
-      out.float(bone.length ?? 0)
+    // Inherit mode 0 is "normal": one byte, whether read as a byte (4.2) or a varint (before).
+    if (traits.inheritFirst) {
       out.byte(0)
+      out.float(bone.length ?? 0)
     } else {
-      out.byte(0)
       out.float(bone.length ?? 0)
+      out.byte(0)
     }
     out.boolean(false) // skin required
   })
@@ -183,8 +267,7 @@ export function writeSkeleton(skeleton: BinarySkeleton, layout: BinaryLayout): U
     out.varint(0) // normal blending
   }
 
-  // Constraints: 4.2 has IK, transform, path and physics lists; 4.3 has one list.
-  for (let count = layout === '4.2' ? 4 : 1; count > 0; count--) out.varint(0)
+  for (let count = traits.constraintLists; count > 0; count--) out.varint(0)
 
   const writeAttachments = (attachments: Record<number, Record<string, BinaryRegion>>) => {
     const slots = Object.entries(attachments)
@@ -195,17 +278,27 @@ export function writeSkeleton(skeleton: BinarySkeleton, layout: BinaryLayout): U
       out.varint(entries.length)
       for (const [key, region] of entries) {
         ref(key)
-        // Type 0 is a region; flag 8: a name of its own, 16: a path, 128: a rotation.
-        let flags = 0
-        if (region.name !== undefined) flags |= 8
-        if (region.path !== undefined) flags |= 16
-        if (region.rotation) flags |= 128
-        out.byte(flags)
-        if (region.name !== undefined) ref(region.name)
-        if (region.path !== undefined) ref(region.path)
-        if (region.rotation) out.float(region.rotation)
-        for (const value of [region.x ?? 0, region.y ?? 0, 1, 1, region.width, region.height])
-          out.float(value)
+        const place = [region.x ?? 0, region.y ?? 0, 1, 1, region.width, region.height]
+        if (traits.flags) {
+          // Type 0 is a region; flag 8: a name of its own, 16: a path, 128: a rotation.
+          let flags = 0
+          if (region.name !== undefined) flags |= 8
+          if (region.path !== undefined) flags |= 16
+          if (region.rotation) flags |= 128
+          out.byte(flags)
+          if (region.name !== undefined) ref(region.name)
+          if (region.path !== undefined) ref(region.path)
+          if (region.rotation) out.float(region.rotation)
+          for (const value of place) out.float(value)
+        } else {
+          ref(region.name)
+          out.byte(0) // region
+          ref(region.path)
+          out.float(region.rotation ?? 0)
+          for (const value of place) out.float(value)
+          out.int32(-1) // colour 0xffffffff
+          if (traits.sequence) out.boolean(false)
+        }
       }
     }
   }
@@ -213,9 +306,10 @@ export function writeSkeleton(skeleton: BinarySkeleton, layout: BinaryLayout): U
   writeAttachments(defaultSkin?.attachments ?? {})
   out.varint(skins.length)
   for (const skin of skins) {
-    out.string(skin.name)
+    if (traits.flags) out.string(skin.name)
+    else ref(skin.name)
     out.varint(0) // bones
-    for (let count = layout === '4.2' ? 4 : 1; count > 0; count--) out.varint(0) // constraints
+    for (let count = traits.constraintLists; count > 0; count--) out.varint(0)
     writeAttachments(skin.attachments)
   }
 
@@ -226,7 +320,7 @@ export function writeSkeleton(skeleton: BinarySkeleton, layout: BinaryLayout): U
     out.string(animation.name)
     const slots = Object.entries(animation.attachment ?? {})
     const bones = Object.entries(animation.rotate ?? {})
-    out.varint(slots.length + bones.length) // timeline count, a capacity hint
+    if (traits.modern) out.varint(slots.length + bones.length) // timeline count, a capacity hint
     out.varint(slots.length)
     for (const [slot, keys] of slots) {
       out.varint(Number(slot))
@@ -244,18 +338,16 @@ export function writeSkeleton(skeleton: BinarySkeleton, layout: BinaryLayout): U
       out.varint(1)
       out.byte(0) // rotate timeline
       out.varint(keys.length)
-      out.varint(0) // no Bézier curves
+      if (traits.modern) out.varint(0) // no Bézier curves
       keys.forEach(([time, value], index) => {
         out.float(time)
         out.float(value)
-        // Each key but the first is followed by the curve from the previous key: 0 is linear.
-        if (index > 0) out.byte(0)
+        // Curves are linear (0). From 4.0 each key but the first is followed by the curve into it;
+        // in 3.8 each key but the last is followed by the curve out of it.
+        if (traits.modern ? index > 0 : index < keys.length - 1) out.byte(0)
       })
     }
-    // IK, transform, path and physics timelines; 4.3 adds sliders. Then attachment (deform and
-    // sequence) timelines, draw order (4.3 also draw order folders) and events.
-    const empty = layout === '4.2' ? 7 : 9
-    for (let count = empty; count > 0; count--) out.varint(0)
+    for (let count = traits.emptyTimelineLists; count > 0; count--) out.varint(0)
   }
   return out.result()
 }

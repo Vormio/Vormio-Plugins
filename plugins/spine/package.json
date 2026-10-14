@@ -6,6 +6,8 @@
   "type": "module",
   "dependencies": {
     "@vormio/plugin-sdk": "file:../../vendor/vormio-plugin-sdk-0.0.6-02188f0.tgz",
+    "spine-webgl-4.0": "npm:@esotericsoftware/spine-webgl@4.0.31",
+    "spine-webgl-4.1": "npm:@esotericsoftware/spine-webgl@4.1.56",
     "spine-webgl-4.2": "npm:@esotericsoftware/spine-webgl@4.2.120",
     "spine-webgl-4.3": "npm:@esotericsoftware/spine-webgl@4.3.13"
   }
