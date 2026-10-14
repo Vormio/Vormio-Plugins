@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { relativeTo } from '../src/companions.ts'
+import { relativeTo } from '../companions.ts'
 
 const input = 'vormio-input://token/models/props/chair.gltf'
 

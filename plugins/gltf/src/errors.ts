@@ -1,5 +1,5 @@
 import type { PluginInput } from '@vormio/plugin-sdk'
-import { describeProblem, explainFailures } from './companions.ts'
+import { describeProblem, explainFailures } from '../../../shared/companions.ts'
 
 /** A loading failure whose message is meant for the user. */
 export class ModelError extends Error {

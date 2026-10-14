@@ -10,7 +10,7 @@ import {
   type Camera,
 } from 'three'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
-import { describeProblem, explainFailures } from './companions.ts'
+import { describeProblem, explainFailures } from '../../../shared/companions.ts'
 import { failureMessage } from './errors.ts'
 import { defaultDirection, frameModel } from './framing.ts'
 import { measure, ModelLoader, type Model } from './model.ts'
