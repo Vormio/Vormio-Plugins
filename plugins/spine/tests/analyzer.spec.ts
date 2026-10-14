@@ -2,7 +2,7 @@
 // fake bridge (see shared/testing). Needs `node scripts/build.ts` first.
 
 import { readFile } from 'node:fs/promises'
-import { join } from 'node:path'
+import { basename, join } from 'node:path'
 import { parseReport } from '@vormio/plugin-sdk'
 import { expect, test, type Page } from '@playwright/test'
 import { startHost, type MockHost } from '../../../shared/testing/host.ts'
@@ -31,7 +31,7 @@ test.afterEach(async ({ page }) => {
 async function expected(path: string) {
   const text = await readFile(join(fixtures, path), 'utf8')
   const report = path.endsWith('.json')
-    ? analyzeSkeleton(readSkeletonJson(text))
+    ? analyzeSkeleton(readSkeletonJson(text), basename(path))
     : analyzeAtlas(text)
   return JSON.parse(JSON.stringify(report))
 }
@@ -64,7 +64,12 @@ test('a JSON skeleton is analyzed from its text alone', async ({ page }) => {
     'preview/knight.json',
   ]
   for (const path of paths) expect(await analyze(page, path), path).toEqual(await expected(path))
-  expect(host.requests).toEqual(paths.map((path) => `200 ${path}`))
+  // The atlas of the same name comes from the file name the host gives; it is not read.
+  const report = await analyze(page, 'preview/hero.json')
+  expect(report.references.filter((each) => each.uri !== undefined)).toEqual([
+    { uri: 'hero.atlas', role: '图集', inferred: '与骨骼文件同名' },
+  ])
+  expect(host.requests).toEqual([...paths, 'preview/hero.json'].map((path) => `200 ${path}`))
 })
 
 test('JSON that is not a Spine skeleton is not applicable', async ({ page }) => {

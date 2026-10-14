@@ -2,17 +2,19 @@
 
 固定版本的外部产物，每份都记录来源与 SHA-256：
 
-- Vormio-Core 发布到 npm 的插件 SDK（`@vormio/plugin-sdk`）。本仓库只通过这里的固定版本使用 SDK，不导入 Core 源码，也不依赖同级检出。下表中的 0.0.6 是此前从 Core 提交构建的 tarball，与 npm 上的 0.0.6 逐字节相同；之后按“更新时”从 npm 取。
+- Vormio-Core 发布到 npm 的插件 SDK（`@vormio/plugin-sdk`）。本仓库只通过这里的固定版本使用 SDK，不导入 Core 源码，也不依赖同级检出。
 - Spine 3.7 与 3.8 运行时（`spine-ts-3.7/`、`spine-ts-3.8/`），见文末。它们不在 npm 上，Spine 插件把它们打进包里。
 
-| 文件                                  | 版本  | 来源                                                                                                                                          | SHA-256                                                            |
-| ------------------------------------- | ----- | --------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
-| `vormio-plugin-sdk-0.0.6-02188f0.tgz` | 0.0.6 | Vormio-Core `02188f00d6aefe8cafb4cb705a8efe8e3de9f658`（`worktree-r1-not-applicable-plan` 分支，之后合并进 Core master），`pnpm run sdk:pack` | `471ab5a7342f424cdf88a82654a19d88b46809b2ad8b3f2e81fca2ef3eefdc92` |
+| 文件                          | 版本  | 来源                                                     | SHA-256                                                            |
+| ----------------------------- | ----- | -------------------------------------------------------- | ------------------------------------------------------------------ |
+| `vormio-plugin-sdk-0.0.7.tgz` | 0.0.7 | npm `@vormio/plugin-sdk@0.0.7`（Core 0.0.7），`npm pack` | `b9c6f5badc5b8c05753a0813e61427246c186dc3c5808262bb4fdfc669ff9391` |
 
-- 由 Core 提交 `02188f0` 在干净的工作区中构建，2026-10-14 复制到这里并校验了 SHA-256；锁文件中的 integrity 与这份 tarball 一致。文件名中的提交号是 `sdk:pack` 加上的；工作区有未提交改动时它还会加 `-dirty`，这样的 tarball 不能放进这里。2026-10-14 发布到 npm 的 `@vormio/plugin-sdk@0.0.6` 由 Core `166562d` 构建，按 Core 路线图的记录与这份 tarball 逐字节相同（SDK 在两次构建之间没有改动，npm 上的 shasum 与 integrity 都与它一致）；本仓库仍按惯例使用 `vendor/` 中的这份。
-- 它替换了 0.0.5（Core `6cf994f` 构建，SHA-256 `d53a560d3682bca9c4dbcf000a8604e8cc2a83414c738c579900d8687d2b6f6f`）。0.0.6 新增“不适用”：`notApplicable()` 与 `isNotApplicable`，分析器、缩略图与查看器的处理函数都可以返回它，语义见 SDK README 的 “Files that are not your format”。插件契约随之升到 `apiVersion: 2`，所有插件的 manifest 都要改，SDK 的 `parseManifest` 与 `vormio-plugin pack` 只接受 2。
-- 宿主只加载与自己相同 `apiVersion` 的插件：Core 0.0.6 只加载 `apiVersion: 2`，Core 0.0.5 及更早只加载 `apiVersion: 1`。
-- 再往前是 0.0.3（Core `9d56146` 构建，SHA-256 `61b94764f7b85b823b8a23ffad6bed2a8c33c6e17e3fd67d2141f5af35d300e2`）。0.0.5 新增签名的插件目录（`@vormio/plugin-sdk/node` 的 `verifyCatalog`、`signCatalog`、`writeCatalog` 等，命令 `vormio-plugin keygen` 与 `vormio-plugin catalog`），以及 `.vormioplugin` 文件的上限 96 MiB。SDK 以 MIT 许可证发布，包内带 `LICENSE`。
+- 2026-10-15 用 `npm pack` 从 npm 取下：SHA-512 与 `npm view @vormio/plugin-sdk@0.0.7 dist.integrity` 一致；锁文件中的 integrity 与这份 tarball 一致。
+- 0.0.7 新增推断的引用：报告中的引用可以带 `inferred`（推断依据，1–120 个字符，只能与 `uri` 一起出现），语义见 SDK README 的 “Inferred references”。插件契约随之升到 `apiVersion: 3`，所有插件的 manifest 都要改，SDK 的 `parseManifest` 与 `vormio-plugin pack` 只接受 3。
+- 宿主只加载与自己相同 `apiVersion` 的插件：Core 0.0.7 只加载 `apiVersion: 3`，Core 0.0.6 只加载 `apiVersion: 2`，Core 0.0.5 及更早只加载 `apiVersion: 1`。
+- 之前在试用分支上用过 Core 为 Vormio/Vormio-Core#2 发布的预发布版 0.0.7-rc.1（SHA-256 `6227ababb315bff3cc314e7885d88098f7b2a0d10a04eabd2389d81b9cd8f596`），它与 0.0.7 只有 `package.json` 中的版本号不同。
+- 它替换了 0.0.6（`vormio-plugin-sdk-0.0.6-02188f0.tgz`，Core `02188f0` 构建，与 npm 上的 0.0.6 逐字节相同，SHA-256 `471ab5a7342f424cdf88a82654a19d88b46809b2ad8b3f2e81fca2ef3eefdc92`）。0.0.6 新增“不适用”：`notApplicable()` 与 `isNotApplicable`，语义见 SDK README 的 “Files that are not your format”，契约是 `apiVersion: 2`。
+- 再往前是 0.0.5（Core `6cf994f` 构建，SHA-256 `d53a560d3682bca9c4dbcf000a8604e8cc2a83414c738c579900d8687d2b6f6f`）与 0.0.3（Core `9d56146` 构建，SHA-256 `61b94764f7b85b823b8a23ffad6bed2a8c33c6e17e3fd67d2141f5af35d300e2`）。0.0.5 新增签名的插件目录（`@vormio/plugin-sdk/node` 的 `verifyCatalog`、`signCatalog`、`writeCatalog` 等，命令 `vormio-plugin keygen` 与 `vormio-plugin catalog`），以及 `.vormioplugin` 文件的上限 96 MiB。SDK 以 MIT 许可证发布，包内带 `LICENSE`。
 
 更新时：
 
@@ -24,7 +26,7 @@
 校验：
 
 ```bash
-sha256sum vendor/vormio-plugin-sdk-0.0.6-02188f0.tgz
+sha256sum vendor/vormio-plugin-sdk-0.0.7.tgz
 ```
 
 ## Spine 3.7 与 3.8 运行时

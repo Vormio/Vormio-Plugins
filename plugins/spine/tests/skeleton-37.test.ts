@@ -8,7 +8,7 @@
 import assert from 'node:assert/strict'
 import { existsSync } from 'node:fs'
 import { readdir, readFile } from 'node:fs/promises'
-import { join } from 'node:path'
+import { basename, join } from 'node:path'
 import { test } from 'node:test'
 import type { CompositionReport } from '@vormio/plugin-sdk'
 import { analyzeSkeleton, readSkeletonJson } from '../src/skeleton.ts'
@@ -53,7 +53,7 @@ const bare = (name: string) => name.replace(/（.*）$/, '')
 function fromReport(report: CompositionReport): Summary {
   const byKey = new Map(report.subresources.map((each) => [each.key, each]))
   const name = (key: string) => bare(byKey.get(key)!.name)
-  /** References within the skeleton (all of them are: it reports no files) by source and role. */
+  /** References within the skeleton by source and role; the inferred atlas has no source. */
   const refs = (from: string, role: string) =>
     report.references.flatMap((each) =>
       each.from === from && each.role === role && each.key !== undefined
@@ -228,7 +228,7 @@ function readWithRuntime(spine: Graph, text: string) {
 
 async function compareWithRuntime(text: string, where: string) {
   const spine = (await nodeRuntime('3.7')) as Graph
-  const report = analyzeSkeleton(readSkeletonJson(text))
+  const report = analyzeSkeleton(readSkeletonJson(text), basename(where))
   assert.deepEqual(report.diagnostics, [], where)
   assert.ok(!report.partial, where)
   const analysis = fromReport(report)

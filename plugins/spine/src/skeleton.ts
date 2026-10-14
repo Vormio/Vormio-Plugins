@@ -1,8 +1,10 @@
 // Builds the composition report of a Spine skeleton in JSON (Spine 3.7 to 4.2): bones, slots,
 // constraints, skins and their attachments, events and animations, and what refers to what. Spine
-// refers to objects by name. Atlas regions and audio files are not reported as references: the
-// skeleton does not name its atlas, and the base of its image and audio paths is not established.
-// No DOM, so it runs in Node tests as well as in the analyzer page.
+// refers to objects by name. The skeleton does not name its atlas; Spine pairs it with the atlas of
+// the same name, which is reported as an inferred reference. Atlas regions and audio files are not
+// reported as references: regions are inside another file, and the base of the skeleton's image
+// and audio paths is not established. No DOM, so it runs in Node tests as well as in the analyzer
+// page.
 //
 // The format description Esoteric publishes covers the current format only. Where 3.7 differs from
 // it (skins are an object keyed by name, without bones or constraints of their own, and path
@@ -16,8 +18,10 @@ import {
   limits,
   plainText,
   pointer,
+  reportedUri,
   withinLimits,
 } from '../../../shared/report.ts'
+import { fileUri } from '../../../shared/uri.ts'
 import { NotSpineError, SpineError } from './errors.ts'
 
 type Json = Record<string, unknown>
@@ -104,8 +108,14 @@ export function spineVersion(json: Json): [number, number] | undefined {
 const compareVersions = (a: readonly number[], b: readonly number[]) =>
   a[0]! - b[0]! || a[1]! - b[1]!
 
-/** Analyzes a skeleton read by `readSkeletonJson`. */
-export function analyzeSkeleton(json: Json): CompositionReport {
+/** The atlas that goes with a skeleton by name: `hero.skel` → `hero.atlas`. */
+export function atlasName(skeletonName: string): string {
+  const dot = skeletonName.lastIndexOf('.')
+  return `${dot > 0 ? skeletonName.slice(0, dot) : skeletonName}.atlas`
+}
+
+/** Analyzes a skeleton read by `readSkeletonJson`; `fileName` is the name of the skeleton file. */
+export function analyzeSkeleton(json: Json, fileName: string): CompositionReport {
   const { diagnostics, diagnose } = diagnosticList()
   let partial = false
   const version = spineVersion(json)
@@ -331,6 +341,7 @@ export function analyzeSkeleton(json: Json): CompositionReport {
     attachmentKeys.get(`${skin}\0${slot}\0${name}`)
   const pending: (() => void)[] = []
   let attachmentCount = 0
+  let drawsFromAtlas = false
   skins.forEach((skin, s) => {
     const skinKey = add('skins', s, skin.name)
     for (const [slot, attachments] of mapAt(skin.attachments, skin.at()))
@@ -340,6 +351,7 @@ export function analyzeSkeleton(json: Json): CompositionReport {
         const kind = attachmentKinds[type]
         let shown = name
         if (textured.has(type)) {
+          drawsFromAtlas = true
           const region = [attachment.path, attachment.name].find((each) => typeof each === 'string')
           const lookup = typeof region === 'string' ? region : name
           const frames = objectAt(attachment, 'sequence')?.count
@@ -479,9 +491,16 @@ export function analyzeSkeleton(json: Json): CompositionReport {
     .sort((a, b) => order(a.each.key) - order(b.each.key) || a.position - b.position)
     .map(({ each }) => each)
 
+  // The atlas, when an attachment is drawn from it. The address is the atlas the skeleton previews
+  // read; whether it exists is decided by the host, and a missing one is "not found", not missing.
+  const fileReferences: ReportReference[] = []
+  const atlas = reportedUri(fileUri(atlasName(fileName)))
+  if (drawsFromAtlas && atlas)
+    fileReferences.push({ uri: atlas, role: '图集', inferred: '与骨骼文件同名' })
+
   return withinLimits({
     subresources: sorted,
-    fileReferences: [],
+    fileReferences,
     internal,
     diagnostics,
     partial,

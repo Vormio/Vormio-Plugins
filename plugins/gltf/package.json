@@ -1,11 +1,11 @@
 {
   "name": "@vormio-plugins/gltf",
-  "version": "0.2.1",
+  "version": "0.2.3",
   "private": true,
   "description": "glTF 2.0 / GLB thumbnails, read-only viewer and composition analyzer for Vormio",
   "type": "module",
   "dependencies": {
-    "@vormio/plugin-sdk": "file:../../vendor/vormio-plugin-sdk-0.0.6-02188f0.tgz",
+    "@vormio/plugin-sdk": "file:../../vendor/vormio-plugin-sdk-0.0.7.tgz",
     "three": "0.186.1"
   },
   "devDependencies": {

@@ -84,7 +84,7 @@ SPINE_37_EXAMPLES=<示例文件夹> node --test plugins/spine/tests/preview-bina
 官方目录是一份签名的 `catalog.json` 加上它列出的插件包，放在静态托管上，Vormio 的插件窗口从这里安装与更新插件。格式见 SDK README 的“插件目录”一节。仓库里只有发布配置与命令；目录地址、托管配置、上传凭据与签名私钥都不进仓库，上传是发布者的运营步骤。
 
 - `release.json` 的 `plugins` 列出目录收录的插件（`plugins/` 下的目录名）。新目录收录每个插件在当前提交上的版本，以及上一份目录中这个插件其他 `apiVersion` 的发布；没有列出的插件不进目录，它在上一份目录中的所有发布都撤下。从目录撤下一个插件，就是把它从这里删掉再发布一次；已经装上的插件不会被远程删除。
-- 宿主只安装与自己 `apiVersion` 相同的发布：Core 0.0.6 起是 `apiVersion: 2`（现在的插件），Core 0.0.5 是 `apiVersion: 1`。所以与当前插件 `apiVersion` 相同的发布只来自当前提交，上一份目录中同一 `apiVersion` 的旧版本不再收录；其他 `apiVersion` 的发布原样保留，旧宿主继续看到能安装的版本。例如上一份目录有 glTF 0.2.0 与 Spine 0.2.0（`apiVersion: 1`），从 glTF 0.2.1 与 Spine 0.4.0（`apiVersion: 2`）的提交发布，新目录四个都有。目前不能单独撤下其他 `apiVersion` 的发布。
+- 宿主只安装与自己 `apiVersion` 相同的发布：Core 0.0.7 是 `apiVersion: 3`（现在的插件），Core 0.0.6 是 `apiVersion: 2`，Core 0.0.5 是 `apiVersion: 1`。所以与当前插件 `apiVersion` 相同的发布只来自当前提交，上一份目录中同一 `apiVersion` 的旧版本不再收录；其他 `apiVersion` 的发布原样保留，旧宿主继续看到能安装的版本。例如上一份目录有 glTF 0.2.0 与 Spine 0.2.0（`apiVersion: 1`），从 glTF 0.2.1 与 Spine 0.4.0（`apiVersion: 2`）的提交发布，新目录四个都有。目前不能单独撤下其他 `apiVersion` 的发布。
 - 只在每个列出的版本都已在 Core 上手工验收（[插件规划](roadmap.md)的状态列）的提交上发布，发布前照常运行 `lint`、`typecheck` 与 `test`。
 - 命令，路径相对于运行命令的文件夹：
 

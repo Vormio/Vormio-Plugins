@@ -23,6 +23,8 @@ export const limits = {
   name: 200,
   label: 80,
   evidence: 300,
+  /** The basis of an inferred reference. */
+  inferred: 120,
   message: 500,
 }
 

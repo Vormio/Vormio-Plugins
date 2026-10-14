@@ -29,8 +29,8 @@ after(() => rm(temporary, { recursive: true, force: true }))
 test('the build output declares atlases and skeletons; previews read what they draw', () => {
   const { manifest } = checked
   assert.equal(manifest.id, 'vormio-plugins.spine')
-  // Declining JSON that is not Spine needs the contract of Vormio-Core 0.0.6.
-  assert.equal(manifest.apiVersion, 2)
+  // Inferred references need the contract of Vormio-Core 0.0.7.
+  assert.equal(manifest.apiVersion, 3)
   const pages = ['png', 'jpg', 'jpeg']
   const skeleton = ['atlas', ...pages]
   assert.deepEqual(manifest.contributions.thumbnails, [
@@ -147,7 +147,7 @@ test('vormio-plugin pack turns the output into an installable .vormioplugin', as
   const cli = fileURLToPath(new URL('cli.js', import.meta.resolve('@vormio/plugin-sdk/node')))
   const target = join(temporary, 'spine.vormioplugin')
   const { stdout } = await promisify(execFile)(process.execPath, [cli, 'pack', directory, target])
-  assert.match(stdout, /vormio-plugins\.spine 0\.7\.0/)
+  assert.match(stdout, /vormio-plugins\.spine 0\.8\.0/)
   const archive = readPackageArchive(await readFile(target))
   assert.equal(archive.checked.digest, checked.digest)
 })
