@@ -16,7 +16,7 @@ Spine 的设计与后续版本见 [设计计划](plans/spine.md)。
 
 **官方插件目录**（Core 0.0.5 起）：受邀测试者从 Vormio 的插件窗口安装、更新与回滚已经验收的官方插件。2026-10-14 第一次发布（序号 1）：glTF 0.2.0 与 Spine 0.2.0，来自 `982215d`（合并前是 `8eb019b`，内容相同）；当时本仓库还在用 SDK 0.0.3，目录由 Core 构建的 SDK 签名。换用 SDK 0.0.5 之后，发布配置 `release.json` 与命令 `pnpm run catalog` 都在本仓库，见[开发说明](development.md#发布官方目录)；域名、上传凭据与签名私钥不进仓库。
 
-现在的插件是 `apiVersion: 2`（glTF 0.2.1、Spine 0.4.0），只给 Core 0.0.6 起的宿主。下一次发布要同时列出两组发布：给 0.0.5 宿主的 `apiVersion: 1`（线上的 glTF 0.2.0 与 Spine 0.2.0）与给 0.0.6 宿主的 `apiVersion: 2`。发布之前还要完成两件事：`pnpm run catalog` 保留上一份目录中其他 `apiVersion` 的发布（见[开发说明](development.md#发布官方目录)），以及决定目录如何展示 Spine 的许可要求（[Spine 设计计划](plans/spine.md)第 10 节问题 3）。Spine 0.3.0（`apiVersion: 1`）没有在 Core 0.0.5 上验收，按发布规则不能进目录；0.0.5 的宿主继续用 Spine 0.2.0。
+现在的插件是 `apiVersion: 2`（glTF 0.2.1、Spine 0.4.0），只给 Core 0.0.6 起的宿主。下一次发布要同时列出两组发布：给 0.0.5 宿主的 `apiVersion: 1`（线上的 glTF 0.2.0 与 Spine 0.2.0）与给 0.0.6 宿主的 `apiVersion: 2`。`pnpm run catalog` 已经会保留上一份目录中其他 `apiVersion` 的发布（见[开发说明](development.md#发布官方目录)），2026-10-14 用临时密钥演练过：上一份目录有 glTF 0.2.0 与 Spine 0.2.0（`apiVersion: 1`）时，新目录同时列出它们与 glTF 0.2.1、Spine 0.4.0。发布之前还要决定目录如何展示 Spine 的许可要求（[Spine 设计计划](plans/spine.md)第 10 节问题 3）。Spine 0.3.0（`apiVersion: 1`）没有在 Core 0.0.5 上验收，按发布规则不能进目录；0.0.5 的宿主继续用 Spine 0.2.0。
 
 glTF 是宿主组成与关系契约的第一个真实使用方。其他格式（压缩纹理、PSD、音频、字体、Blender 等）等 glTF 跑通主线后，再按真实需求逐个加入；上一版插件实现可以参考，但不直接搬运。
 
