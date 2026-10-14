@@ -306,6 +306,73 @@ test.describe('viewer', () => {
     await expect(page.locator('#info')).toHaveText('12 个三角形')
   })
 
+  test('material variants replace the default material', async ({ page }) => {
+    await openViewer(page, 'variants/showroom.glb')
+    const variant = page.locator('#variant')
+    await expect(variant).toBeVisible()
+    await expect(variant.locator('option')).toHaveText(['默认材质', 'Red', 'Blue'])
+    const shares = async () => (await pixelStats(page, await settledCanvas(page))).hues
+    const grey = await shares()
+    expect(grey.red).toBeLessThan(0.001)
+    expect(grey.blue).toBeLessThan(0.001)
+    expect(grey.yellow).toBeGreaterThan(0.001)
+
+    await variant.selectOption('0')
+    await expect.poll(async () => (await shares()).red).toBeGreaterThan(0.02)
+    await variant.selectOption('1')
+    await expect.poll(async () => (await shares()).blue).toBeGreaterThan(0.02)
+    expect((await shares()).red).toBeLessThan(0.001)
+    await variant.selectOption('default')
+    await expect.poll(async () => (await shares()).blue).toBeLessThan(0.001)
+    // The marker has no variants and keeps its colour throughout.
+    expect((await shares()).yellow).toBeGreaterThan(0.001)
+
+    const cube = await host.input('cube/cube.gltf')
+    await switchInput(page, cube)
+    expect(await viewerOutcome(page, cube.url)).toEqual({ ready: true })
+    await expect(variant).toBeHidden()
+    await expect(page.locator('#camera')).toBeHidden()
+  })
+
+  test('looks through the cameras in the file until the view is moved', async ({ page }) => {
+    await openViewer(page, 'variants/showroom.glb')
+    const cameras = page.locator('#camera')
+    await expect(cameras.locator('option')).toHaveText(['自由视角', 'Top', 'Side'])
+    const free = await settledCanvas(page)
+
+    await cameras.selectOption('0')
+    const top = await settledCanvas(page)
+    expect(await pixelDifference(page, free, top)).toBeGreaterThan(0.05)
+    await cameras.selectOption('1')
+    const side = await settledCanvas(page)
+    expect(await pixelDifference(page, top, side)).toBeGreaterThan(0.05)
+    // Looking along -X, the marker stands in front of the cube's middle.
+    const sideStats = await pixelStats(page, side)
+    const topStats = await pixelStats(page, top)
+    expect(sideStats.hues.yellow).toBeGreaterThan(0.001)
+    expect(topStats.hues.yellow).toBeGreaterThan(0.001)
+
+    // Dragging leaves the file camera for the free camera.
+    const box = (await page.locator('#view').boundingBox())!
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
+    await page.mouse.down()
+    await page.mouse.move(box.x + box.width / 2 + 40, box.y + box.height / 2, { steps: 4 })
+    await page.mouse.up()
+    await expect(cameras).toHaveValue('free')
+    // R goes back to the starting view (once the drag has come to rest).
+    await settledCanvas(page)
+    await page.locator('#view').focus()
+    await page.keyboard.press('r')
+    expect(await pixelDifference(page, free, await settledCanvas(page))).toBeLessThan(0.01)
+
+    // The view keeps a file camera's proportions when the view changes shape.
+    await cameras.selectOption('0')
+    await page.setViewportSize({ width: 600, height: 600 })
+    const square = await pixelStats(page, await settledCanvas(page))
+    expect(square.width).toBe(square.height)
+    expect(square.hues.yellow).toBeGreaterThan(0.001)
+  })
+
   test('explains why a file cannot be shown', async ({ page }) => {
     const cases: [string, string][] = [
       ['problems/missing-buffer.gltf', '模型无法加载：absent.bin（文件不存在）'],

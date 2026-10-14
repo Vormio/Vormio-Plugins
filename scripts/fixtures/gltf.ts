@@ -6,7 +6,7 @@
 import { mkdir, readdir, rm, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { Document, NodeIO, TextureInfo, type Material } from '@gltf-transform/core'
-import { ALL_EXTENSIONS } from '@gltf-transform/extensions'
+import { ALL_EXTENSIONS, KHRMaterialsVariants } from '@gltf-transform/extensions'
 import { draco, meshopt } from '@gltf-transform/functions'
 import draco3d from 'draco3dgltf'
 import { MeshoptEncoder } from 'meshoptimizer'
@@ -512,6 +512,86 @@ function animated(): Document {
   return document
 }
 await write('animated/robot.glb', await io.writeBinary(animated()))
+
+// Material variants and cameras: a grey cube whose material the variants "Red" and "Blue" replace,
+// a small yellow cube beside it, an orthographic camera "Top" looking down and a perspective camera
+// "Side" looking along -X.
+function showroom(): Document {
+  const document = new Document()
+  document.getRoot().getAsset().generator = generator
+  const buffer = document.createBuffer('showroom')
+  const accessor = (
+    type: 'SCALAR' | 'VEC3',
+    array: Float32Array<ArrayBuffer> | Uint16Array<ArrayBuffer>,
+  ) => document.createAccessor().setType(type).setArray(array).setBuffer(buffer)
+  const material = (name: string, [r, g, b]: Rgba) =>
+    document
+      .createMaterial(name)
+      .setBaseColorFactor([r / 255, g / 255, b / 255, 1])
+      .setMetallicFactor(0)
+      .setRoughnessFactor(0.6)
+  const primitive = (geometry: Geometry, color: Material) =>
+    document
+      .createPrimitive()
+      .setAttribute('POSITION', accessor('VEC3', new Float32Array(geometry.positions)))
+      .setAttribute('NORMAL', accessor('VEC3', new Float32Array(geometry.normals)))
+      .setIndices(accessor('SCALAR', new Uint16Array(geometry.indices)))
+      .setMaterial(color)
+
+  const variants = document.createExtension(KHRMaterialsVariants)
+  const mapping = (name: string, color: Rgba) =>
+    variants
+      .createMapping()
+      .addVariant(variants.createVariant(name))
+      .setMaterial(material(name, color))
+  const body = primitive(box(1, 1, 1), material('Grey', [160, 160, 160, 255])).setExtension(
+    'KHR_materials_variants',
+    variants.createMappingList().addMapping(mapping('Red', red)).addMapping(mapping('Blue', blue)),
+  )
+  const cube = document.createNode('Cube').setMesh(document.createMesh('Cube').addPrimitive(body))
+  const marker = document
+    .createNode('Marker')
+    .setMesh(
+      document
+        .createMesh('Marker')
+        .addPrimitive(primitive(box(0.3, 0.3, 0.3), material('Yellow', yellow))),
+    )
+    .setTranslation([0.9, 0, 0])
+  const s = Math.SQRT1_2
+  const top = document
+    .createNode('Top')
+    .setCamera(
+      document
+        .createCamera('Top')
+        .setType('orthographic')
+        .setXMag(1.5)
+        .setYMag(1.5)
+        .setZNear(0.1)
+        .setZFar(10),
+    )
+    .setTranslation([0, 5, 0])
+    .setRotation([-s, 0, 0, s])
+  const side = document
+    .createNode('Side')
+    .setCamera(
+      document
+        .createCamera('Side')
+        .setType('perspective')
+        .setYFov(0.8)
+        .setAspectRatio(1.5)
+        .setZNear(0.1)
+        .setZFar(100),
+    )
+    .setTranslation([4, 0, 0])
+    .setRotation([0, s, 0, s])
+  document
+    .getRoot()
+    .setDefaultScene(
+      document.createScene('Showroom').addChild(cube).addChild(marker).addChild(top).addChild(side),
+    )
+  return document
+}
+await write('variants/showroom.glb', await io.writeBinary(showroom()))
 
 // Files the plugin has to refuse or show with a warning.
 await writeGltf(

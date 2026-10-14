@@ -1,6 +1,6 @@
 {
   "name": "@vormio-plugins/gltf",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "private": true,
   "description": "glTF 2.0 / GLB thumbnails, read-only viewer and composition analyzer for Vormio",
   "type": "module",

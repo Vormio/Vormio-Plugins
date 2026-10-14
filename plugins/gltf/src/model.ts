@@ -2,6 +2,7 @@ import type { PluginInput } from '@vormio/plugin-sdk'
 import {
   Box3,
   type AnimationClip,
+  type Camera,
   LoaderUtils,
   LoadingManager,
   Matrix4,
@@ -30,6 +31,15 @@ export interface Model {
   triangles: number
   /** The file's animations in file order, with the names the viewer shows. */
   animations: { name: string; clip: AnimationClip }[]
+  /** Names of the material variants (KHR_materials_variants), in file order. */
+  variants: string[]
+  /**
+   * Shows the materials of the variant at `index`, or the default materials for undefined.
+   * Resolves to the addresses of textures that could not be loaded for it.
+   */
+  selectVariant(index: number | undefined): Promise<string[]>
+  /** The cameras in the default scene, with the names the viewer shows. */
+  cameras: { name: string; camera: Camera }[]
   /** Addresses of files and embedded images that could not be loaded. */
   failed: string[]
   dispose(): void
@@ -94,7 +104,9 @@ export class ModelLoader {
     }
 
     const root = gltf.scene ?? gltf.scenes[0]
+    const variants = root ? new Variants(gltf, root, failed) : undefined
     const dispose = () => {
+      variants?.dispose()
       for (const scene of gltf.scenes) disposeObject(scene)
     }
     if (!root) {
@@ -112,6 +124,9 @@ export class ModelLoader {
       points,
       triangles: countTriangles(root),
       animations: gltf.animations.map((clip, index) => ({ name: names[index] ?? clip.name, clip })),
+      variants: variants!.names,
+      selectVariant: (index) => variants!.select(index),
+      cameras: camerasIn(root),
       failed: [...failed],
       dispose,
     }
@@ -121,6 +136,102 @@ export class ModelLoader {
     this.draco.dispose()
     this.ktx2.dispose()
   }
+}
+
+/**
+ * KHR_materials_variants. GLTFLoader does not implement it, but keeps the extension objects in
+ * `userData.gltfExtensions` of the result and of each primitive's mesh, and loads any material on
+ * request; this is how three.js's own variants example switches them.
+ */
+class Variants {
+  readonly names: string[]
+  private readonly meshes: { mesh: Mesh; original: Material | Material[]; mappings: unknown[] }[] =
+    []
+  /** Materials loaded for variants, freed with the model. */
+  private readonly loaded = new Set<Material>()
+  private disposed = false
+  /** Only the latest selection is applied when several overlap. */
+  private latest = 0
+  private readonly gltf: GLTF
+  /** The load's failed addresses, which grows as variant textures fail. */
+  private readonly failed: Set<string>
+
+  constructor(gltf: GLTF, root: Object3D, failed: Set<string>) {
+    this.gltf = gltf
+    this.failed = failed
+    const extension = extensionOf(gltf.userData)
+    const variants = Array.isArray(extension?.variants) ? (extension.variants as unknown[]) : []
+    this.names = variants.map((variant, index) => {
+      const name = (variant as { name?: unknown } | null)?.name
+      return typeof name === 'string' && name.trim() ? name : `变体 ${index + 1}`
+    })
+    root.traverse((object) => {
+      const mappings = extensionOf(object.userData)?.mappings
+      const mesh = object as Mesh
+      if (mesh.isMesh && Array.isArray(mappings))
+        this.meshes.push({ mesh, original: mesh.material, mappings })
+    })
+  }
+
+  async select(index: number | undefined): Promise<string[]> {
+    const selection = ++this.latest
+    const before = new Set(this.failed)
+    const chosen = await Promise.all(
+      this.meshes.map(async ({ mesh, original, mappings }) => {
+        // The first mapping that lists the variant wins; without one, the default material.
+        const mapping = mappings.find(
+          (each) =>
+            index !== undefined &&
+            Array.isArray((each as { variants?: unknown }).variants) &&
+            (each as { variants: unknown[] }).variants.includes(index),
+        ) as { material?: unknown } | undefined
+        if (typeof mapping?.material !== 'number') return { mesh, original, material: original }
+        const material = (await this.gltf.parser.getDependency(
+          'material',
+          mapping.material,
+        )) as Material
+        this.loaded.add(material)
+        return { mesh, original, material }
+      }),
+    )
+    if (this.disposed) {
+      this.dispose()
+      return []
+    }
+    if (selection !== this.latest) return []
+    for (const { mesh, original, material } of chosen) {
+      mesh.material = material
+      // The variants of vertex-coloured, skinned or flat-shaded meshes need the same adjustments
+      // GLTFLoader made to the default material.
+      if (material !== original) {
+        this.gltf.parser.assignFinalMaterial(mesh)
+        for (const each of [mesh.material].flat()) this.loaded.add(each)
+      }
+    }
+    return [...this.failed].filter((address) => !before.has(address))
+  }
+
+  dispose(): void {
+    this.disposed = true
+    for (const { mesh, original } of this.meshes) mesh.material = original
+    const bitmaps = new Set<ImageBitmap>()
+    for (const material of this.loaded) disposeMaterial(material, bitmaps)
+    for (const bitmap of bitmaps) bitmap.close()
+    this.loaded.clear()
+  }
+}
+
+const extensionOf = (userData: Record<string, unknown>) =>
+  (userData.gltfExtensions as Record<string, Record<string, unknown> | undefined> | undefined)
+    ?.KHR_materials_variants
+
+/** Cameras in the scene: the name in the file, or "相机 N". */
+function camerasIn(root: Object3D): { name: string; camera: Camera }[] {
+  const cameras: Camera[] = []
+  root.traverse((object) => {
+    if ((object as Camera).isCamera) cameras.push(object as Camera)
+  })
+  return cameras.map((camera, index) => ({ name: camera.name || `相机 ${index + 1}`, camera }))
 }
 
 interface Renderable {
@@ -222,17 +333,20 @@ export function disposeObject(root: Object3D): void {
       : item.material
         ? [item.material]
         : []
-    for (const material of materials) {
-      for (const value of Object.values(material))
-        if (value instanceof Texture) {
-          if (typeof ImageBitmap !== 'undefined' && value.image instanceof ImageBitmap)
-            bitmaps.add(value.image)
-          value.dispose()
-        }
-      material.dispose()
-    }
+    for (const material of materials) disposeMaterial(material, bitmaps)
     if (item.isSkinnedMesh) item.skeleton?.dispose()
     if (item.isInstancedMesh) item.dispose?.()
   })
   for (const bitmap of bitmaps) bitmap.close()
+}
+
+/** Frees a material and its textures; their decoded images go into `bitmaps` to be closed. */
+function disposeMaterial(material: Material, bitmaps: Set<ImageBitmap>): void {
+  for (const value of Object.values(material))
+    if (value instanceof Texture) {
+      if (typeof ImageBitmap !== 'undefined' && value.image instanceof ImageBitmap)
+        bitmaps.add(value.image)
+      value.dispose()
+    }
+  material.dispose()
 }

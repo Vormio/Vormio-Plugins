@@ -1,12 +1,19 @@
 # glTF 查看器：动画、变体与相机
 
-状态：**0.3.0 已实现**（2026-10-15），结论写进了[插件 README](../../plugins/gltf/README.md)，待手工验收；0.4.0（变体与相机）未开始。两个版本都只改查看器，不需要新的 SDK 或宿主能力（SDK 0.0.7，`apiVersion: 3`）。
+状态：**0.3.0 与 0.4.0 已实现**（2026-10-15），结论写进了[插件 README](../../plugins/gltf/README.md)，待手工验收。两个版本都只改查看器，不需要新的 SDK 或宿主能力（SDK 0.0.7，`apiVersion: 3`）。
 
 0.3.0 实施时与草案的不同：
 
 - 动画名称取自文件（`animations[].name`），没有名称时写成“动画 N”；GLTFLoader 自己的默认名（`animation_N`）不显示。
 - G5 的“当前姿态”不需要单独计算蒙皮后的包围盒：three.js 的 `getVertexPosition` 已经应用蒙皮与变形目标，取景用的顶点直接按当前姿态取得；蒙皮网格的包围盒在每次测量前重新计算。
 - 素材是一个 GLB（`fixtures/gltf/animated/robot.glb`），三种动画（节点、蒙皮、变形目标）放在同一个模型的两段动画中，第二段没有名称。
+  0.4.0 实施时与草案的不同：
+
+- G8 不需要写 GLTFLoader 插件：GLTFLoader 把不认识的扩展原样放进结果与每个图元网格的 `userData.gltfExtensions`，材质可以随时用 `parser.getDependency('material', i)` 加载，再用 `parser.assignFinalMaterial` 做与默认材质相同的调整，three.js 自己的变体示例就是这样切换的。变体的材质在第一次选择时才加载，随模型一起释放；它的贴图读不到时同样列出。
+- G9：只列出默认场景中的相机（遍历场景，而不是 `gltf.cameras`：同一个相机被多个节点使用时 GLTFLoader 会克隆）。文件的 `aspectRatio` 不使用，宽度随查看区，避免拉伸；离开文件相机时，自由视角的目标点放在模型中心的深度（至少是模型半个对角线）。
+- 拖动后马上按 R 时，OrbitControls 的阻尼惯性还会继续转动一小段，这是以前就有的行为，测试等画面静止后再按。
+- 素材 `fixtures/gltf/variants/showroom.glb` 同时覆盖变体与两种相机。
+
 - 顺带修了一个不稳定的渲染测试：`crate` 的缓冲区与贴图同时读取，顺序不固定。
 
 ## 1. 目标

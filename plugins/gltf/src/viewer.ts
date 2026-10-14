@@ -2,10 +2,12 @@ import { viewer, type PluginInput } from '@vormio/plugin-sdk'
 import {
   AnimationMixer,
   LoopRepeat,
+  OrthographicCamera,
   PerspectiveCamera,
   Vector3,
   WebGLRenderer,
   type AnimationAction,
+  type Camera,
 } from 'three'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import { describeProblem, explainFailures } from './companions.ts'
@@ -24,6 +26,8 @@ const clipSelect = document.querySelector<HTMLSelectElement>('#clip')!
 const playButton = document.querySelector<HTMLButtonElement>('#play')!
 const timeInput = document.querySelector<HTMLInputElement>('#time')!
 const clock = document.querySelector<HTMLElement>('#clock')!
+const variantSelect = document.querySelector<HTMLSelectElement>('#variant')!
+const cameraSelect = document.querySelector<HTMLSelectElement>('#camera')!
 
 const renderer = new WebGLRenderer({ canvas, antialias: true, alpha: true })
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2))
@@ -38,6 +42,7 @@ controls.zoomToCursor = true
 let current:
   | {
       model: Model
+      input: PluginInput
       scene: ReturnType<typeof stageScene>
       /** Present when the file has animations; `action` plays the chosen clip. */
       mixer?: AnimationMixer
@@ -52,15 +57,20 @@ let playing = false
 let scrubbing = false
 /** When the previous frame was drawn while playing, for the time step of the next one. */
 let previousFrame: number | undefined
+/** A camera from the file the view looks through, until the user moves the view. */
+let fileCamera: Camera | undefined
 
 function render(): void {
   dirty = false
-  if (current) renderer.render(current.scene, camera)
+  if (current) renderer.render(current.scene, fileCamera ?? camera)
   else renderer.clear()
 }
 
 controls.addEventListener('change', () => (dirty = true))
-controls.addEventListener('start', () => (userMoved = true))
+controls.addEventListener('start', () => {
+  userMoved = true
+  if (fileCamera) takeOver()
+})
 renderer.setAnimationLoop((now: number) => {
   if (playing && !scrubbing && current?.action) {
     // At most 0.1 s per frame, so coming back to a hidden page does not jump ahead.
@@ -91,12 +101,14 @@ function frame(direction: Vector3): void {
 
 /** Frames the current pose again from the current viewing direction (F). */
 function fit(): void {
+  if (fileCamera) takeOver()
   if (current?.action) Object.assign(current.model, measure(current.model.root))
   frame(camera.position.clone().sub(controls.target))
 }
 
 /** Back to the starting view (R). */
 function reset(): void {
+  lookThrough(undefined)
   userMoved = false
   frame(defaultDirection)
 }
@@ -107,6 +119,7 @@ function resize(): void {
   renderer.setSize(width, height, false)
   camera.aspect = width / height
   camera.updateProjectionMatrix()
+  fitFileCamera()
   if (!userMoved) frame(defaultDirection)
   // Resizing clears the canvas. ResizeObserver runs after this frame's animation callbacks but
   // before it is painted, so draw now; waiting for the next frame shows an empty view in between.
@@ -134,6 +147,108 @@ addEventListener('keydown', (event) => {
     setPlaying(!playing)
   }
 })
+
+// --- Cameras in the file ----------------------------------------------------------------------------
+
+/** The vertical half-size of each orthographic camera as the file gives it. */
+const fileHeights = new WeakMap<OrthographicCamera, number>()
+
+/**
+ * Fits a file camera's projection to the view: a perspective camera keeps its vertical field of
+ * view, an orthographic one its vertical size; the width follows the view instead of the file's
+ * aspect ratio, so the picture is not stretched.
+ */
+function fitFileCamera(): void {
+  if (fileCamera instanceof PerspectiveCamera) {
+    fileCamera.aspect = camera.aspect
+    fileCamera.updateProjectionMatrix()
+  } else if (fileCamera instanceof OrthographicCamera) {
+    if (!fileHeights.has(fileCamera)) fileHeights.set(fileCamera, fileCamera.top)
+    const height = fileHeights.get(fileCamera)!
+    fileCamera.top = height
+    fileCamera.bottom = -height
+    fileCamera.right = height * camera.aspect
+    fileCamera.left = -height * camera.aspect
+    fileCamera.updateProjectionMatrix()
+  }
+}
+
+/** Looks through the file's camera at `index`, or the free camera for undefined. */
+function lookThrough(index: number | undefined): void {
+  fileCamera = index === undefined ? undefined : current?.model.cameras[index]?.camera
+  cameraSelect.value = fileCamera ? String(index) : 'free'
+  fitFileCamera()
+  dirty = true
+}
+
+/**
+ * Moving the view leaves the file camera: the free camera starts where it was and looks the same
+ * way, at the depth of the model's centre.
+ */
+function takeOver(): void {
+  const from = fileCamera
+  if (!from || !current) return
+  lookThrough(undefined)
+  from.updateMatrixWorld(true)
+  const position = new Vector3().setFromMatrixPosition(from.matrixWorld)
+  const forward = new Vector3(0, 0, -1).transformDirection(from.matrixWorld)
+  const { box } = current.model
+  const depth = Math.max(
+    box.getCenter(new Vector3()).sub(position).dot(forward),
+    box.getSize(new Vector3()).length() / 2,
+  )
+  camera.position.copy(position)
+  controls.target.copy(position).addScaledVector(forward, depth)
+  controls.update()
+}
+
+cameraSelect.addEventListener('change', () => {
+  userMoved = true
+  lookThrough(cameraSelect.value === 'free' ? undefined : Number(cameraSelect.value))
+})
+
+// --- Material variants ----------------------------------------------------------------------------
+
+variantSelect.addEventListener('change', async () => {
+  const shown = current
+  if (!shown) return
+  const value = variantSelect.value
+  const failures = await shown.model.selectVariant(value === 'default' ? undefined : Number(value))
+  if (current !== shown) return
+  if (failures.length) showProblems(await explainFailures(shown.input, failures))
+  dirty = true
+})
+
+/** Lists textures that could not be read, after the ones listed before. */
+function showProblems(problems: Awaited<ReturnType<typeof explainFailures>>): void {
+  if (!problems.length) return
+  if (!warnings.childElementCount) {
+    const heading = document.createElement('li')
+    heading.textContent = '以下贴图无法显示，相应材质只用颜色显示：'
+    warnings.append(heading)
+  }
+  warnings.append(
+    ...problems.map((problem) => {
+      const item = document.createElement('li')
+      item.textContent = describeProblem(problem)
+      return item
+    }),
+  )
+  warnings.hidden = false
+}
+
+/** Fills a list with `first` and one option for each name; shown only when there are names. */
+function fillList(list: HTMLSelectElement, first: [string, string], names: string[]): void {
+  const option = ([value, text]: [string, string]) => {
+    const element = document.createElement('option')
+    element.value = value
+    element.textContent = text
+    return element
+  }
+  list.replaceChildren(option(first), ...names.map((name, index) => option([String(index), name])))
+  list.value = first[0]
+  list.hidden = names.length === 0
+}
 
 // --- Animation ------------------------------------------------------------------------------------
 
@@ -211,6 +326,8 @@ function clear(): void {
   warnings.replaceChildren()
   warnings.hidden = true
   fitButton.disabled = resetButton.disabled = true
+  fileCamera = undefined
+  variantSelect.hidden = cameraSelect.hidden = true
   playback.hidden = true
   playing = false
   previousFrame = undefined
@@ -231,26 +348,20 @@ async function show(input: PluginInput, signal: AbortSignal): Promise<void> {
     return
   }
 
-  current = { model, scene: stageScene(environment, model.root) }
+  current = { model, input, scene: stageScene(environment, model.root) }
   prepareAnimations(model)
+  fillList(variantSelect, ['default', '默认材质'], model.variants)
+  fillList(
+    cameraSelect,
+    ['free', '自由视角'],
+    model.cameras.map(({ name }) => name),
+  )
   userMoved = false
   frame(defaultDirection)
   fitButton.disabled = resetButton.disabled = false
   const clips = model.animations.length ? ` · ${model.animations.length} 段动画` : ''
   info.textContent = `${model.triangles.toLocaleString('zh-CN')} 个三角形${clips}`
-  if (problems.length) {
-    const heading = document.createElement('li')
-    heading.textContent = '以下贴图无法显示，相应材质只用颜色显示：'
-    warnings.replaceChildren(
-      heading,
-      ...problems.map((problem) => {
-        const item = document.createElement('li')
-        item.textContent = describeProblem(problem)
-        return item
-      }),
-    )
-    warnings.hidden = false
-  }
+  showProblems(problems)
   // Render before reporting ready, so the host never shows an empty frame.
   render()
 }
