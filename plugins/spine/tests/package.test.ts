@@ -56,16 +56,20 @@ test('the build output declares atlases and binary skeletons; previews read what
   ])
 })
 
-test('the license requirement comes first, and the Spine Runtimes license is in the package', async () => {
+test('the license requirement comes first, and each runtime line ships its license', async () => {
   assert.match(
     checked.manifest.description,
     /^包含 Spine Runtimes：每个使用者都需要自己的 Spine Editor 许可证。/,
   )
-  const shipped = await readFile(join(directory, 'licenses/SPINE-RUNTIMES.txt'), 'utf8')
-  assert.match(shipped, /^Spine Runtimes License Agreement/)
-  assert.match(shipped, /each user of the Products must obtain their own\s+Spine Editor license/)
-  // Both runtime lines carry the same license text.
-  for (const line of ['4.2', '4.3']) {
+  for (const line of ['4.0', '4.1', '4.2', '4.3']) {
+    const shipped = await readFile(join(directory, `licenses/SPINE-RUNTIMES-${line}.txt`), 'utf8')
+    assert.match(shipped, /^Spine Runtimes License Agreement/, line)
+    assert.match(
+      shipped,
+      /each user of the Products must obtain their own\s+Spine Editor license/,
+      line,
+    )
+    // The text the runtime's own package carries; 4.0 and 4.1 carry an older version.
     const source = fileURLToPath(new URL('../LICENSE', import.meta.resolve(`spine-webgl-${line}`)))
     assert.equal(await readFile(source, 'utf8'), shipped, line)
   }
@@ -103,8 +107,8 @@ test('the pages and their scripts are in the package; only skeleton pages load a
     imports.set(path, found)
   }
   // Each runtime is a chunk of its own, loaded only when a skeleton of its version is shown.
-  const runtimes = [...paths].filter((path) => /^chunks\/runtime-4\.[23]-/.test(path))
-  assert.equal(runtimes.length, 2)
+  const runtimes = [...paths].filter((path) => /^chunks\/runtime-\d\.\d-/.test(path))
+  assert.equal(runtimes.length, 4)
   const reachable = (entry: string, seen = new Set<string>()): Set<string> => {
     if (seen.has(entry)) return seen
     seen.add(entry)

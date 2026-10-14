@@ -12,7 +12,9 @@ const versionOf = async (name: string) =>
 test('the version comes from the header of 4.x and 3.x binary skeletons', async () => {
   assert.equal(await versionOf('hero.skel'), '4.2.43')
   assert.equal(await versionOf('knight.skel'), '4.3.13')
-  assert.equal(await versionOf('spine-4.1.skel'), '4.1.24')
+  assert.equal(await versionOf('scout.skel'), '4.0.64')
+  assert.equal(await versionOf('squire.skel'), '4.1.24')
+  assert.equal(await versionOf('spine-5.0.skel'), '5.0.00')
   // Before 4.0 the hash in front of the version was a string.
   assert.equal(await versionOf('spine-3.8.skel'), '3.8.99')
 })
@@ -30,7 +32,9 @@ test('each runtime reads the data of its own major and minor version', () => {
   assert.equal(runtimeLine('4.2.43'), '4.2')
   assert.equal(runtimeLine('4.3.13'), '4.3')
   assert.equal(runtimeLine('4.3.06-beta'), '4.3')
-  assert.equal(runtimeLine('4.1.24'), undefined)
+  assert.equal(runtimeLine('4.0.64'), '4.0')
+  assert.equal(runtimeLine('4.1.24'), '4.1')
+  assert.equal(runtimeLine('5.0.00'), undefined)
   assert.equal(runtimeLine('3.8.99'), undefined)
   assert.equal(runtimeLine('4.20.1'), undefined)
 })
