@@ -184,7 +184,7 @@ await write(
 await write('basic/hero.png', page(128, 64, [37, 99, 235, 255]))
 await write('basic/hero_2.png', page(64, 64, [220, 38, 38, 255]))
 
-// --- legacy: Spine 3.8 JSON and the 3.x atlas syntax ------------------------------------------------
+// --- legacy: Spine 3.8 and 3.7 JSON and the 3.x atlas syntax ----------------------------------------
 
 await write(
   'legacy/goblin.json',
@@ -242,6 +242,106 @@ await write(
   ),
 )
 await write('legacy/goblin.png', page(64, 64, [22, 163, 74, 255]))
+
+// Spine 3.7: skins are an object keyed by name, without bones or constraints of their own, and
+// path constraint timelines are called `paths`. Every attachment type, two skins, every
+// constraint, an event with audio and both spellings of the draw order timeline.
+await write(
+  'legacy/druid.json',
+  json({
+    skeleton: { hash: 'vormio-fixture-druid', spine: '3.7.94', width: 100, height: 180 },
+    bones: [
+      { name: 'root' },
+      { name: 'hip', parent: 'root', y: 70 },
+      { name: 'torso', parent: 'hip', length: 50, rotation: 90 },
+      { name: 'head', parent: 'torso', length: 25, x: 50 },
+      { name: 'arm', parent: 'torso', length: 35, x: 45, rotation: 150 },
+      { name: 'staff', parent: 'arm', length: 60, x: 35 },
+      { name: 'cape', parent: 'torso', length: 45, x: 48, rotation: 180 },
+      { name: 'vine', parent: 'root' },
+    ],
+    slots: [
+      { name: 'cape', bone: 'cape', attachment: 'cape' },
+      { name: 'torso', bone: 'torso', attachment: 'torso' },
+      { name: 'head', bone: 'head', attachment: 'head' },
+      { name: 'arm', bone: 'arm', attachment: 'arm' },
+      { name: 'staff', bone: 'staff', attachment: 'staff' },
+      { name: 'clip', bone: 'root', attachment: 'clip' },
+      { name: 'vine', bone: 'vine', attachment: 'vine' },
+      { name: 'hitbox', bone: 'hip', attachment: 'hitbox' },
+      { name: 'focus', bone: 'staff', attachment: 'focus' },
+    ],
+    ik: [{ name: 'arm-ik', bones: ['arm'], target: 'hip', mix: 0.5 }],
+    transform: [{ name: 'head-follow', bones: ['head'], target: 'torso', rotateMix: 0.3 }],
+    path: [{ name: 'vine-path', bones: ['cape'], target: 'vine' }],
+    skins: {
+      default: {
+        cape: { cape: mesh },
+        torso: { torso: { width: 30, height: 50 } },
+        head: {
+          head: { path: 'head-front', width: 26, height: 26 },
+          'head-blink': { width: 26, height: 26 },
+        },
+        arm: { arm: { width: 35, height: 10 } },
+        staff: { staff: { name: 'staff-oak', width: 60, height: 8 } },
+        clip: {
+          clip: { type: 'clipping', end: 'cape', vertexCount: 3, vertices: [0, 0, 1, 0, 0, 1] },
+        },
+        vine: {
+          vine: { type: 'path', vertexCount: 3, vertices: [0, 0, 1, 1, 2, 2], lengths: [3] },
+        },
+        hitbox: { hitbox: { type: 'boundingbox', vertexCount: 3, vertices: [0, 0, 1, 0, 0, 1] } },
+        focus: { focus: { type: 'point', x: 60, rotation: 0 } },
+      },
+      robed: {
+        cape: {
+          cape: { type: 'linkedmesh', parent: 'cape', skin: 'default', path: 'cape-robed' },
+        },
+        head: { head: { name: 'hood', width: 28, height: 28 } },
+      },
+    },
+    events: { chant: { audio: 'chant.wav', volume: 0.8 }, step: { string: 'left' } },
+    animations: {
+      cast: {
+        bones: {
+          torso: {
+            rotate: [
+              { time: 0, angle: 90 },
+              { time: 1, angle: 95 },
+            ],
+          },
+        },
+        slots: {
+          head: {
+            attachment: [
+              { time: 0.5, name: 'head-blink' },
+              { time: 0.7, name: 'head' },
+            ],
+          },
+          staff: { color: [{ time: 0, color: 'ffffffff' }] },
+        },
+        ik: { 'arm-ik': [{ time: 0, mix: 1 }] },
+        transform: { 'head-follow': [{ time: 0, rotateMix: 0.5 }] },
+        paths: { 'vine-path': { position: [{ time: 0, position: 0.2 }] } },
+        deform: { default: { cape: { cape: [{ time: 0, vertices: [0, 1] }] } } },
+        events: [{ time: 0.2, name: 'chant' }],
+        drawOrder: [{ time: 0.5, offsets: [{ slot: 'arm', offset: -2 }] }],
+      },
+      walk: {
+        bones: {
+          hip: {
+            translate: [
+              { time: 0, x: 0 },
+              { time: 0.5, x: 8 },
+            ],
+          },
+        },
+        events: [{ time: 0.1, name: 'step' }],
+        draworder: [{ time: 0.3, offsets: [{ slot: 'staff', offset: -4 }] }],
+      },
+    },
+  }),
+)
 
 // --- layout: pages in another folder, with characters a URI would misread ---------------------------
 
@@ -323,15 +423,6 @@ await write(
       },
     ],
     animations: { wag: { bones: { tail: {}, fin: {} }, events: [{ name: 'splash' }] } },
-  }),
-)
-await write(
-  'problems/spine-3.7.json',
-  json({
-    skeleton: { spine: '3.7.94' },
-    bones: [{ name: 'root' }],
-    slots: [{ name: 'body', bone: 'root' }],
-    skins: { default: { body: { body: { width: 10, height: 10 } } } },
   }),
 )
 await write('problems/not-spine.json', json({ name: 'some-package', version: '1.0.0' }))
