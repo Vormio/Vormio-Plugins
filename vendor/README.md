@@ -37,7 +37,7 @@ sha256sum vendor/vormio-plugin-sdk-0.0.6-02188f0.tgz
 | `spine-ts-3.8/LICENSE`        | 同一提交的 `LICENSE`（Spine Runtimes 许可协议，2019-05-01 版）                                                                    | `6142ee6cc2c03d3a918793e4750ae772bd3755c534d4a35e559e301acf51ec39` |
 
 - 官方只在 Spine Runtimes 仓库中提供 3.7 与 3.8 的 spine-ts，没有 npm 包（`@esotericsoftware/spine-*` 从 4.0 开始）。两个提交分别是 `3.7` 与 `3.8` 分支上最后一次改动 `spine-ts` 的提交（2019-07-08、2022-01-21）；2026-10-14 取下时，分支最新提交中的文件与它们逐字节相同。
-- spine-ts 3.7 没有二进制读取器（`SkeletonBinary` 从 3.8 起才有），插件只用它显示 3.7 的骨骼 JSON。
+- spine-ts 3.7 没有二进制读取器（`SkeletonBinary` 从 3.8 起才有）。3.7 的二进制骨骼由插件自己的读取器（按 spine-libgdx 3.7 移植，见 Spine 插件的 README）读成 spine-ts 3.7 的数据类，再由它绘制。
 - `spine-webgl.js` 是预先构建的脚本，不是 ES 模块：它定义全局变量 `spine`，WebGL 的类在 `spine.webgl` 中；`spine` 已经存在时，它把自己的类加进去。Spine 插件把它们原样复制为包内的 `runtimes/spine-webgl-<版本>.js`，显示这个版本的骨骼时才加载，一次只加载一个，加载前清空 `spine`，两个版本的类不会混在一起；许可协议复制为 `licenses/SPINE-RUNTIMES-<版本>.txt`。文件中没有 `eval`。末尾的 source map 注释指向的文件不在包内，只影响开发者工具。
 - 这些文件不经 Prettier 格式化（见 `.prettierignore`），保持与来源相同。
 

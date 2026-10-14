@@ -3,7 +3,7 @@ import { SpineError } from '../errors.ts'
 import type { Runtime } from './figure.ts'
 import { loadRuntime } from './runtimes.ts'
 import { readAtlas, readPage, readSkeleton, type PageImage, type SkeletonFile } from './source.ts'
-import { describeRuntimeLines, jsonOnlyLines, runtimeLine } from './version.ts'
+import { runtimeLine, runtimeLines } from './version.ts'
 
 /** Everything a runtime needs to load a skeleton. */
 export interface Parts {
@@ -27,11 +27,7 @@ export async function readParts(
   const line = runtimeLine(skeleton.version)
   if (!line)
     throw new SpineError(
-      `Spine ${skeleton.version} 的数据：插件只包含这些版本的运行时：${describeRuntimeLines()}。`,
-    )
-  if (jsonOnlyLines.includes(line) && skeleton.data instanceof ArrayBuffer)
-    throw new SpineError(
-      `Spine ${skeleton.version} 的二进制骨骼：Spine ${line} 的 Web 运行时只能读取 JSON，请从 Spine 导出 JSON。`,
+      `Spine ${skeleton.version} 的数据：插件只包含这些版本的运行时：${runtimeLines.join('、')}。`,
     )
   const atlas = await readAtlas(input)
   const runtime = await loadRuntime(line)

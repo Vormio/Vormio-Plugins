@@ -528,7 +528,7 @@ await write(
   'preview/ranger.png',
   figurePage([[234, 88, 12, 255], [22, 163, 74, 255], red, [124, 58, 237, 255]]),
 )
-// 3.7 as JSON only: spine-ts 3.7 has no binary reader.
+await write('preview/wizard.skel', writeSkeleton(figure('3.7.94'), '3.7'))
 await write('preview/wizard.json', figureJson(figure('3.7.94')))
 await write('preview/wizard.atlas', figureAtlas38('wizard.png'))
 await write(
@@ -560,13 +560,13 @@ await write(
   ),
 )
 await write('preview/empty.atlas', figureAtlas('hero.png'))
-// A newer header, without a runtime in the plugin, and a 3.7 one, whose runtime reads JSON only;
-// in 3.7 the hash is a string. Only the header matters, so the rest is left out.
+// A newer and an older header, without a runtime in the plugin; before 4.0 the hash is a string.
+// Only the header matters, so the rest is left out.
 await write('preview/spine-5.0.skel', writeSkeleton(figure('5.0.00'), '4.3').subarray(0, 32))
 const text = (value: string) => [value.length + 1, ...new TextEncoder().encode(value)]
 await write(
-  'preview/spine-3.7.skel',
-  Uint8Array.from([...text('vormio-fixture'), ...text('3.7.94'), 0, 0, 0, 0]),
+  'preview/spine-3.6.skel',
+  Uint8Array.from([...text('vormio-fixture'), ...text('3.6.53'), 0, 0, 0, 0]),
 )
 // A 3.6 JSON skeleton (skins are an object): Spine, but no runtime in the plugin reads it.
 await write(

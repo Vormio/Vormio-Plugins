@@ -5,6 +5,7 @@ import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { test } from 'node:test'
+import { readSkeletonBinary37 } from '../src/preview/binary-3.7.ts'
 import { nodeRuntime, type Spine } from './node-runtime.ts'
 
 const fixtures = join(import.meta.dirname, '../../../fixtures/spine/preview')
@@ -13,7 +14,12 @@ const fixtures = join(import.meta.dirname, '../../../fixtures/spine/preview')
 type Atlas38 = new (text: string, loader: () => unknown) => InstanceType<Spine['TextureAtlas']>
 const texture = { setFilters() {}, setWraps() {}, getImage: () => ({ width: 72, height: 72 }) }
 
-async function read(spine: Spine, line: string, name: string, form: 'skel' | 'json' = 'skel') {
+async function read(
+  spine: Spine,
+  line: string,
+  name: string,
+  form: 'skel' | 'json' = 'skel',
+): Promise<InstanceType<Spine['SkeletonData']>> {
   const text = await readFile(join(fixtures, `${name}.atlas`), 'utf8')
   const atlas =
     line === '3.7' || line === '3.8'
@@ -26,6 +32,8 @@ async function read(spine: Spine, line: string, name: string, form: 'skel' | 'js
   }
   // The reader views the buffer from its start, so the bytes get a buffer of their own.
   const bytes = new Uint8Array(await readFile(join(fixtures, `${name}.skel`)))
+  // spine-ts 3.7 has no binary reader; the plugin reads 3.7 binary data with its own port.
+  if (line === '3.7') return readSkeletonBinary37(spine, loader, bytes)
   return new spine.SkeletonBinary(loader).readSkeletonData(bytes)
 }
 
@@ -40,8 +48,6 @@ const figures = [
 
 for (const form of ['skel', 'json'] as const)
   for (const [line, name, version] of figures) {
-    // spine-ts 3.7 reads JSON only.
-    if (form === 'skel' && line === '3.7') continue
     test(`the ${line} runtime reads ${name}.${form}: bones, slots, skins and animations`, async () => {
       // Arrays are copied into this realm for comparing: 3.7 and 3.8 run in contexts of their own.
       const spine = await nodeRuntime(line)
@@ -80,4 +86,18 @@ for (const form of ['skel', 'json'] as const)
 
 test('the truncated skeleton fails in the runtime', async () => {
   await assert.rejects(async () => read(await nodeRuntime('4.2'), '4.2', 'truncated'))
+})
+
+test('the 3.7 binary reader fails on a skeleton cut off anywhere', async () => {
+  const spine = await nodeRuntime('3.7')
+  const text = await readFile(join(fixtures, 'wizard.atlas'), 'utf8')
+  const loader = new spine.AtlasAttachmentLoader(
+    new (spine.TextureAtlas as unknown as Atlas38)(text, () => texture),
+  )
+  const whole = new Uint8Array(await readFile(join(fixtures, 'wizard.skel')))
+  for (let length = 0; length < whole.length; length++)
+    assert.throws(
+      () => readSkeletonBinary37(spine, loader, whole.slice(0, length)),
+      `${length} bytes`,
+    )
 })
