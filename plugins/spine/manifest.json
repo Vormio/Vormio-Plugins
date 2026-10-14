@@ -1,9 +1,9 @@
 {
   "apiVersion": 1,
   "id": "vormio-plugins.spine",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "name": "Spine 骨骼动画",
-  "description": "Spine 与 libGDX 纹理图集（.atlas）的缩略图、查看器（贴图页上的区域框，可以搜索与定位区域）与组成分析（页面、区域与每页引用的贴图文件）。",
+  "description": "包含 Spine Runtimes：每个使用者都需要自己的 Spine Editor 许可证。Spine 4.2 与 4.3 二进制骨骼（.skel）的缩略图（初始姿势）与查看器（切换皮肤、播放动画）；Spine 与 libGDX 纹理图集（.atlas）的缩略图、查看器（贴图页上的区域框，可以搜索与定位区域）与组成分析（页面、区域与每页引用的贴图文件）。",
   "contributions": {
     "thumbnails": [
       {
@@ -11,6 +11,12 @@
         "entry": "thumbnail.html",
         "formats": ["atlas"],
         "companionFormats": ["png", "jpg", "jpeg"]
+      },
+      {
+        "id": "skeleton",
+        "entry": "skeleton-thumbnail.html",
+        "formats": ["skel"],
+        "companionFormats": ["atlas", "png", "jpg", "jpeg"]
       }
     ],
     "viewers": [
@@ -19,6 +25,12 @@
         "entry": "viewer.html",
         "formats": ["atlas"],
         "companionFormats": ["png", "jpg", "jpeg"]
+      },
+      {
+        "id": "skeleton",
+        "entry": "skeleton-viewer.html",
+        "formats": ["skel"],
+        "companionFormats": ["atlas", "png", "jpg", "jpeg"]
       }
     ],
     "analyzers": [

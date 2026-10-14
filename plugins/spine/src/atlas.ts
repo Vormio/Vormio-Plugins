@@ -9,6 +9,7 @@ import type {
   ReportReference,
   ReportSubresource,
 } from '@vormio/plugin-sdk'
+import { fileUri } from '../../../shared/uri.ts'
 import {
   compact,
   diagnosticList,
@@ -93,15 +94,6 @@ const isInteger = (value: string) => /^-?\d+$/.test(value)
 const isNumber = (value: string) => /^-?(\d+\.?\d*|\.\d+)$/.test(value)
 export const pageKey = (index: number) => `pages/${index}`
 export const regionKey = (index: number) => `regions/${index}`
-
-/**
- * The address of a page relative to the atlas. Atlases hold file names, not URIs, but the host
- * decodes percent-encoding and drops anything after `?` or `#`; those three characters are encoded
- * so the name reaches the host as written.
- */
-export function pageUri(name: string): string {
-  return name.replace(/[%?#]/g, (char) => `%${char.charCodeAt(0).toString(16).toUpperCase()}`)
-}
 
 /**
  * Parses the text of an .atlas file. Problems that still leave a usable atlas go to `diagnose`;
@@ -241,7 +233,7 @@ export function analyzeAtlas(text: string): CompositionReport {
   pages.forEach((each, index) => {
     const key = pageKey(index)
     subresources.push({ key, kind: '页面', name: plainText(each.name, limits.name) })
-    const uri = reportedUri(pageUri(each.name))
+    const uri = reportedUri(fileUri(each.name))
     if (uri === undefined)
       diagnose(
         'warning',

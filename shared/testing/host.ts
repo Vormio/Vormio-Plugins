@@ -64,7 +64,7 @@ export async function startHost(
     contributions: Record<string, { companionFormats?: string[] }[]>
   }
   // The host checks each page against its own contribution; one set for all pages is close enough
-  // for these tests, where a plugin's pages declare the same companions or none.
+  // for these tests, which never read a companion that only another page of the plugin declares.
   const companionFormats = new Set(
     Object.values(manifest.contributions).flatMap((list) =>
       list.flatMap((each) => each.companionFormats ?? []),

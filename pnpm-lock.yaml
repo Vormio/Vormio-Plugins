@@ -218,6 +218,12 @@ importers:
       '@vormio/plugin-sdk':
         specifier: file:../../vendor/vormio-plugin-sdk-0.0.3.tgz
         version: file:vendor/vormio-plugin-sdk-0.0.3.tgz
+      spine-webgl-4.2:
+        specifier: npm:@esotericsoftware/spine-webgl@4.2.120
+        version: '@esotericsoftware/spine-webgl@4.2.120'
+      spine-webgl-4.3:
+        specifier: npm:@esotericsoftware/spine-webgl@4.3.13
+        version: '@esotericsoftware/spine-webgl@4.3.13'
 
 packages:
 
@@ -382,6 +388,18 @@ packages:
     engines: {node: '>=18'}
     cpu: [x64]
     os: [win32]
+
+  '@esotericsoftware/spine-core@4.2.120':
+    resolution: {integrity: sha512-X62MPnfiZTWok4Wk5Q5DqaAUBUFypKpb94IVd1W/j4eLHhg0HH3tve4HvIlkgxDpls2NokHaAtzjxX12rJknOA==}
+
+  '@esotericsoftware/spine-core@4.3.13':
+    resolution: {integrity: sha512-iGs/40qOWSQYicABebDzFSwFOS1Nsm0dCCS8sGqbpVuThRKdLYeI1cVJpmATSpEmtcetEABTmh97NoBnt7XLDw==}
+
+  '@esotericsoftware/spine-webgl@4.2.120':
+    resolution: {integrity: sha512-xhITm18dZ6DclPaI1jEiTVOoXYQASsubbDEs3Ik1AjmVSXdNFtvdvzLVwhPQ8eHu1OXsxtWfuW+wpGHib8V4hw==}
+
+  '@esotericsoftware/spine-webgl@4.3.13':
+    resolution: {integrity: sha512-VdMtDU03HcoUfLlt0FXBzSvh53nLS7Hej0ibJ3kCuDf5hftAsDAiwZhhS6Ze+5nDCGrkNzPmssZcT+96FoOjIQ==}
 
   '@gltf-transform/core@4.5.1':
     resolution: {integrity: sha512-OWgBYssKHKoXMIrMb2N20jXqWRnMP9HdtcTFQBEAJtz4P+OOxx5fozl5eAeK7nktIs5uDE/lu4NbkE5VCZaR9g==}
@@ -766,6 +784,18 @@ snapshots:
 
   '@esbuild/win32-x64@0.28.2':
     optional: true
+
+  '@esotericsoftware/spine-core@4.2.120': {}
+
+  '@esotericsoftware/spine-core@4.3.13': {}
+
+  '@esotericsoftware/spine-webgl@4.2.120':
+    dependencies:
+      '@esotericsoftware/spine-core': 4.2.120
+
+  '@esotericsoftware/spine-webgl@4.3.13':
+    dependencies:
+      '@esotericsoftware/spine-core': 4.3.13
 
   '@gltf-transform/core@4.5.1':
     dependencies:

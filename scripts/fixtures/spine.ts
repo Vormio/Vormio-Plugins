@@ -1,11 +1,13 @@
 // Generates the Spine test fixtures in fixtures/spine/; run through scripts/make-fixtures.ts.
-// Skeletons, atlases and page images are all written here from the public format descriptions, so
-// the fixtures contain no Spine examples or other third-party content. They are small structural
-// samples, not real Spine exports: they cover what the analyzer reads, not what a renderer needs.
+// Skeletons, atlases and page images are all written here, so the fixtures contain no Spine examples
+// or other third-party content. JSON skeletons and atlases follow the public format descriptions;
+// they are structural samples for the analyzer, not what a renderer needs. The binary skeletons in
+// preview/ are small renderable figures for the skeleton previews, written by spine-binary.ts.
 
 import { mkdir, readdir, rm, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { png, type Rgba } from './png.ts'
+import { writeSkeleton, type BinarySkeleton } from './spine-binary.ts'
 
 const output = join(import.meta.dirname, '..', '..', 'fixtures', 'spine')
 
@@ -332,5 +334,132 @@ await write(
   }),
 )
 await write('problems/not-spine.json', json({ name: 'some-package', version: '1.0.0' }))
+
+// --- preview: binary skeletons the Spine runtimes can render -----------------------------------------
+//
+// A figure of three region attachments: a body with an arm on its right and a head on top. Each
+// region is one solid colour on the page, so a test can tell from the colours which attachments
+// were drawn. The "armored" skin swaps the head for a helmet; "wave" raises the arm and "blink"
+// hides the head for a moment.
+
+const figure = (version: string): BinarySkeleton => ({
+  version,
+  bones: [
+    { name: 'root' },
+    { name: 'body', parent: 0 },
+    { name: 'head', parent: 1, y: 48, length: 32 },
+    { name: 'arm', parent: 1, x: 16, y: 40, length: 32 },
+  ],
+  slots: [
+    { name: 'body', bone: 1, attachment: 'body' },
+    { name: 'arm', bone: 3, attachment: 'arm' },
+    { name: 'head', bone: 2, attachment: 'head' },
+  ],
+  skins: [
+    {
+      name: 'default',
+      attachments: {
+        0: { body: { y: 24, width: 32, height: 48 } },
+        1: { arm: { x: 16, width: 32, height: 16 } },
+        2: { head: { y: 16, width: 32, height: 32 } },
+      },
+    },
+    {
+      name: 'armored',
+      attachments: { 2: { head: { name: 'helmet', y: 16, width: 32, height: 32 } } },
+    },
+  ],
+  animations: [
+    {
+      name: 'wave',
+      rotate: {
+        3: [
+          [0, 0],
+          [0.5, 60],
+          [1, 0],
+        ],
+      },
+    },
+    {
+      name: 'blink',
+      attachment: {
+        2: [
+          [0, 'head'],
+          [0.25, null],
+          [0.5, 'head'],
+        ],
+      },
+    },
+  ],
+})
+/** The figure's regions on its page, with 2 transparent pixels around each as the packer leaves. */
+const figureRegions = [
+  { name: 'body', x: 2, y: 2, width: 32, height: 48 },
+  { name: 'head', x: 38, y: 2, width: 32, height: 32 },
+  { name: 'helmet', x: 38, y: 38, width: 32, height: 32 },
+  { name: 'arm', x: 2, y: 54, width: 32, height: 16 },
+]
+/** A page with the figure's regions; `colors` are the body, head, helmet and arm. */
+const figurePage = (colors: [Rgba, Rgba, Rgba, Rgba]) =>
+  png(72, 72, (x, y) => {
+    const index = figureRegions.findIndex(
+      (region) =>
+        x >= region.x &&
+        y >= region.y &&
+        x < region.x + region.width &&
+        y < region.y + region.height,
+    )
+    return index < 0 ? [0, 0, 0, 0] : colors[index]!
+  })
+const figureAtlas = (pageName: string) =>
+  atlas(
+    pageName,
+    'size: 72, 72',
+    'filter: Linear, Linear',
+    ...figureRegions.flatMap(({ name, x, y, width, height }) => [
+      name,
+      `bounds: ${x}, ${y}, ${width}, ${height}`,
+    ]),
+  )
+const red: Rgba = [220, 38, 38, 255]
+
+await write('preview/hero.skel', writeSkeleton(figure('4.2.43'), '4.2'))
+await write('preview/hero.atlas', figureAtlas('hero.png'))
+await write(
+  'preview/hero.png',
+  figurePage([[37, 99, 235, 255], [22, 163, 74, 255], red, [234, 179, 8, 255]]),
+)
+await write('preview/knight.skel', writeSkeleton(figure('4.3.13'), '4.3'))
+await write('preview/knight.atlas', figureAtlas('knight.png'))
+await write(
+  'preview/knight.png',
+  figurePage([[124, 58, 237, 255], [234, 88, 12, 255], red, [22, 163, 74, 255]]),
+)
+// No orphan.atlas next to it.
+await write('preview/orphan.skel', writeSkeleton(figure('4.2.43'), '4.2'))
+// Its atlas names a page that does not exist.
+await write('preview/torn.skel', writeSkeleton(figure('4.2.43'), '4.2'))
+await write('preview/torn.atlas', figureAtlas('torn.png'))
+// Cut off in the middle of the skeleton data.
+const whole = writeSkeleton(figure('4.2.43'), '4.2')
+await write('preview/truncated.skel', whole.subarray(0, Math.floor(whole.length / 2)))
+await write('preview/truncated.atlas', figureAtlas('hero.png'))
+// Bones only: nothing to draw.
+await write(
+  'preview/empty.skel',
+  writeSkeleton(
+    { version: '4.2.43', bones: [{ name: 'root' }], slots: [], skins: [], animations: [] },
+    '4.2',
+  ),
+)
+await write('preview/empty.atlas', figureAtlas('hero.png'))
+// Versions without a runtime in the plugin: a 4.1 header, and the 3.x header, where the hash is a
+// string. Only the header matters, so the rest is left out.
+await write('preview/spine-4.1.skel', writeSkeleton(figure('4.1.24'), '4.2').subarray(0, 32))
+const text = (value: string) => [value.length + 1, ...new TextEncoder().encode(value)]
+await write(
+  'preview/spine-3.8.skel',
+  Uint8Array.from([...text('vormio-fixture'), ...text('3.8.99'), 0, 0, 0, 0]),
+)
 
 console.log(`fixtures written to ${output}`)
