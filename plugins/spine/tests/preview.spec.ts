@@ -133,9 +133,10 @@ test.describe('thumbnails', () => {
     expect(stats.hues.orange).toBeGreaterThan(0.1)
   })
 
-  test('JSON skeletons of 3.8, 4.0 and 4.1 are drawn by those runtimes too', async ({ page }) => {
+  test('JSON and binary skeletons of 3.7, 3.8, 4.0 and 4.1 are drawn alike', async ({ page }) => {
     await page.goto(pageUrl(host.pluginOrigin, 'skeleton-thumbnail.html'))
-    for (const name of ['ranger', 'scout', 'squire']) {
+    // wizard.skel (3.7) goes through the plugin's own reader, wizard.json through spine-ts 3.7.
+    for (const name of ['wizard', 'ranger', 'scout', 'squire']) {
       const json = await requestThumbnail(page, await host.input(`${name}.json`))
       const binary = await requestThumbnail(page, await host.input(`${name}.skel`))
       expect(json.error, name).toBeUndefined()
@@ -162,13 +163,12 @@ test.describe('thumbnails', () => {
       (await requestThumbnail(page, await host.input(path))).error
     expect(await failure('orphan.skel')).toBe('找不到同名图集 orphan.atlas（文件不存在）')
     expect(await failure('torn.skel')).toBe('贴图页无法读取：torn.png（文件不存在）')
-    const lines = '3.7（只限 JSON）、3.8、4.0、4.1、4.2、4.3'
+    const lines = '3.7、3.8、4.0、4.1、4.2、4.3'
     expect(await failure('spine-5.0.skel')).toBe(
       `Spine 5.0.00 的数据：插件只包含这些版本的运行时：${lines}。`,
     )
-    // spine-ts 3.7 reads JSON only; the binary file stops before the runtime is loaded.
-    expect(await failure('spine-3.7.skel')).toBe(
-      'Spine 3.7.94 的二进制骨骼：Spine 3.7 的 Web 运行时只能读取 JSON，请从 Spine 导出 JSON。',
+    expect(await failure('spine-3.6.skel')).toBe(
+      `Spine 3.6.53 的数据：插件只包含这些版本的运行时：${lines}。`,
     )
     // A JSON skeleton of another version is Spine, so it fails rather than being not applicable.
     expect(await failure('spine-3.6.json')).toBe(
@@ -291,13 +291,13 @@ test.describe('viewer', () => {
   test('3.7 and 3.8 keep their own classes when both are loaded in one page', async ({ page }) => {
     await openViewer(page, 'ranger.skel')
     await expect(page.locator('#info')).toHaveText('Spine 3.8.99 · 4 根骨骼 · 3 个插槽')
-    const wizard = await host.input('wizard.json')
+    const wizard = await host.input('wizard.skel')
     await switchInput(page, wizard)
     expect(await viewerOutcome(page, wizard.url)).toEqual({ ready: true })
     await expect(page.locator('#info')).toHaveText('Spine 3.7.94 · 4 根骨骼 · 3 个插槽')
     expect((await canvasStats(page)).hues.yellow).toBeGreaterThan(0.003)
-    // The global now holds the 3.7 namespace, which has no binary reader: 3.7 did not add its
-    // classes to the 3.8 namespace.
+    // The global now holds the 3.7 namespace, which has no binary reader (the plugin read
+    // wizard.skel with its own): 3.7 did not add its classes to the 3.8 namespace.
     expect(
       await page.evaluate(
         () => typeof (globalThis as { spine?: { SkeletonBinary?: unknown } }).spine?.SkeletonBinary,

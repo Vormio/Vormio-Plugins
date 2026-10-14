@@ -1,15 +1,15 @@
-// Writes binary Spine skeletons (.skel) for the test fixtures, in the 3.8 and 4.0 to 4.3 layouts. Only
-// what the preview fixtures use is covered: bones, slots, region attachments, skins, and rotate and
-// attachment timelines; every constraint, event and other timeline list is written empty.
+// Writes binary Spine skeletons (.skel) for the test fixtures, in the 3.7, 3.8 and 4.0 to 4.3
+// layouts. Only what the preview fixtures use is covered: bones, slots, region attachments, skins,
+// and rotate and attachment timelines; every constraint, event and other timeline list is written
+// empty.
 //
 // The public binary format description is not detailed or current enough to write data the
 // runtimes accept, so the field order here follows the SkeletonBinary readers of the Spine Runtimes
-// (spine-ts 3.8 at 28727aff, spine-core 4.0.31, 4.1.56, 4.2.120 and 4.3.13).
-// This file is
-// therefore a derivative of the Spine Runtimes and, unlike the rest of the repository, is subject to
-// the Spine Runtimes License Agreement below, which redistribution must include. The Spine plugin
-// ships the license of each runtime line in licenses/. It is a development tool and never ends up
-// in a plugin package.
+// (spine-libgdx 3.7 at 7f7e5f0f, spine-ts 3.8 at 28727aff, spine-core 4.0.31, 4.1.56, 4.2.120 and
+// 4.3.13). This file is therefore a derivative of the Spine Runtimes and, unlike the rest of the
+// repository, is subject to the Spine Runtimes License Agreement below, which redistribution must
+// include. The Spine plugin ships the license of each runtime line in licenses/. It is a development
+// tool and never ends up in a plugin package.
 
 /*
  * Spine Runtimes License Agreement
@@ -40,10 +40,16 @@
  * THE SPINE RUNTIMES, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-export type BinaryLayout = '3.8' | '4.0' | '4.1' | '4.2' | '4.3'
+export type BinaryLayout = '3.7' | '3.8' | '4.0' | '4.1' | '4.2' | '4.3'
 
 /** What differs between the layouts, as far as this writer goes. */
 interface Traits {
+  /**
+   * 3.8 added a table of shared strings that names refer into (3.7 writes every name in place), the
+   * setup pose's position to the header, the skin required flag of bones, and the bones and
+   * constraints of named skins.
+   */
+  stringTable: boolean
   /**
    * 4.0 made the hash two ints and put a timeline count at the start of each animation. In 3.8 a
    * key's curve follows the key and a timeline has no Bézier count; from 4.0 the curve into a key
@@ -70,7 +76,18 @@ interface Traits {
 
 const layouts: Record<BinaryLayout, Traits> = {
   // IK, transform, path; then IK, transform, path, deform, draw order and event timelines.
+  '3.7': {
+    stringTable: false,
+    modern: false,
+    referenceScale: false,
+    inheritFirst: false,
+    constraintLists: 3,
+    flags: false,
+    sequence: false,
+    emptyTimelineLists: 6,
+  },
   '3.8': {
+    stringTable: true,
     modern: false,
     referenceScale: false,
     inheritFirst: false,
@@ -80,6 +97,7 @@ const layouts: Record<BinaryLayout, Traits> = {
     emptyTimelineLists: 6,
   },
   '4.0': {
+    stringTable: true,
     modern: true,
     referenceScale: false,
     inheritFirst: false,
@@ -89,6 +107,7 @@ const layouts: Record<BinaryLayout, Traits> = {
     emptyTimelineLists: 6,
   },
   '4.1': {
+    stringTable: true,
     modern: true,
     referenceScale: false,
     inheritFirst: false,
@@ -99,6 +118,7 @@ const layouts: Record<BinaryLayout, Traits> = {
   },
   // Adds physics constraints and their timelines.
   '4.2': {
+    stringTable: true,
     modern: true,
     referenceScale: true,
     inheritFirst: false,
@@ -109,6 +129,7 @@ const layouts: Record<BinaryLayout, Traits> = {
   },
   // One list for every kind of constraint; adds slider and draw order folder timelines.
   '4.3': {
+    stringTable: true,
     modern: true,
     referenceScale: true,
     inheritFirst: true,
@@ -198,9 +219,10 @@ export function writeSkeleton(skeleton: BinarySkeleton, layout: BinaryLayout): U
   const out = new Output()
   const traits = layouts[layout]
 
-  // Shared strings: every name the runtime reads as a reference into the table.
+  // Shared strings: every name the runtime reads as a reference into the table, or in 3.7 in place.
   const strings: string[] = []
   const ref = (value: string | null | undefined) => {
+    if (!traits.stringTable) return out.string(value ?? null)
     if (value === null || value === undefined) return out.varint(0)
     const index = strings.indexOf(value)
     if (index < 0) throw new Error(`string not in table: ${value}`)
@@ -222,18 +244,20 @@ export function writeSkeleton(skeleton: BinarySkeleton, layout: BinaryLayout): U
       for (const [, name] of keys) share(name)
   if (!traits.flags) for (const skin of skeleton.skins.slice(1)) share(skin.name)
 
-  // Header: hash (two ints, or in 3.8 a string), version, the setup pose bounds and (4.2) reference
-  // scale; no nonessential data (fps, image and audio paths, colours).
+  // Header: hash (two ints, or before 4.0 a string), version, the setup pose bounds (only their size
+  // in 3.7) and (4.2) reference scale; no nonessential data (fps, image and audio paths, colours).
   if (traits.modern) {
     out.int32(0x766f726d)
     out.int32(0x696f2d31)
   } else out.string('vormio-fixture')
   out.string(skeleton.version)
-  for (const value of [-100, 0, 200, 200]) out.float(value)
+  for (const value of traits.stringTable ? [-100, 0, 200, 200] : [200, 200]) out.float(value)
   if (traits.referenceScale) out.float(100)
   out.boolean(false)
-  out.varint(strings.length)
-  for (const value of strings) out.string(value)
+  if (traits.stringTable) {
+    out.varint(strings.length)
+    for (const value of strings) out.string(value)
+  }
 
   out.varint(skeleton.bones.length)
   skeleton.bones.forEach((bone, index) => {
@@ -254,7 +278,7 @@ export function writeSkeleton(skeleton: BinarySkeleton, layout: BinaryLayout): U
       out.float(bone.length ?? 0)
       out.byte(0)
     }
-    out.boolean(false) // skin required
+    if (traits.stringTable) out.boolean(false) // skin required
   })
 
   out.varint(skeleton.slots.length)
@@ -308,8 +332,10 @@ export function writeSkeleton(skeleton: BinarySkeleton, layout: BinaryLayout): U
   for (const skin of skins) {
     if (traits.flags) out.string(skin.name)
     else ref(skin.name)
-    out.varint(0) // bones
-    for (let count = traits.constraintLists; count > 0; count--) out.varint(0)
+    if (traits.stringTable) {
+      out.varint(0) // bones
+      for (let count = traits.constraintLists; count > 0; count--) out.varint(0)
+    }
     writeAttachments(skin.attachments)
   }
 
@@ -343,7 +369,7 @@ export function writeSkeleton(skeleton: BinarySkeleton, layout: BinaryLayout): U
         out.float(time)
         out.float(value)
         // Curves are linear (0). From 4.0 each key but the first is followed by the curve into it;
-        // in 3.8 each key but the last is followed by the curve out of it.
+        // before, each key but the last is followed by the curve out of it.
         if (traits.modern ? index > 0 : index < keys.length - 1) out.byte(0)
       })
     }

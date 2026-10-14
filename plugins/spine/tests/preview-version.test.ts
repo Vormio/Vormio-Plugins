@@ -17,7 +17,8 @@ test('the version comes from the header of 4.x and 3.x binary skeletons', async 
   assert.equal(await versionOf('spine-5.0.skel'), '5.0.00')
   // Before 4.0 the hash in front of the version was a string.
   assert.equal(await versionOf('ranger.skel'), '3.8.99')
-  assert.equal(await versionOf('spine-3.7.skel'), '3.7.94')
+  assert.equal(await versionOf('wizard.skel'), '3.7.94')
+  assert.equal(await versionOf('spine-3.6.skel'), '3.6.53')
 })
 
 test('bytes that do not start like a skeleton have no version', () => {

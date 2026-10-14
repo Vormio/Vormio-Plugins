@@ -38,6 +38,8 @@ export interface Differences {
    * the textures while it reads.
    */
   readAtlas?(text: string, texture: (name: string, pma: boolean) => Texture): ReadAtlas
+  /** Reads binary data where the runtime has no reader of its own (3.7). */
+  readBinary?(loader: Spine43.AtlasAttachmentLoader, bytes: Uint8Array): Spine43.SkeletonData
 }
 
 type Texture = Spine43.GLTexture
@@ -152,10 +154,11 @@ export function createRuntime(line: RuntimeLine, spine: Spine, differ: Differenc
       try {
         // Binary data as a byte array over the whole buffer: the 3.8 and 4.0 readers take the
         // array's buffer and read it from the start. Every line's JSON reader takes the parsed JSON.
-        data =
-          file instanceof ArrayBuffer
-            ? new spine.SkeletonBinary(loader).readSkeletonData(new Uint8Array(file))
-            : new spine.SkeletonJson(loader).readSkeletonData(file)
+        data = !(file instanceof ArrayBuffer)
+          ? new spine.SkeletonJson(loader).readSkeletonData(file)
+          : differ.readBinary
+            ? differ.readBinary(loader, new Uint8Array(file))
+            : new spine.SkeletonBinary(loader).readSkeletonData(new Uint8Array(file))
       } catch (error) {
         atlas.dispose()
         throw error

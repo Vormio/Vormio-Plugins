@@ -52,6 +52,12 @@ pnpm exec playwright install chromium-headless-shell
 
 每次改动都运行 `lint`、`typecheck` 与 `test`。
 
+**Spine 3.7 示例对照**：`plugins/spine/tests/preview-binary-37.test.ts` 用 Spine 官方的 3.7 示例核对插件的 3.7 二进制读取器：每个示例骨骼都有 `.skel` 与 `.json` 两份导出，spine-ts 3.7 的 `SkeletonJson` 读 JSON，插件的读取器读二进制，两份数据要相同。示例的许可不允许再分发，不进仓库，所以这个测试只在环境变量 `SPINE_37_EXAMPLES` 指向本机的示例文件夹时运行（Spine Runtimes 仓库 3.7 分支的 `examples/`，或每个示例一个文件夹、导出直接放在其中的副本），否则跳过。改动 3.7 读取器时运行：
+
+```bash
+SPINE_37_EXAMPLES=<示例文件夹> node --test plugins/spine/tests/preview-binary-37.test.ts
+```
+
 **替身宿主**（`shared/testing/`）：页面测试在 Chromium 中运行，插件文件带宿主的页面 CSP，配套读取按 manifest 的 `companionFormats` 限制。查看器页面像在宿主中一样，报告就绪之前是隐藏的，切换到下一个文件后再次隐藏直到就绪：这期间没有动画帧，`requestAnimationFrame` 的回调与图片的 `decode()` 都要等到显示后才完成。查看器在就绪之前依赖它们，就会在 Vormio 中“插件加载超时”。页面回答“不适用”（SDK 的 `notApplicable()`）时，替身宿主记下这个回答：缩略图与分析请求得到 `{ notApplicable: true }`，查看器调用 `notApplicable(input)` 并保持隐藏。替身宿主不模拟沙箱、分区、读取校验与拒绝记录，这些由 Vormio-Core 自己的测试覆盖。
 
 **在 Vormio 中联调**：先 `pnpm run dev gltf`，再在 Vormio 的“插件”页选择“添加开发目录…”，指向 `dist/gltf`，并在资源库中启用。Vormio 监听这个目录，每次构建后重新校验并重载插件。本项目的测试不需要 Core 源码。
@@ -111,4 +117,4 @@ pnpm exec playwright install chromium-headless-shell
 | draco3dgltf                                 | 1.5.7            | Apache-2.0 | 生成素材时的 Draco 编码器   |
 | meshoptimizer                               | 1.3.0            | MIT        | 生成素材时的 meshopt 编码器 |
 
-`scripts/fixtures/spine-binary.ts` 按 Spine Runtimes 的二进制读取器写出 `.skel` 素材，是 Spine Runtimes 的派生代码，与仓库其他部分不同，受 Spine Runtimes 许可协议约束；它只在生成素材时运行，不进入插件包。
+`scripts/fixtures/spine-binary.ts` 按 Spine Runtimes 的二进制读取器写出 `.skel` 素材，是 Spine Runtimes 的派生代码，与仓库其他部分不同，受 Spine Runtimes 许可协议约束；它只在生成素材时运行，不进入插件包。进入 Spine 插件包的派生代码（3.7 二进制读取器）见插件的 README。
