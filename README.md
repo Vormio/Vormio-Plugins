@@ -37,7 +37,7 @@ pnpm install --frozen-lockfile
 pnpm run dev gltf
 ```
 
-In Vormio, open the **插件** (Plugins) page, choose **添加开发目录…** (Add development folder…), point it at `dist/gltf` and enable the plugin in your library; it reloads after every build. Before committing, run `pnpm run lint`, `pnpm run typecheck` and `pnpm test`. To package a plugin, run `pnpm run package <plugin>`; the output goes to `artifacts/`.
+In Vormio, open the **插件** (Plugins) page, choose **添加开发目录…** (Add development folder…), point it at `dist/gltf` and enable the plugin in your library; it reloads after every build. Before committing, run `pnpm run lint`, `pnpm run typecheck` and `pnpm test`. To package a plugin, run `pnpm run package <plugin>`; the output goes to `artifacts/`. The official plugin catalog is signed with `pnpm run catalog` from the plugins listed in `release.json`; see the development guide.
 
 ## License
 

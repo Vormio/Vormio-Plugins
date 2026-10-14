@@ -16,6 +16,7 @@
     "format": "prettier --write .",
     "test": "node scripts/build.ts && node --test \"plugins/*/tests/*.test.ts\" \"shared/tests/*.test.ts\" && playwright test",
     "package": "node scripts/pack.ts",
+    "catalog": "node scripts/catalog.ts",
     "fixtures": "node scripts/make-fixtures.ts"
   },
   "devDependencies": {
