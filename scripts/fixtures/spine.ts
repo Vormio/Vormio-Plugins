@@ -1,8 +1,9 @@
 // Generates the Spine test fixtures in fixtures/spine/; run through scripts/make-fixtures.ts.
 // Skeletons, atlases and page images are all written here, so the fixtures contain no Spine examples
 // or other third-party content. JSON skeletons and atlases follow the public format descriptions;
-// they are structural samples for the analyzer, not what a renderer needs. The binary skeletons in
-// preview/ are small renderable figures for the skeleton previews, written by spine-binary.ts.
+// outside preview/ they are structural samples for the analyzer, not what a renderer needs. The
+// skeletons in preview/ are small renderable figures for the skeleton previews, in JSON and in
+// binary; spine-binary.ts writes the binary ones.
 
 import { mkdir, readdir, rm, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
@@ -423,13 +424,61 @@ const figureAtlas = (pageName: string) =>
   )
 const red: Rgba = [220, 38, 38, 255]
 
+/**
+ * The same figure as a JSON skeleton, following the public format description. Spine exports
+ * either form next to the same atlas; 4.2 and 4.3 read these parts of the JSON alike.
+ */
+function figureJson(skeleton: BinarySkeleton): string {
+  const bone = (index: number) => skeleton.bones[index]!.name
+  /** Entries by bone or slot index, keyed by its name instead; undefined when there are none. */
+  const named = <T, U>(
+    list: { name: string }[],
+    entries: Record<number, T> | undefined,
+    map: (value: T) => U,
+  ) =>
+    entries &&
+    Object.fromEntries(
+      Object.entries(entries).map(([index, value]) => [list[Number(index)]!.name, map(value)]),
+    )
+  return json({
+    skeleton: { hash: 'vormio-fixture-figure', spine: skeleton.version },
+    bones: skeleton.bones.map(({ name, parent, ...rest }) =>
+      parent === undefined ? { name, ...rest } : { name, parent: bone(parent), ...rest },
+    ),
+    slots: skeleton.slots.map(({ name, bone: index, attachment }) => ({
+      name,
+      bone: bone(index),
+      attachment,
+    })),
+    skins: skeleton.skins.map(({ name, attachments }) => ({
+      name,
+      attachments: named(skeleton.slots, attachments, (each) => each),
+    })),
+    animations: Object.fromEntries(
+      skeleton.animations.map(({ name, rotate, attachment }) => [
+        name,
+        {
+          bones: named(skeleton.bones, rotate, (keys) => ({
+            rotate: keys.map(([time, value]) => ({ time, value })),
+          })),
+          slots: named(skeleton.slots, attachment, (keys) => ({
+            attachment: keys.map(([time, name]) => ({ time, name })),
+          })),
+        },
+      ]),
+    ),
+  })
+}
+
 await write('preview/hero.skel', writeSkeleton(figure('4.2.43'), '4.2'))
+await write('preview/hero.json', figureJson(figure('4.2.43')))
 await write('preview/hero.atlas', figureAtlas('hero.png'))
 await write(
   'preview/hero.png',
   figurePage([[37, 99, 235, 255], [22, 163, 74, 255], red, [234, 179, 8, 255]]),
 )
 await write('preview/knight.skel', writeSkeleton(figure('4.3.13'), '4.3'))
+await write('preview/knight.json', figureJson(figure('4.3.13')))
 await write('preview/knight.atlas', figureAtlas('knight.png'))
 await write(
   'preview/knight.png',
@@ -461,5 +510,24 @@ await write(
   'preview/spine-3.8.skel',
   Uint8Array.from([...text('vormio-fixture'), ...text('3.8.99'), 0, 0, 0, 0]),
 )
+// A 3.8 JSON skeleton: Spine, but no runtime in the plugin reads it.
+await write(
+  'preview/spine-3.8.json',
+  json({ skeleton: { spine: '3.8.99' }, bones: [{ name: 'root' }], slots: [], skins: [] }),
+)
+// JSON that is not Spine: the previews decline it. An object, an array, and text that is not JSON
+// at all, such as JSON with comments.
+await write(
+  'preview/settings.json',
+  json({ name: 'figure-tools', version: '1.0.0', skeleton: 'hero.skel' }),
+)
+await write(
+  'preview/table.json',
+  json([
+    { id: 1, name: 'hero', hp: 100 },
+    { id: 2, name: 'knight', hp: 140 },
+  ]),
+)
+await write('preview/notes.json', '// Not JSON: comments are not allowed.\n{ "draft": true }\n')
 
 console.log(`fixtures written to ${output}`)

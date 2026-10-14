@@ -1,0 +1,128 @@
+{
+  "skeleton": {
+    "hash": "vormio-fixture-figure",
+    "spine": "4.3.13"
+  },
+  "bones": [
+    {
+      "name": "root"
+    },
+    {
+      "name": "body",
+      "parent": "root"
+    },
+    {
+      "name": "head",
+      "parent": "body",
+      "y": 48,
+      "length": 32
+    },
+    {
+      "name": "arm",
+      "parent": "body",
+      "x": 16,
+      "y": 40,
+      "length": 32
+    }
+  ],
+  "slots": [
+    {
+      "name": "body",
+      "bone": "body",
+      "attachment": "body"
+    },
+    {
+      "name": "arm",
+      "bone": "arm",
+      "attachment": "arm"
+    },
+    {
+      "name": "head",
+      "bone": "head",
+      "attachment": "head"
+    }
+  ],
+  "skins": [
+    {
+      "name": "default",
+      "attachments": {
+        "body": {
+          "body": {
+            "y": 24,
+            "width": 32,
+            "height": 48
+          }
+        },
+        "arm": {
+          "arm": {
+            "x": 16,
+            "width": 32,
+            "height": 16
+          }
+        },
+        "head": {
+          "head": {
+            "y": 16,
+            "width": 32,
+            "height": 32
+          }
+        }
+      }
+    },
+    {
+      "name": "armored",
+      "attachments": {
+        "head": {
+          "head": {
+            "name": "helmet",
+            "y": 16,
+            "width": 32,
+            "height": 32
+          }
+        }
+      }
+    }
+  ],
+  "animations": {
+    "wave": {
+      "bones": {
+        "arm": {
+          "rotate": [
+            {
+              "time": 0,
+              "value": 0
+            },
+            {
+              "time": 0.5,
+              "value": 60
+            },
+            {
+              "time": 1,
+              "value": 0
+            }
+          ]
+        }
+      }
+    },
+    "blink": {
+      "slots": {
+        "head": {
+          "attachment": [
+            {
+              "time": 0,
+              "name": "head"
+            },
+            {
+              "time": 0.25,
+              "name": null
+            },
+            {
+              "time": 0.5,
+              "name": "head"
+            }
+          ]
+        }
+      }
+    }
+  }
+}

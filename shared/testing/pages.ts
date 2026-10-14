@@ -3,18 +3,23 @@
 // self-contained, because Playwright sends them as source text.
 
 import type { Page } from '@playwright/test'
-import type { CompositionReport, PluginInput } from '@vormio/plugin-sdk'
+import type { CompositionReport, NotApplicable, PluginInput } from '@vormio/plugin-sdk'
 
 export interface BridgeState {
   input: PluginInput
   ready: string[]
   failures: { url: string; message: string }[]
+  /** Inputs the viewer answered were not its format. */
+  notApplicable: string[]
   violations: string[]
   listeners: ((input: PluginInput) => void)[]
   /** Shows or hides a viewer page as the host does; undefined on other pages. */
   setVisible?: (visible: boolean) => void
-  thumbnail?: (input: PluginInput, size: { maxEdge: number }) => Promise<ArrayBuffer>
-  analyze?: (input: PluginInput) => Promise<CompositionReport>
+  thumbnail?: (
+    input: PluginInput,
+    size: { maxEdge: number },
+  ) => Promise<ArrayBuffer | NotApplicable>
+  analyze?: (input: PluginInput) => Promise<CompositionReport | NotApplicable>
 }
 
 declare global {
@@ -38,6 +43,7 @@ export async function installBridge(page: Page): Promise<void> {
         : { url: '', name: '', extension: '', size: 0 },
       ready: [],
       failures: [],
+      notApplicable: [],
       violations: [],
       listeners: [],
     }
@@ -119,6 +125,8 @@ export async function installBridge(page: Page): Promise<void> {
         },
         fail: (input: PluginInput, message: string) =>
           state.failures.push({ url: input.url, message }),
+        // The host moves on to another viewer; this page stays hidden.
+        notApplicable: (input: PluginInput) => state.notApplicable.push(input.url),
         onThumbnailRequest(handler: BridgeState['thumbnail']) {
           state.thumbnail = handler
         },
@@ -131,23 +139,27 @@ export async function installBridge(page: Page): Promise<void> {
 }
 
 /**
- * Waits until the viewer reported ready or failed for `url`. Polls on a timer: until it is ready,
- * the viewer is hidden and gets no animation frames.
+ * Waits until the viewer reported ready, failed or answered not applicable for `url`. Polls on a
+ * timer: until it is ready, the viewer is hidden and gets no animation frames.
  */
 export async function viewerOutcome(
   page: Page,
   url: string,
-): Promise<{ ready: boolean; message?: string }> {
+): Promise<{ ready: boolean; message?: string; notApplicable?: true }> {
   await page.waitForFunction(
     (url) =>
       window.bridgeState.ready.includes(url) ||
+      window.bridgeState.notApplicable.includes(url) ||
       window.bridgeState.failures.some((failure) => failure.url === url),
     url,
     { polling: 50 },
   )
   return page.evaluate((url) => {
     const failure = window.bridgeState.failures.find((each) => each.url === url)
-    return failure ? { ready: false, message: failure.message } : { ready: true }
+    if (failure) return { ready: false, message: failure.message }
+    if (window.bridgeState.notApplicable.includes(url))
+      return { ready: false, notApplicable: true as const }
+    return { ready: true }
   }, url)
 }
 
@@ -270,17 +282,26 @@ export function pixelDifference(page: Page, a: string, b: string): Promise<numbe
   )
 }
 
-/** Renders a thumbnail through the page's handler; returns the PNG as base64, or the error. */
+/**
+ * Renders a thumbnail through the page's handler; returns the PNG as base64, the error, or that
+ * the page answered exactly `{ notApplicable: true }`.
+ */
 export async function requestThumbnail(
   page: Page,
   input: PluginInput,
   maxEdge = 320,
-): Promise<{ png?: string; error?: string }> {
+): Promise<{ png?: string; error?: string; notApplicable?: true }> {
   await page.waitForFunction(() => window.bridgeState.thumbnail !== undefined)
   return page.evaluate(
     async ({ input, maxEdge }) => {
       try {
-        const bytes = new Uint8Array(await window.bridgeState.thumbnail!(input, { maxEdge }))
+        const answer = await window.bridgeState.thumbnail!(input, { maxEdge })
+        if (!(answer instanceof ArrayBuffer)) {
+          if (JSON.stringify(answer) === '{"notApplicable":true}')
+            return { notApplicable: true as const }
+          return { error: `unexpected answer ${JSON.stringify(answer)}` }
+        }
+        const bytes = new Uint8Array(answer)
         let binary = ''
         for (let index = 0; index < bytes.length; index += 0x8000)
           binary += String.fromCharCode(...bytes.subarray(index, index + 0x8000))
@@ -293,16 +314,21 @@ export async function requestThumbnail(
   )
 }
 
-/** Runs the analyzer page's handler on `input`; returns the report, or the error message. */
+/**
+ * Runs the analyzer page's handler on `input`; returns the report, the error message, or that the
+ * page answered exactly `{ notApplicable: true }`.
+ */
 export async function requestAnalysis(
   page: Page,
   input: PluginInput,
-): Promise<{ report?: CompositionReport; error?: string }> {
+): Promise<{ report?: CompositionReport; error?: string; notApplicable?: true }> {
   await page.waitForFunction(() => window.bridgeState.analyze !== undefined)
   return page.evaluate(async (input) => {
     try {
       // The host receives the report through structured clone; JSON keeps the test to plain data.
-      return { report: JSON.parse(JSON.stringify(await window.bridgeState.analyze!(input))) }
+      const answer = JSON.stringify(await window.bridgeState.analyze!(input))
+      if (answer === '{"notApplicable":true}') return { notApplicable: true as const }
+      return { report: JSON.parse(answer) }
     } catch (error) {
       return { error: error instanceof Error ? error.message : String(error) }
     }

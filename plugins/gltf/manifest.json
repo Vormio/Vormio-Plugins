@@ -1,7 +1,7 @@
 {
-  "apiVersion": 1,
+  "apiVersion": 2,
   "id": "vormio-plugins.gltf",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "name": "glTF 模型",
   "description": "glTF 2.0 与 GLB 模型的缩略图、只读三维查看器（旋转、缩放、取景，显示配套贴图）与组成分析（场景、网格、材质、贴图与引用的文件）。",
   "contributions": {

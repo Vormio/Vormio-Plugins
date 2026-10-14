@@ -52,7 +52,7 @@ pnpm exec playwright install chromium-headless-shell
 
 每次改动都运行 `lint`、`typecheck` 与 `test`。
 
-**替身宿主**（`shared/testing/`）：页面测试在 Chromium 中运行，插件文件带宿主的页面 CSP，配套读取按 manifest 的 `companionFormats` 限制。查看器页面像在宿主中一样，报告就绪之前是隐藏的，切换到下一个文件后再次隐藏直到就绪：这期间没有动画帧，`requestAnimationFrame` 的回调与图片的 `decode()` 都要等到显示后才完成。查看器在就绪之前依赖它们，就会在 Vormio 中“插件加载超时”。替身宿主不模拟沙箱、分区与读取校验，这些由 Vormio-Core 自己的测试覆盖。
+**替身宿主**（`shared/testing/`）：页面测试在 Chromium 中运行，插件文件带宿主的页面 CSP，配套读取按 manifest 的 `companionFormats` 限制。查看器页面像在宿主中一样，报告就绪之前是隐藏的，切换到下一个文件后再次隐藏直到就绪：这期间没有动画帧，`requestAnimationFrame` 的回调与图片的 `decode()` 都要等到显示后才完成。查看器在就绪之前依赖它们，就会在 Vormio 中“插件加载超时”。页面回答“不适用”（SDK 的 `notApplicable()`）时，替身宿主记下这个回答：缩略图与分析请求得到 `{ notApplicable: true }`，查看器调用 `notApplicable(input)` 并保持隐藏。替身宿主不模拟沙箱、分区、读取校验与拒绝记录，这些由 Vormio-Core 自己的测试覆盖。
 
 **在 Vormio 中联调**：先 `pnpm run dev gltf`，再在 Vormio 的“插件”页选择“添加开发目录…”，指向 `dist/gltf`，并在资源库中启用。Vormio 监听这个目录，每次构建后重新校验并重载插件。本项目的测试不需要 Core 源码。
 
@@ -67,6 +67,7 @@ pnpm exec playwright install chromium-headless-shell
 官方目录是一份签名的 `catalog.json` 加上它列出的插件包，放在静态托管上，Vormio 的插件窗口从这里安装与更新插件。格式见 SDK README 的“插件目录”一节。仓库里只有发布配置与命令；目录地址、托管配置、上传凭据与签名私钥都不进仓库，上传是发布者的运营步骤。
 
 - `release.json` 的 `plugins` 列出目录收录的插件（`plugins/` 下的目录名）。新目录收录每个插件在当前提交上的版本；没有列出的插件不进目录。从目录撤下一个插件，就是把它从这里删掉再发布一次；已经装上的插件不会被远程删除。
+- 宿主只安装与自己 `apiVersion` 相同的发布。现在的插件是 `apiVersion: 2`（Core 0.0.6 起），线上目录里是给 Core 0.0.5 的 `apiVersion: 1`。按现在的命令发布，新目录只有当前提交上的版本，0.0.5 的宿主就再也看不到可安装的插件；要让目录同时列出两组发布，命令需要保留上一份目录中其他 `apiVersion` 的发布。这一项还没有做，发布 `apiVersion: 2` 之前完成。
 - 只在每个列出的版本都已在 Core 上手工验收（[插件规划](roadmap.md)的状态列）的提交上发布，发布前照常运行 `lint`、`typecheck` 与 `test`。
 - 命令，路径相对于运行命令的文件夹：
 

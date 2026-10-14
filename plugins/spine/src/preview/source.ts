@@ -1,15 +1,51 @@
-import { readCompanion, type CompanionStatus, type PluginInput } from '@vormio/plugin-sdk'
+import {
+  notApplicable,
+  readCompanion,
+  type CompanionStatus,
+  type NotApplicable,
+  type PluginInput,
+} from '@vormio/plugin-sdk'
 import { fileUri } from '../../../../shared/uri.ts'
-import { SpineError } from '../errors.ts'
+import { NotSpineError, SpineError } from '../errors.ts'
+import { readSkeletonJson } from '../skeleton.ts'
+import { skeletonVersion } from './version.ts'
 
-/** The skeleton file's bytes, in a buffer of their own as the runtime's reader expects. */
-export async function readSkeleton(input: PluginInput, signal?: AbortSignal): Promise<ArrayBuffer> {
+/** A skeleton file as a runtime reads it: binary data, or the parsed JSON. */
+export interface SkeletonFile {
+  /** The editor version that wrote it, such as `4.2.43`. */
+  version: string
+  data: ArrayBuffer | Record<string, unknown>
+}
+
+/**
+ * Reads the skeleton file. Other tools use `.json` too, so JSON that is not a Spine skeleton is not
+ * applicable; that is decided from the file alone, before any companion is read. A binary file is
+ * Spine's own format, so one without a version in its header fails instead.
+ */
+export async function readSkeleton(
+  input: PluginInput,
+  signal?: AbortSignal,
+): Promise<SkeletonFile | NotApplicable> {
   const response = await fetch(input.url, { signal }).catch(() => undefined)
   if (!response?.ok)
     throw new SpineError(
       response?.status === 409 ? '文件在磁盘上已变化，需要重新扫描。' : '无法读取这个文件。',
     )
-  return response.arrayBuffer()
+  // In a buffer of its own, as the runtime's binary reader expects.
+  const bytes = await response.arrayBuffer()
+  if (input.extension === 'json') {
+    let json: Record<string, unknown>
+    try {
+      json = readSkeletonJson(new TextDecoder().decode(bytes))
+    } catch (error) {
+      if (error instanceof NotSpineError) return notApplicable()
+      throw error
+    }
+    return { version: (json.skeleton as { spine: string }).spine, data: json }
+  }
+  const version = skeletonVersion(new Uint8Array(bytes))
+  if (!version) throw new SpineError('不是 Spine 的二进制骨骼文件：文件开头没有 Spine 版本。')
+  return { version, data: bytes }
 }
 
 const reasons: Record<CompanionStatus | 'undecodable', string> = {

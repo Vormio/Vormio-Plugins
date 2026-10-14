@@ -1,7 +1,8 @@
 // Runs the built thumbnail and viewer pages in Chromium against the fixtures, under the host's page
 // CSP, with a fake bridge (see shared/testing). Needs `node scripts/build.ts` first. The figure in
 // fixtures/spine/preview has one colour per attachment, so the colours show what was drawn: in
-// hero.skel the body is blue, the head green, the arm yellow and the armored skin's helmet red.
+// hero.skel and hero.json the body is blue, the head green, the arm yellow and the armored skin's
+// helmet red.
 
 import { join } from 'node:path'
 import { expect, test, type Page } from '@playwright/test'
@@ -72,6 +73,31 @@ test.describe('thumbnails', () => {
     expect(stats.hues.green).toBeGreaterThan(0.05)
   })
 
+  test('a JSON skeleton is drawn like the binary one, with the same atlas', async ({ page }) => {
+    const json = await thumbnailOf(page, 'hero.json')
+    expect(json.error).toBeUndefined()
+    expect(host.requests).toEqual(['200 hero.json', '200 hero.atlas', '200 hero.png'])
+    const binary = await requestThumbnail(page, await host.input('hero.skel'))
+    expect(await pixelDifference(page, json.png!, binary.png!)).toBeLessThan(0.001)
+    const knight = await requestThumbnail(page, await host.input('knight.json'))
+    const stats = await pixelStats(page, knight.png!)
+    expect(stats.hues.purple).toBeGreaterThan(0.2)
+    expect(stats.hues.orange).toBeGreaterThan(0.1)
+  })
+
+  test('JSON that is not a skeleton is not applicable, from the file alone', async ({ page }) => {
+    await page.goto(pageUrl(host.pluginOrigin, 'skeleton-thumbnail.html'))
+    const paths = ['settings.json', 'table.json', 'notes.json']
+    for (const path of paths)
+      expect(await requestThumbnail(page, await host.input(path)), path).toEqual({
+        notApplicable: true,
+      })
+    // No atlas is looked for before answering.
+    expect(host.requests).toEqual(paths.map((path) => `200 ${path}`))
+    // The same page goes on drawing skeletons.
+    expect((await requestThumbnail(page, await host.input('hero.json'))).error).toBeUndefined()
+  })
+
   test('each problem fails with its reason', async ({ page }) => {
     await page.goto(pageUrl(host.pluginOrigin, 'skeleton-thumbnail.html'))
     const failure = async (path: string) =>
@@ -82,6 +108,10 @@ test.describe('thumbnails', () => {
       'Spine 4.1.24 的数据：插件只包含 Spine 4.2 与 4.3 的运行时。',
     )
     expect(await failure('spine-3.8.skel')).toBe(
+      'Spine 3.8.99 的数据：插件只包含 Spine 4.2 与 4.3 的运行时。',
+    )
+    // A JSON skeleton of another version is Spine, so it fails rather than being not applicable.
+    expect(await failure('spine-3.8.json')).toBe(
       'Spine 3.8.99 的数据：插件只包含 Spine 4.2 与 4.3 的运行时。',
     )
     expect(await failure('truncated.skel')).toMatch(/^Spine 运行时无法读取这个骨骼：/)
@@ -150,6 +180,34 @@ test.describe('viewer', () => {
     await expect(page.locator('#warnings')).toContainText(
       '贴图页无法读取，用到它的附件不显示：torn.png（文件不存在）',
     )
+  })
+
+  test('a JSON skeleton shows like the binary one', async ({ page }) => {
+    const { outcome } = await openViewer(page, 'knight.json')
+    expect(outcome).toEqual({ ready: true })
+    await expect(page.locator('#info')).toHaveText('Spine 4.3.13 · 4 根骨骼 · 3 个插槽')
+    await expect(page.locator('#animation')).toHaveValue('wave')
+    await expect(page.locator('#play')).toHaveText('暂停')
+    expect((await canvasStats(page)).hues.purple).toBeGreaterThan(0.005)
+  })
+
+  test('JSON that is not a skeleton is not applicable while the page stays hidden', async ({
+    page,
+  }) => {
+    const { outcome } = await openViewer(page, 'settings.json')
+    expect(outcome).toEqual({ ready: false, notApplicable: true })
+    expect(await page.evaluate(() => document.hidden)).toBe(true)
+    expect(host.requests).toEqual(['200 settings.json'])
+    // The host may move the same page on to a skeleton, and on again to JSON that is not one.
+    const skeleton = await host.input('hero.json')
+    await switchInput(page, skeleton)
+    expect(await viewerOutcome(page, skeleton.url)).toEqual({ ready: true })
+    await expect(page.locator('#info')).toHaveText('Spine 4.2.43 · 4 根骨骼 · 3 个插槽')
+    const table = await host.input('table.json')
+    await switchInput(page, table)
+    expect(await viewerOutcome(page, table.url)).toEqual({ ready: false, notApplicable: true })
+    await expect(page.locator('#info')).toHaveText('')
+    await expect(page.locator('#animation')).toBeDisabled()
   })
 
   test('a skeleton without its atlas fails with the reason', async ({ page }) => {

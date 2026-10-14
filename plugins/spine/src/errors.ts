@@ -5,8 +5,7 @@ export class SpineError extends Error {
 
 /**
  * The file is not a Spine skeleton at all, as opposed to a broken or unsupported one. JSON is a
- * general format, so once the host lets an analyzer decline a file this becomes that answer; until
- * then it fails like any other error.
+ * general format, so the pages answer the host with `notApplicable()` for it instead of failing.
  */
 export class NotSpineError extends SpineError {
   override name = 'NotSpineError'

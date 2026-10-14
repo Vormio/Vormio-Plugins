@@ -26,9 +26,11 @@ before(async () => {
 })
 after(() => rm(temporary, { recursive: true, force: true }))
 
-test('the build output declares atlases and binary skeletons; previews read what they draw', () => {
+test('the build output declares atlases and skeletons; previews read what they draw', () => {
   const { manifest } = checked
   assert.equal(manifest.id, 'vormio-plugins.spine')
+  // Declining JSON that is not Spine needs the contract of Vormio-Core 0.0.6.
+  assert.equal(manifest.apiVersion, 2)
   const pages = ['png', 'jpg', 'jpeg']
   const skeleton = ['atlas', ...pages]
   assert.deepEqual(manifest.contributions.thumbnails, [
@@ -36,7 +38,7 @@ test('the build output declares atlases and binary skeletons; previews read what
     {
       id: 'skeleton',
       entry: 'skeleton-thumbnail.html',
-      formats: ['skel'],
+      formats: ['json', 'skel'],
       companionFormats: skeleton,
     },
   ])
@@ -45,14 +47,14 @@ test('the build output declares atlases and binary skeletons; previews read what
     {
       id: 'skeleton',
       entry: 'skeleton-viewer.html',
-      formats: ['skel'],
+      formats: ['json', 'skel'],
       companionFormats: skeleton,
     },
   ])
-  // The analyzer never reads the pages. JSON is left out until the host lets an analyzer, a
-  // thumbnail and a viewer decline files that are not Spine.
+  // The analyzers read the file alone; one page serves both. Binary skeletons are not analyzed.
   assert.deepEqual(manifest.contributions.analyzers, [
     { id: 'atlas', entry: 'analyzer.html', formats: ['atlas'], companionFormats: [] },
+    { id: 'skeleton', entry: 'analyzer.html', formats: ['json'], companionFormats: [] },
   ])
 })
 
@@ -125,7 +127,7 @@ test('vormio-plugin pack turns the output into an installable .vormioplugin', as
   const cli = fileURLToPath(new URL('cli.js', import.meta.resolve('@vormio/plugin-sdk/node')))
   const target = join(temporary, 'spine.vormioplugin')
   const { stdout } = await promisify(execFile)(process.execPath, [cli, 'pack', directory, target])
-  assert.match(stdout, /vormio-plugins\.spine 0\.3\.0/)
+  assert.match(stdout, /vormio-plugins\.spine 0\.4\.0/)
   const archive = readPackageArchive(await readFile(target))
   assert.equal(archive.checked.digest, checked.digest)
 })

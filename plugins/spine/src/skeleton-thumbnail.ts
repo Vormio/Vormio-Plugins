@@ -1,4 +1,4 @@
-import { thumbnail } from '@vormio/plugin-sdk'
+import { isNotApplicable, thumbnail } from '@vormio/plugin-sdk'
 import { failureMessage, SpineError } from './errors.ts'
 import type { Runtime } from './preview/figure.ts'
 import { pad, thumbnailSize } from './preview/framing.ts'
@@ -7,7 +7,8 @@ import type { RuntimeLine } from './preview/version.ts'
 
 // The setup pose with the default skin, framed to what is visible, drawn at up to twice the size
 // and scaled down for smooth edges. The background stays transparent. A page that cannot be read
-// fails the thumbnail rather than drawing the skeleton with parts missing.
+// fails the thumbnail rather than drawing the skeleton with parts missing. JSON that is not a
+// skeleton is not applicable: the host moves on to another thumbnail or the type icon.
 
 const canvas = document.createElement('canvas')
 const scenes = new Map<RuntimeLine, ReturnType<Runtime['scene']>>()
@@ -28,6 +29,7 @@ function sceneFor(runtime: Runtime) {
 thumbnail(async (input, { maxEdge }) => {
   try {
     const parts = await readParts(input)
+    if (isNotApplicable(parts)) return parts
     const figure = parts.runtime.load(
       sceneFor(parts.runtime),
       parts.skeleton,

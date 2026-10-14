@@ -65,12 +65,13 @@ export interface Runtime {
   /** The page names of an atlas, in order. */
   pageNames(atlasText: string): string[]
   /**
-   * Loads a skeleton for drawing with `scene`. Pages that failed to read are replaced by a
-   * transparent pixel. Throws the runtime's error when the data cannot be read.
+   * Loads a skeleton, binary data or parsed JSON, for drawing with `scene`. Pages that failed to
+   * read are replaced by a transparent pixel. Throws the runtime's error when the data cannot be
+   * read.
    */
   load(
     scene: SceneRenderer,
-    skeleton: ArrayBuffer,
+    file: ArrayBuffer | Record<string, unknown>,
     atlasText: string,
     pages: readonly { name: string; image: PageImage }[],
   ): Figure
@@ -97,7 +98,7 @@ export function createRuntime(line: RuntimeLine, spine: Spine, differ: Differenc
       return new spine.SceneRenderer(canvas, gl, true)
     },
 
-    load(scene, bytes, atlasText, pages) {
+    load(scene, file, atlasText, pages) {
       const atlas = new spine.TextureAtlas(atlasText)
       const problems: string[] = []
       atlas.pages.forEach((page, index) => {
@@ -109,11 +110,13 @@ export function createRuntime(line: RuntimeLine, spine: Spine, differ: Differenc
         )
       })
       const pma = atlas.pages.some((page) => page.pma)
+      const loader = new spine.AtlasAttachmentLoader(atlas)
       let data: Spine43.SkeletonData
       try {
-        data = new spine.SkeletonBinary(new spine.AtlasAttachmentLoader(atlas)).readSkeletonData(
-          bytes,
-        )
+        data =
+          file instanceof ArrayBuffer
+            ? new spine.SkeletonBinary(loader).readSkeletonData(file)
+            : new spine.SkeletonJson(loader).readSkeletonData(file)
       } catch (error) {
         atlas.dispose()
         throw error

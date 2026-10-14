@@ -55,10 +55,29 @@ test('atlases in both syntaxes and with encoded page names', async ({ page }) =>
     expect(await analyze(page, path), path).toEqual(await expected(path))
 })
 
-test('the skeleton branch analyzes JSON when it is asked to', async ({ page }) => {
-  // The manifest does not declare json yet; the page already handles it.
-  for (const path of ['basic/hero.json', 'legacy/goblin.json'])
+test('a JSON skeleton is analyzed from its text alone', async ({ page }) => {
+  for (const path of ['basic/hero.json', 'legacy/goblin.json', 'preview/knight.json'])
     expect(await analyze(page, path), path).toEqual(await expected(path))
+  expect(host.requests).toEqual([
+    '200 basic/hero.json',
+    '200 legacy/goblin.json',
+    '200 preview/knight.json',
+  ])
+})
+
+test('JSON that is not a Spine skeleton is not applicable', async ({ page }) => {
+  // An object, an object whose `skeleton` is no skeleton, an array, and text that is not JSON.
+  const paths = [
+    'problems/not-spine.json',
+    'preview/settings.json',
+    'preview/table.json',
+    'preview/notes.json',
+  ]
+  for (const path of paths)
+    expect(await requestAnalysis(page, await host.input(path)), path).toEqual({
+      notApplicable: true,
+    })
+  expect(host.requests).toEqual(paths.map((path) => `200 ${path}`))
 })
 
 test('analyses that overlap on one page do not mix', async ({ page }) => {
@@ -75,16 +94,19 @@ test('analyses that overlap on one page do not mix', async ({ page }) => {
 })
 
 test('files that cannot be analyzed fail with the reason', async ({ page }) => {
+  // A Spine skeleton too old to analyze is Spine, so it fails rather than being not applicable.
   const cases: [string, RegExp][] = [
     ['problems/not-an-atlas.atlas', /^不是 Spine 或 libGDX 图集：第 1 行/],
     ['problems/spine-3.7.json', /^不支持 Spine 3\.7\.94 的骨骼文件/],
-    ['problems/not-spine.json', /^不是 Spine 骨骼文件/],
   ]
   for (const [path, message] of cases) {
     const result = await requestAnalysis(page, await host.input(path))
     expect(result.error, path).toMatch(message)
   }
-  const atlas = await host.input('basic/hero.atlas')
-  const result = await requestAnalysis(page, { ...atlas, url: `${atlas.url}.gone` })
-  expect(result.error).toBe('无法读取这个文件。')
+  // A JSON file that cannot be read fails too: whether it is Spine is unknown.
+  for (const path of ['basic/hero.atlas', 'problems/not-spine.json']) {
+    const input = await host.input(path)
+    const result = await requestAnalysis(page, { ...input, url: `${input.url}.gone` })
+    expect(result.error, path).toBe('无法读取这个文件。')
+  }
 })

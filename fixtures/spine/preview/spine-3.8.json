@@ -1,0 +1,12 @@
+{
+  "skeleton": {
+    "spine": "3.8.99"
+  },
+  "bones": [
+    {
+      "name": "root"
+    }
+  ],
+  "slots": [],
+  "skins": []
+}

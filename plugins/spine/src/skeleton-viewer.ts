@@ -1,4 +1,4 @@
-import { viewer, type PluginInput } from '@vormio/plugin-sdk'
+import { isNotApplicable, viewer, type NotApplicable, type PluginInput } from '@vormio/plugin-sdk'
 import { failureMessage, SpineError } from './errors.ts'
 import type { Figure, Runtime } from './preview/figure.ts'
 import { fitView, panView, zoomAt, type Bounds, type View } from './preview/framing.ts'
@@ -269,12 +269,17 @@ function clear(): void {
   draw()
 }
 
-async function show(input: PluginInput, signal: AbortSignal): Promise<void> {
+/**
+ * Shows a skeleton. JSON that is not a skeleton is not applicable: the host, which keeps the page
+ * hidden until it is ready, moves on to another viewer or its built-in text preview.
+ */
+async function show(input: PluginInput, signal: AbortSignal): Promise<void | NotApplicable> {
   clear()
   let loaded: Figure
   try {
     const parts = await readParts(input, signal)
     if (signal.aborted) return
+    if (isNotApplicable(parts)) return parts
     loaded = parts.runtime.load(sceneFor(parts.runtime), parts.skeleton, parts.atlas, parts.pages)
   } catch (error) {
     if (signal.aborted) return

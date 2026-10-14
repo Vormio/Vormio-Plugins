@@ -1,8 +1,8 @@
 # glTF 模型
 
-插件 ID `vormio-plugins.gltf`，版本 0.2.0。为 glTF 2.0 与 GLB 文件提供网格缩略图、只读三维查看器和组成分析。
+插件 ID `vormio-plugins.gltf`，版本 0.2.1。为 glTF 2.0 与 GLB 文件提供网格缩略图、只读三维查看器和组成分析。
 
-- **宿主**：Vormio-Core 0.0.3 起（插件契约 `apiVersion: 1`）。0.2.0 声明了分析器扩展点，0.0.2 的宿主不认识这个字段，会拒绝加载；只要缩略图和查看器时用 0.1.0。SDK 使用 [`vendor/`](../../vendor/README.md) 中固定的 0.0.5 打包产物。
+- **宿主**：Vormio-Core 0.0.6 起（插件契约 `apiVersion: 2`）。宿主只加载与自己契约版本相同的插件：0.2.1 与 0.2.0 的代码相同，只把契约换成 `apiVersion: 2`；Core 0.0.3 至 0.0.5 用 0.2.0（`apiVersion: 1`），0.0.2 只认识缩略图和查看器，用 0.1.0。SDK 使用 [`vendor/`](../../vendor/README.md) 中固定的 0.0.6 打包产物。
 - **不修改任何文件**：只读取宿主绑定的模型文件，以及它引用的、扩展名在声明范围内的配套文件。
 - 从 0.1.0 升级时新增了分析器扩展点，权限指纹改变，需要在资源库中重新启用。
 
@@ -92,7 +92,7 @@ buffer 与图像可以是外部文件（相对模型文件的路径，可以用 
 | meshoptimizer 解码器（随 three.js 发布）                                           | 1.1     | MIT        | 打包进 `chunks/`                                |
 | Draco glTF 解码器（随 three.js 发布）                                              | —       | Apache-2.0 | `decoders/draco/`，原样复制                     |
 | Basis Universal 转码器（随 three.js 发布）                                         | —       | Apache-2.0 | `decoders/basis/`，原样复制                     |
-| `@vormio/plugin-sdk` 运行时                                                        | 0.0.5   | MIT        | 打包进 `chunks/`                                |
+| `@vormio/plugin-sdk` 运行时                                                        | 0.0.6   | MIT        | 打包进 `chunks/`                                |
 
 许可证全文与说明随包放在 `licenses/`（`THREE.txt`、`MESHOPTIMIZER.txt`、`APACHE-2.0.txt`、`NOTICE.txt`）。只在开发与测试中使用的工具见仓库 [README](../../README.md#依赖与许可证)。
 
@@ -110,7 +110,7 @@ pnpm run build gltf
 pnpm run package gltf
 ```
 
-生成 `artifacts/vormio-plugins.gltf-0.2.0.vormioplugin`（内部调用 `vormio-plugin pack`）。
+生成 `artifacts/vormio-plugins.gltf-0.2.1.vormioplugin`（内部调用 `vormio-plugin pack`）。
 
 测试（`pnpm test` 会先构建）：
 
@@ -120,7 +120,7 @@ pnpm run package gltf
 | `tests/analysis.test.ts`   | 组成报告：各素材的子资源、层级与引用；地址原样报告与超长 `data:`；扩展中的贴图槽与图像来源；皮肤、动画、相机与光源；错误序号、多父节点与成环变为诊断；超出上限时部分报告；深层级只遍历一次。每份报告都用 SDK 的 `parseReport` 校验，上限与 SDK 的 `reportLimits` 一致               |
 | `tests/framing.test.ts`    | 取景：随机包围盒与方向下，所有角点都在视野内且留出边距                                                                                                                                                                                                                              |
 | `tests/companions.test.ts` | 配套文件路径的显示（`../`、百分号编码、中文名）                                                                                                                                                                                                                                     |
-| `tests/package.test.ts`    | 构建产物通过 SDK 的包校验；三个扩展点的权限；页面引用的文件都在包内；页面不含 SDK 的 schema，分析器页面不含 three.js；`vormio-plugin pack` 生成的包与目录摘要一致                                                                                                                   |
+| `tests/package.test.ts`    | 构建产物通过 SDK 的包校验，契约是 `apiVersion: 2`；三个扩展点的权限；页面引用的文件都在包内；页面不含 SDK 的 schema，分析器页面不含 three.js；`vormio-plugin pack` 生成的包与目录摘要一致                                                                                           |
 | `tests/render.spec.ts`     | 在 Chromium 中运行构建好的页面（宿主的 CSP、跨源配套读取、模拟的 `window.vormio`）：缩略图颜色与读取的配套文件、Draco/meshopt 与未压缩结果一致、重叠任务不串图；查看器就绪、拖动旋转、滚轮缩放、适应与重置、改变大小时不出现空帧、换文件、缺失贴图警告与失败原因；全程没有 CSP 拦截 |
 | `tests/analyzer.spec.ts`   | 在 Chromium 中运行分析器页面：报告与 Node 中的分析一致并通过 `parseReport`；`.gltf` 只读主文件，GLB 只用 Range 读文件头与 JSON 块；重叠的分析不串；无法解析的文件给出原因；全程没有 CSP 拦截                                                                                        |
 
@@ -144,5 +144,7 @@ pnpm run package gltf
 4. 在磁盘上删除 `wood.png` 并重新扫描：`table.gltf` 的组成区显示“1 个缺失”，`wood.png` 为“缺失”，网格中两个模型带“缺失引用”标记；“筛选 → 有缺失引用”后只剩 `stool.gltf` 与 `table.gltf`。宿主同时按新的配套版本重新生成了两者的缩略图（木纹消失）。
 5. 写回 `wood.png` 并重新扫描：筛选结果为空（“没有符合筛选条件的文件。”），清除筛选后 `wood.png` 恢复“已解析”。
 6. 同一构建上缩略图与查看器照常工作；全程原文件的内容与修改时间都没有被改动（写回的贴图内容与原来相同）。
+
+**Core 0.0.6（`02188f0`，插件 0.2.1），2026-10-14**，与 Spine 0.4.0 的验收同一次运行（新资源库，格式 6）：开发目录加载 `dist/gltf`，卡片显示 0.2.1 并已在资源库启用；`props/table.gltf` 与 `stool.gltf` 显示模型缩略图，`table.gltf` 的组成区显示“由‘glTF 模型’分析于 …”与子资源 14 个，查看器就绪并显示带木纹的桌子。原文件不变。
 
 查看器截图取自插件视图自身的 `capturePage()`。主窗口的 `capturePage()` 不包含叠加的 WebContentsView，因此没有整窗截图。
