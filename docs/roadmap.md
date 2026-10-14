@@ -27,7 +27,7 @@ Spine 的设计与后续版本见 [设计计划](plans/spine.md)。
 
 **官方插件目录**（Core 0.0.5 起）：受邀测试者从 Vormio 的插件窗口安装、更新与回滚已经验收的官方插件。2026-10-14 第一次发布（序号 1）：glTF 0.2.0 与 Spine 0.2.0，来自 `982215d`（合并前是 `8eb019b`，内容相同）；当时本仓库还在用 SDK 0.0.3，目录由 Core 构建的 SDK 签名。换用 SDK 0.0.5 之后，发布配置 `release.json` 与命令 `pnpm run catalog` 都在本仓库，见[开发说明](development.md#发布官方目录)；域名、上传凭据与签名私钥不进仓库。
 
-现在的插件是 `apiVersion: 3`，给 Core 0.0.7 起的宿主：glTF 0.4.0、Spine 0.9.0 与 OBJ 0.1.0 已在 Core 0.0.8 上手工验收，之前的 glTF 0.2.3 与 Spine 0.8.0 已在 Core 0.0.7 上手工验收（2026-10-15），都还没有进目录；下一次发布（序号 3）列出验收过的最新版本，OBJ 那时加进 `release.json`。目录中最新的是 `apiVersion: 2`（glTF 0.2.1、Spine 0.4.0），给 Core 0.0.6 的宿主。2026-10-14 第二次发布（序号 2），来自 `7ed6344`，同时列出两组发布：
+现在的插件是 `apiVersion: 3`，给 Core 0.0.7 起的宿主：glTF 0.4.0、Spine 0.9.0 与 OBJ 0.1.0 已在 Core 0.0.8 上手工验收，之前的 glTF 0.2.3 与 Spine 0.8.0 已在 Core 0.0.7 上手工验收（2026-10-15），都还没有进目录；下一次发布（序号 3）列出验收过的最新版本；`release.json` 已加入 OBJ。目录中最新的是 `apiVersion: 2`（glTF 0.2.1、Spine 0.4.0），给 Core 0.0.6 的宿主。2026-10-14 第二次发布（序号 2），来自 `7ed6344`，同时列出两组发布：
 
 - 给 Core 0.0.6 的 glTF 0.2.1 与 Spine 0.4.0（`apiVersion: 2`），都已在 Core 0.0.6（tag `v0.0.6`）上手工验收。
 - 给 Core 0.0.5 的 glTF 0.2.0 与 Spine 0.2.0（`apiVersion: 1`），由 `pnpm run catalog` 从上一份目录保留，沿用已发布的包（见[开发说明](development.md#发布官方目录)）。

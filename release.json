@@ -1,3 +1,3 @@
 {
-  "plugins": ["gltf", "spine"]
+  "plugins": ["gltf", "obj", "spine"]
 }
