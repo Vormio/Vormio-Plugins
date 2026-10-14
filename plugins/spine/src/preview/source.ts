@@ -50,6 +50,10 @@ export type PageImage = { image: HTMLImageElement } | { problem: string }
  * relative to the skeleton too; backslashes are folder separators as on Windows. The page is an
  * image element, as the runtime's own asset manager loads it: the 4.3 runtime premultiplies
  * non-premultiplied pages through WebGL's unpack setting, which WebGL ignores for ImageBitmaps.
+ *
+ * It waits for the load event, not `decode()`: the host keeps a viewer hidden until it reports
+ * ready, and a hidden page draws no frames, so `decode()` would never settle there. WebGL decodes
+ * the image when the page is uploaded.
  */
 export async function readPage(input: PluginInput, name: string): Promise<PageImage> {
   const result = await readCompanion(input, fileUri(name).replaceAll('\\', '/'))
@@ -57,13 +61,16 @@ export async function readPage(input: PluginInput, name: string): Promise<PageIm
   const url = URL.createObjectURL(new Blob([result.bytes]))
   try {
     const image = new Image()
-    image.src = url
-    await image.decode()
+    await new Promise((resolve, reject) => {
+      image.onload = resolve
+      image.onerror = reject
+      image.src = url
+    })
     return { image }
   } catch {
     return { problem: reasons.undecodable }
   } finally {
-    // The decoded pixels stay with the element.
+    // The loaded image keeps its data.
     URL.revokeObjectURL(url)
   }
 }

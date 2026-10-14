@@ -52,6 +52,8 @@ pnpm exec playwright install chromium-headless-shell
 
 每次改动都运行 `lint`、`typecheck` 与 `test`。
 
+**替身宿主**（`shared/testing/`）：页面测试在 Chromium 中运行，插件文件带宿主的页面 CSP，配套读取按 manifest 的 `companionFormats` 限制。查看器页面像在宿主中一样，报告就绪之前是隐藏的，切换到下一个文件后再次隐藏直到就绪：这期间没有动画帧，`requestAnimationFrame` 的回调与图片的 `decode()` 都要等到显示后才完成。查看器在就绪之前依赖它们，就会在 Vormio 中“插件加载超时”。替身宿主不模拟沙箱、分区与读取校验，这些由 Vormio-Core 自己的测试覆盖。
+
 **在 Vormio 中联调**：先 `pnpm run dev gltf`，再在 Vormio 的“插件”页选择“添加开发目录…”，指向 `dist/gltf`，并在资源库中启用。Vormio 监听这个目录，每次构建后重新校验并重载插件。本项目的测试不需要 Core 源码。
 
 ## 与 Core 的协作
