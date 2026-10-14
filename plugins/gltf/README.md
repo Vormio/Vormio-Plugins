@@ -2,7 +2,7 @@
 
 插件 ID `vormio-plugins.gltf`，版本 0.2.0。为 glTF 2.0 与 GLB 文件提供网格缩略图、只读三维查看器和组成分析。
 
-- **宿主**：Vormio-Core 0.0.3 起（插件契约 `apiVersion: 1`）。0.2.0 声明了分析器扩展点，0.0.2 的宿主不认识这个字段，会拒绝加载；只要缩略图和查看器时用 0.1.0。SDK 使用 [`vendor/`](../../vendor/README.md) 中固定的 0.0.3 打包产物。
+- **宿主**：Vormio-Core 0.0.3 起（插件契约 `apiVersion: 1`）。0.2.0 声明了分析器扩展点，0.0.2 的宿主不认识这个字段，会拒绝加载；只要缩略图和查看器时用 0.1.0。SDK 使用 [`vendor/`](../../vendor/README.md) 中固定的 0.0.5 打包产物。
 - **不修改任何文件**：只读取宿主绑定的模型文件，以及它引用的、扩展名在声明范围内的配套文件。
 - 从 0.1.0 升级时新增了分析器扩展点，权限指纹改变，需要在资源库中重新启用。
 
@@ -86,13 +86,13 @@ buffer 与图像可以是外部文件（相对模型文件的路径，可以用 
 
 打进插件包的代码：
 
-| 组件                                                                               | 版本    | 许可证                     | 位置                                            |
-| ---------------------------------------------------------------------------------- | ------- | -------------------------- | ----------------------------------------------- |
-| three.js（含 GLTFLoader、DRACOLoader、KTX2Loader、OrbitControls、RoomEnvironment） | 0.186.1 | MIT                        | 打包进 `viewer.js`、`thumbnail.js` 与 `chunks/` |
-| meshoptimizer 解码器（随 three.js 发布）                                           | 1.1     | MIT                        | 打包进 `chunks/`                                |
-| Draco glTF 解码器（随 three.js 发布）                                              | —       | Apache-2.0                 | `decoders/draco/`，原样复制                     |
-| Basis Universal 转码器（随 three.js 发布）                                         | —       | Apache-2.0                 | `decoders/basis/`，原样复制                     |
-| `@vormio/plugin-sdk` 运行时                                                        | 0.0.3   | 随 Vormio-Core（尚未选定） | 打包进 `chunks/`                                |
+| 组件                                                                               | 版本    | 许可证     | 位置                                            |
+| ---------------------------------------------------------------------------------- | ------- | ---------- | ----------------------------------------------- |
+| three.js（含 GLTFLoader、DRACOLoader、KTX2Loader、OrbitControls、RoomEnvironment） | 0.186.1 | MIT        | 打包进 `viewer.js`、`thumbnail.js` 与 `chunks/` |
+| meshoptimizer 解码器（随 three.js 发布）                                           | 1.1     | MIT        | 打包进 `chunks/`                                |
+| Draco glTF 解码器（随 three.js 发布）                                              | —       | Apache-2.0 | `decoders/draco/`，原样复制                     |
+| Basis Universal 转码器（随 three.js 发布）                                         | —       | Apache-2.0 | `decoders/basis/`，原样复制                     |
+| `@vormio/plugin-sdk` 运行时                                                        | 0.0.5   | MIT        | 打包进 `chunks/`                                |
 
 许可证全文与说明随包放在 `licenses/`（`THREE.txt`、`MESHOPTIMIZER.txt`、`APACHE-2.0.txt`、`NOTICE.txt`）。只在开发与测试中使用的工具见仓库 [README](../../README.md#依赖与许可证)。
 

@@ -7,7 +7,7 @@
 
 > **许可要求**：插件包含 Spine Runtimes，按 Spine Runtimes 许可协议分发，**每个使用者都需要自己的 Spine Editor 许可证**，只用图集查看与组成分析也一样：许可协议约束的是包含运行时的整个插件。分发方不持有 Spine Editor 许可证；插件无法核实使用者是否持有。协议原文随插件包附在 `licenses/SPINE-RUNTIMES.txt`。
 
-- **宿主**：Vormio-Core 0.0.3 起（插件契约 `apiVersion: 1`，缩略图、查看器与分析器扩展点）。SDK 使用 [`vendor/`](../../vendor/README.md) 中固定的 0.0.3 打包产物。
+- **宿主**：Vormio-Core 0.0.3 起（插件契约 `apiVersion: 1`，缩略图、查看器与分析器扩展点）。SDK 使用 [`vendor/`](../../vendor/README.md) 中固定的 0.0.5 打包产物。
 - **不修改任何文件**：骨骼的缩略图与查看器读取骨骼、同一目录中的同名图集与图集的贴图页；图集的缩略图与查看器读取图集与它的 PNG、JPEG 贴图页；分析器只读取图集本身。
 - 从 0.2.0 升级时新增了骨骼的缩略图与查看器，权限指纹改变，需要在资源库中重新启用；许可要求也从这个版本开始。从 0.1.0 升级时新增了图集的缩略图与查看器，同样需要重新启用。
 - 设计与后续版本见 [设计计划](../../docs/plans/spine.md)。
@@ -128,7 +128,7 @@
 | `@esotericsoftware/spine-webgl`（npm 别名 `spine-webgl-4.2`） | 4.2.120         | Spine Runtimes 许可协议（2025-04-05 版） | 读取与绘制 4.2 骨骼 |
 | `@esotericsoftware/spine-webgl`（npm 别名 `spine-webgl-4.3`） | 4.3.13          | 同上                                     | 读取与绘制 4.3 骨骼 |
 | `@esotericsoftware/spine-core`                                | 4.2.120、4.3.13 | 同上（spine-webgl 的依赖）               |                     |
-| `@vormio/plugin-sdk`                                          | 0.0.3           | 随 Vormio-Core，许可证尚未选定           | 宿主接口            |
+| `@vormio/plugin-sdk`                                          | 0.0.5           | MIT                                      | 宿主接口            |
 
 许可协议允许不持有 Spine Editor 许可证的一方集成运行时，条件是产品的每个使用者都自己持有许可证，再分发时附上协议与版权声明。插件的自写代码按仓库的 MIT 许可；插件包作为整体包含 Spine Runtimes，受上述协议约束。
 

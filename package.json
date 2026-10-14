@@ -24,7 +24,7 @@
     "@gltf-transform/functions": "4.5.1",
     "@playwright/test": "1.63.0",
     "@types/node": "^24.19.2",
-    "@vormio/plugin-sdk": "file:vendor/vormio-plugin-sdk-0.0.3.tgz",
+    "@vormio/plugin-sdk": "file:vendor/vormio-plugin-sdk-0.0.5-6cf994f.tgz",
     "draco3dgltf": "1.5.7",
     "esbuild": "0.28.2",
     "meshoptimizer": "1.3.0",
