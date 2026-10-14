@@ -376,4 +376,6 @@ Core 0.0.7 为 R2（Vormio/Vormio-Core#2）在报告中加入推断的引用：�
 
 **素材**：素材脚本为 `preview/` 中 4.3 的人偶 JSON 加上 IK、变换、路径、物理与滑块约束各一个，以及一段带约束时间轴的动画；同时确认二进制骨骼与 JSON 骨骼的预览仍正常。
 
-**验收**：Node 测试（C3 的核对与 `parseReport` 校验）；在当时最新的 Core 发布版本上手工验收：4.3 骨骼 JSON 的组成列出约束，内部引用指向相应骨骼；4.2 及更早的结果不变。
+**验收**：Node 测试（C3 的核对与 `parseReport` 校验）。
+
+**手工验收**（2026-10-15，Core 0.0.8）：脚本驱动（Playwright 的 Electron 驱动，临时用户数据目录，不连官方目录，不模拟配色），Core 0.0.8 是 tag `v0.0.8` 的干净导出（`pnpm install --frozen-lockfile` 与 `pnpm run build`，未打包启动）。三个插件是本分支 `pnpm run package spine gltf obj` 的包（Spine 0.9.0 `d0aaceae…`，glTF 0.4.0 `48851a97…`，OBJ 0.1.0 `06889bab…`），在插件窗口用“安装插件包…”安装并启用。新资源库关联 `fixtures/spine` 的 `basic`、`preview`，`fixtures/gltf` 的 `animated`、`variants`、`props` 与整个 `fixtures/obj` 的副本，共 74 个文件；全程原文件的内容与修改时间不变。查看 `basic/paladin.json`，检视栏的“组成”页签列出 IK、变换、路径、物理约束与两个滑块约束（子资源 37），“引用”页签的推断引用 `paladin.atlas` 是“未找到”；`preview/knight.json`（4.3）照常有缩略图。安装确认框列出的权限与 0.8.0 相同。没有在 Core 0.0.7 上重做（同样是 `apiVersion: 3`，宿主没有变化的部分不影响分析结果）。

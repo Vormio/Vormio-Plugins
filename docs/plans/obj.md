@@ -116,6 +116,15 @@ R3 试用时，`.mtl` 分析器的材质 key 改为基于材质名（与 Spine �
 - **测量**：生成一个约 100 MB 的 OBJ（只在测试中生成，不入库），记录缩略图与查看器的耗时，决定是否需要在 README 写明大小上限。
 - **手工验收**：在当时最新的 Core 发布版本上：启用确认框列出的权限；网格中的缩略图；查看器；`.obj` 与 `.mtl` 的组成、引用、被引用；删除材质库后显示缺失引用；一个含 MSVC 编译产物的文件夹全部是“不适用”且只问一次；原文件不变。
 
+**手工验收**（2026-10-15，Core 0.0.8）：脚本驱动（Playwright 的 Electron 驱动，临时用户数据目录，不连官方目录，不模拟配色），Core 0.0.8 是 tag `v0.0.8` 的干净导出（`pnpm install --frozen-lockfile` 与 `pnpm run build`，未打包启动）。三个插件是本分支 `pnpm run package spine gltf obj` 的包（Spine 0.9.0 `d0aaceae…`，glTF 0.4.0 `48851a97…`，OBJ 0.1.0 `06889bab…`），在插件窗口用“安装插件包…”安装并启用。新资源库关联 `fixtures/spine` 的 `basic`、`preview`，`fixtures/gltf` 的 `animated`、`variants`、`props` 与整个 `fixtures/obj` 的副本，共 74 个文件；全程原文件的内容与修改时间不变。
+
+- 安装确认框列出“缩略图：obj（还可读取…：mtl、png、jpg、jpeg、tga、bmp）”“查看器：obj（…）”“组成分析：obj”“组成分析：mtl”。
+- `basic/table.obj` 有缩略图；查看器“60 个三角形 · 2 个材质”，木纹贴图显示；“组成”页签列出 Top、Legs、legs-front、Wood、Metal；“引用”页签的 `table.mtl` 已解析，点击跳到 `table.mtl`，它的“引用”页签中 `textures/wood grain.png` 已解析，“被引用”页签列出 `table.obj`。
+- `problems/missing-library.obj` 在网格中标出“缺失引用”，查看器列出“absent.mtl（文件不存在）”。
+- `not-obj/` 的两个编译产物与普通文本：没有缩略图、没有“分析失败”或“缩略图生成失败”；查看模式显示宿主的“这种文件暂时没有内置预览。”，插件查看器没有出现。
+- 深色主题下 `layout/model/crate.obj` 的查看器背景是深色，后一个材质库的绿色与带 `#`、`\` 的贴图都正确。
+- 未验证：大量编译产物时“只问一次”的表现（宿主行为与 Spine 的 `json` 相同，见 Spine 设计计划 §13）；真实的外部 OBJ 模型；在 #3 补充场景的留言（§7）还没有发。
+
 ## 10. 实施顺序
 
 1. 把 glTF 的灯光与取景移到 `shared/three/`（O6），glTF 测试保持通过；确认不了解析方式就跳过这一步。
