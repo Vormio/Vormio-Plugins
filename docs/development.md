@@ -58,9 +58,20 @@ pnpm exec playwright install chromium-headless-shell
 
 ## 与 Core 的协作
 
-- 只使用 `vendor/` 中固定版本的 SDK 打包产物，不导入 Core 源码。来源记录见 [vendor/README.md](vendor/README.md)。
-- 插件需要宿主没有的能力时，向 Core 提出需求，写清使用场景；由 Core 以通用方式补齐，不为单个格式开特例。
-- 插件在 Core 的开发目录模式下联调；本项目的测试不要求 Core 源码存在。
+本项目是 Core 的下游，像第三方插件开发者一样工作：只通过 Core 的 GitHub issue、Core 的发布版本与 npm 上的 SDK 和 Core 打交道，不在本项目的任务中修改 Core。
+
+- 只使用 `vendor/` 中固定版本的 SDK，取自 npm 上已发布的版本，不导入 Core 源码。来源记录与更新步骤见 [vendor/README.md](vendor/README.md)。
+- 插件需要宿主没有的能力，或遇到宿主问题时，在 Core 提 issue：
+
+  ```bash
+  gh issue create -R Vormio/Vormio-Core --template "插件需求"
+  ```
+
+  写清场景、阻塞的插件能力、期望与验收标准；标签 `from:plugins`，需要改 SDK 的加 `contract`。由 Core 以通用方式补齐，不为单个格式开特例。
+
+- 插件计划只记录 issue 号、状态与解决它的 Core 版本，不复述 Core 的设计、分支或提交。宿主补齐之前插件怎么做（例如暂不声明某个扩展点），写在插件计划里。
+- Core 为某个 issue 发布 SDK 预发布版（npm 标签 `next`）时，插件可以先接入试用，在 issue 下回复结果；正式发布插件要等 Core 的正式版本。
+- 联调在 Core 的开发目录模式下进行；手工验收用 Core 的发布版本（tag 或便携版），记录 Core 版本号。本项目的测试不要求 Core 源码存在。
 
 ## 发布官方目录
 

@@ -2,7 +2,7 @@
 
 固定版本的外部产物，每份都记录来源与 SHA-256：
 
-- Vormio-Core 发布的插件 SDK 打包产物。本仓库只通过这里的固定版本使用 SDK，不导入 Core 源码，也不依赖同级检出。
+- Vormio-Core 发布到 npm 的插件 SDK（`@vormio/plugin-sdk`）。本仓库只通过这里的固定版本使用 SDK，不导入 Core 源码，也不依赖同级检出。下表中的 0.0.6 是此前从 Core 提交构建的 tarball，与 npm 上的 0.0.6 逐字节相同；之后按“更新时”从 npm 取。
 - Spine 3.8 运行时（`spine-ts-3.8/`），见文末。它不在 npm 上，Spine 插件把它打进包里。
 
 | 文件                                  | 版本  | 来源                                                                                                                                          | SHA-256                                                            |
@@ -16,9 +16,9 @@
 
 更新时：
 
-1. 在 Core 运行 `pnpm run sdk:pack`，把新的 tarball 复制到这里，校验 SHA-256，更新上表（Core 提交号、SHA-256）。
+1. 只使用已发布到 npm 的版本（正式版，或 Core 为某个 issue 在 `next` 标签下发布的预发布版），不使用 Core 分支或提交上构建的 tarball。在本目录运行 `npm pack @vormio/plugin-sdk@<版本>`，确认 tarball 的 SHA-512 与 `npm view @vormio/plugin-sdk@<版本> dist.integrity` 一致，更新上表（npm 版本、对应的 Core 发布、SHA-256）。用 tarball 而不是直接写 npm 版本，是因为 pnpm 不安装刚发布的版本（最短发布时间）。
 2. 更新根目录与各插件 `package.json` 中的 `file:` 路径，运行 `pnpm install`，确认锁文件中的 integrity 已经更新，删除不再使用的旧 tarball。
-3. 保留 `sdk:pack` 给的文件名：它带着构建提交，同一版本内重新交付也会换文件名，锁文件随之更新。替换同名的 tarball 时（0.0.3 曾经这样），`pnpm install` 会认为锁文件没有变化而跳过解析，要运行 `pnpm update -r @vormio/plugin-sdk`。
+3. `npm pack` 给的文件名是 `vormio-plugin-sdk-<版本>.tgz`。npm 上的版本不能重新发布，同一文件名的内容不会变。
 4. 换了 SDK 之后重新构建的插件，分块文件名会变：分块名的哈希包含 SDK 在 `node_modules` 中的路径，而这个路径带着 tarball 的文件名。
 
 校验：

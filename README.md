@@ -21,7 +21,8 @@ Each plugin's README lists the supported formats and versions, its capabilities,
 
 - Plugin IDs take the form `vormio-plugins.<name>`; each plugin lives in `plugins/<name>/`.
 - Versions follow semver, and `manifest.json` matches the plugin's `package.json`.
-- Plugins use only the pinned plugin-sdk package in `vendor/` and never depend on Vormio-Core source.
+- Plugins use only the pinned plugin-sdk package in `vendor/`, taken from a published npm version of `@vormio/plugin-sdk`, and never depend on Vormio-Core source.
+- Host gaps and host bugs go to [Vormio-Core issues](https://github.com/Vormio/Vormio-Core/issues) (label `from:plugins`).
 - Plugins do not access the network, arbitrary paths or native processes; decoders and other binaries ship inside the plugin package.
 - Test assets live in `fixtures/`, each with a recorded source and license.
 

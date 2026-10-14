@@ -2,10 +2,10 @@
 
 Official Vormio plugins: the plugin line. Read the workspace `AGENTS.md` and `WORKSPACE.md` first, then README.md and docs/development.md here.
 
-- Work follows the host's roadmap: start a plugin capability only when the Vormio-Core version that provides its extension point is in progress or done. glTF is the only active plugin; add other formats only when asked.
-- Consume the plugin SDK only as a pinned packaged artifact in `vendor/`, with its provenance recorded. Never import Vormio-Core source or depend on a sibling checkout.
+- This project is downstream of Vormio-Core and works like a third-party plugin developer. A plugin capability starts only when a published SDK provides its extension point: a released Core version, or an SDK prerelease (npm tag `next`) that Core published for an issue under trial. Add new formats only when asked.
+- Consume the plugin SDK only as a pinned tarball in `vendor/` taken from a published npm version (`npm pack @vormio/plugin-sdk@<version>`), with its provenance and integrity recorded. Never use a tarball built from a Core branch or commit, import Vormio-Core source or depend on a sibling checkout.
 - Plugins read only what the host grants (the observed version and declared companion files) and never modify user files. No network, arbitrary paths or native processes.
-- When the host lacks a capability, write it up as a request to Vormio-Core with the concrete scenario. Do not work around host boundaries inside a plugin.
+- When the host lacks a capability or misbehaves, file an issue on `Vormio/Vormio-Core` (`gh issue create -R Vormio/Vormio-Core`) with the request template: scenario, blocked plugin capability, expectation, acceptance criteria; label it `from:plugins`, plus `contract` when the SDK must change. Plugin plans cite the issue number and the Core version that resolves it, nothing more. Do not work around host boundaries inside a plugin, and never edit Vormio-Core from a task in this project.
 - Each plugin's README states the exact formats and versions, capabilities, unsupported cases and third-party dependencies with their licenses. Check a dependency's license before adding it.
 - Test assets live in `fixtures/` with a recorded source and license; assets with unclear licenses never enter the repository.
 - The previous plugins in `D:\Coding\Vormio\Vormio-Plugins` are reference only: read them, rewrite deliberately, never modify them.
@@ -20,4 +20,4 @@ Official Vormio plugins: the plugin line. Read the workspace `AGENTS.md` and `WO
 
 ## Verification
 
-Run `pnpm run lint`, `pnpm run typecheck` and `pnpm test` for every change. `pnpm test` covers the Node tests and the Chromium render tests against a stand-in host; it does not replace loading the plugin in Vormio-Core as a development folder, which acceptance of a host version requires. Record what was run and what was not covered.
+Run `pnpm run lint`, `pnpm run typecheck` and `pnpm test` for every change. `pnpm test` covers the Node tests and the Chromium render tests against a stand-in host; it does not replace manual acceptance: loading the plugin as a development folder in a released Vormio-Core version (a tag, or its portable build), which publishing to the catalog requires. Record the Core version used (not a commit), what was run and what was not covered. Host problems found during acceptance become Core issues.
