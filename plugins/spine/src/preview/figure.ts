@@ -1,7 +1,7 @@
-// A loaded skeleton behind one interface for both runtime lines: posing, skins, animation,
-// measuring and drawing. The code is typed against spine-webgl 4.3; the 4.2 module has the same
-// shape except for the calls in `Differences`, which each line's module (runtime-4.2.ts,
-// runtime-4.3.ts) supplies.
+// A loaded skeleton behind one interface for every runtime line: posing, skins, animation,
+// measuring and drawing. The code is typed against spine-webgl 4.3; the other lines' modules have
+// the same shape except for the calls in `Differences`, which each line's module (runtime-*.ts)
+// supplies.
 
 import type * as Spine43 from 'spine-webgl-4.3'
 import { hasArea, union, type Bounds } from './framing.ts'
@@ -12,7 +12,13 @@ export type Spine = typeof Spine43
 type SceneRenderer = Spine43.SceneRenderer
 type Skeleton = Spine43.Skeleton
 
-/** The calls whose names or parameters changed between 4.2 and 4.3. */
+/**
+ * How physics take part when world transforms are updated: not at all, reset to the pose, or
+ * stepped. Lines before 4.2 have no physics and ignore it.
+ */
+export type Physics = 'none' | 'reset' | 'update'
+
+/** The calls whose names or parameters differ between the runtime lines. */
 export interface Differences {
   texture(
     scene: SceneRenderer,
@@ -23,6 +29,9 @@ export interface Differences {
   setupPose(skeleton: Skeleton): void
   setupPoseSlots(skeleton: Skeleton): void
   setSkin(skeleton: Skeleton, name: string): void
+  updateWorldTransform(skeleton: Skeleton, physics: Physics): void
+  /** Advances the skeleton's own time, which physics use; 4.1 has none. */
+  advance(skeleton: Skeleton, seconds: number): void
 }
 
 /** The camera: the skeleton point at the canvas centre and skeleton units per device pixel. */
@@ -111,8 +120,10 @@ export function createRuntime(line: RuntimeLine, spine: Spine, differ: Differenc
       const pma = atlas.pages.some((page) => page.pma)
       let data: Spine43.SkeletonData
       try {
+        // As a byte array over the whole buffer: the 4.0 reader takes the array's buffer and
+        // reads it from the start.
         data = new spine.SkeletonBinary(new spine.AtlasAttachmentLoader(atlas)).readSkeletonData(
-          bytes,
+          new Uint8Array(bytes),
         )
       } catch (error) {
         atlas.dispose()
@@ -124,14 +135,14 @@ export function createRuntime(line: RuntimeLine, spine: Spine, differ: Differenc
       let animation: string | undefined
       let loop = true
 
-      const pose = (physics: Spine43.Physics) => {
+      const pose = (physics: Physics) => {
         state.clearTracks()
         differ.setupPose(skeleton)
         if (animation) {
           state.setAnimation(0, animation, loop)
           state.apply(skeleton)
         }
-        skeleton.updateWorldTransform(physics)
+        differ.updateWorldTransform(skeleton, physics)
       }
       const bounds = (): Bounds | undefined => {
         const rect = skeleton.getBoundsRect()
@@ -140,14 +151,14 @@ export function createRuntime(line: RuntimeLine, spine: Spine, differ: Differenc
       const useSkin = (name: string) => {
         differ.setSkin(skeleton, name)
         differ.setupPoseSlots(skeleton)
-        pose(spine.Physics.reset)
+        pose('reset')
       }
 
       // The default skin, unless it shows nothing in the setup pose and another skin does. A
       // skeleton may have no skin at all.
       const skins = data.skins.map((skin) => skin.name)
       const [first] = skins
-      if (first === undefined) pose(spine.Physics.reset)
+      if (first === undefined) pose('reset')
       else {
         useSkin(first)
         for (const name of skins.slice(1)) {
@@ -186,13 +197,13 @@ export function createRuntime(line: RuntimeLine, spine: Spine, differ: Differenc
         setAnimation(name, repeat) {
           animation = name
           loop = repeat
-          pose(spine.Physics.reset)
+          pose('reset')
         },
         update(seconds) {
           state.update(seconds)
           state.apply(skeleton)
-          skeleton.update(seconds)
-          skeleton.updateWorldTransform(spine.Physics.update)
+          differ.advance(skeleton, seconds)
+          differ.updateWorldTransform(skeleton, 'update')
         },
         bounds,
         extent(name) {
@@ -205,7 +216,7 @@ export function createRuntime(line: RuntimeLine, spine: Spine, differ: Differenc
               entry.trackTime = time
               state.apply(skeleton)
             }
-            skeleton.updateWorldTransform(spine.Physics.none)
+            differ.updateWorldTransform(skeleton, 'none')
             const current = bounds()
             if (current) result = union(result, current)
           }
@@ -214,7 +225,7 @@ export function createRuntime(line: RuntimeLine, spine: Spine, differ: Differenc
           if (!name || duration <= 0) measure(0)
           else for (let index = 0; index <= samples; index++) measure((duration * index) / samples)
           // Measuring moved the skeleton; put the shown animation back at its start.
-          pose(spine.Physics.reset)
+          pose('reset')
           return result
         },
         render(camera, width, height) {

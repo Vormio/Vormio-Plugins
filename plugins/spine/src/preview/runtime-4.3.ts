@@ -10,4 +10,7 @@ export const runtime = createRuntime('4.3', spine, {
   setupPose: (skeleton) => skeleton.setupPose(),
   setupPoseSlots: (skeleton) => skeleton.setupPoseSlots(),
   setSkin: (skeleton, name) => skeleton.setSkin(name),
+  updateWorldTransform: (skeleton, physics) =>
+    skeleton.updateWorldTransform(spine.Physics[physics]),
+  advance: (skeleton, seconds) => skeleton.update(seconds),
 })

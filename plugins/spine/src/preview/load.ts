@@ -25,7 +25,7 @@ export async function readParts(input: PluginInput, signal?: AbortSignal): Promi
   const line = runtimeLine(version)
   if (!line)
     throw new SpineError(
-      `Spine ${version} 的数据：插件只包含 Spine ${runtimeLines.join(' 与 ')} 的运行时。`,
+      `Spine ${version} 的数据：插件只包含这些版本的运行时：${runtimeLines.join('、')}。`,
     )
   const atlas = await readAtlas(input)
   const runtime = await loadRuntime(line)

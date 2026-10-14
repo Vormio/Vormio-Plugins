@@ -5,28 +5,30 @@ import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { test } from 'node:test'
-import * as spine42 from 'spine-webgl-4.2'
-import * as spine43 from 'spine-webgl-4.3'
+import { nodeRuntime, type Spine } from './node-runtime.ts'
 
 const fixtures = join(import.meta.dirname, '../../../fixtures/spine/preview')
-const runtimes = { '4.2': spine42, '4.3': spine43 } as const
 
-async function read(line: keyof typeof runtimes, name: string) {
-  const spine = runtimes[line] as unknown as typeof spine43
+async function read(spine: Spine, name: string) {
   const atlas = new spine.TextureAtlas(await readFile(join(fixtures, `${name}.atlas`), 'utf8'))
   // The reader views the buffer from its start, so the bytes get a buffer of their own.
-  const bytes = new Uint8Array(await readFile(join(fixtures, `${name}.skel`))).buffer
+  const bytes = new Uint8Array(await readFile(join(fixtures, `${name}.skel`)))
   const loader = new spine.AtlasAttachmentLoader(atlas)
-  return { spine, data: new spine.SkeletonBinary(loader).readSkeletonData(bytes) }
+  return new spine.SkeletonBinary(loader).readSkeletonData(bytes)
 }
 
-for (const [line, name] of [
-  ['4.2', 'hero'],
-  ['4.3', 'knight'],
-] as const)
+const figures = [
+  ['4.0', 'scout', '4.0.64'],
+  ['4.1', 'squire', '4.1.24'],
+  ['4.2', 'hero', '4.2.43'],
+  ['4.3', 'knight', '4.3.13'],
+] as const
+
+for (const [line, name, version] of figures)
   test(`the ${line} runtime reads ${name}.skel: bones, slots, skins and animations`, async () => {
-    const { spine, data } = await read(line, name)
-    assert.equal(data.version, line === '4.2' ? '4.2.43' : '4.3.13')
+    const spine = await nodeRuntime(line)
+    const data = await read(spine, name)
+    assert.equal(data.version, version)
     assert.deepEqual(
       data.bones.map((bone) => bone.name),
       ['root', 'body', 'head', 'arm'],
@@ -47,7 +49,9 @@ for (const [line, name] of [
       ],
     )
     const skeleton = new spine.Skeleton(data)
-    skeleton.updateWorldTransform(spine.Physics.none)
+    // Lines before 4.2 have no physics and take no argument.
+    if (spine.Physics) skeleton.updateWorldTransform(spine.Physics.none)
+    else (skeleton.updateWorldTransform as () => void).call(skeleton)
     const bounds = skeleton.getBoundsRect()
     // The body (32 × 48), the head on top (32 × 32) and the arm reaching to the right (32 wide).
     assert.deepEqual(
@@ -57,5 +61,5 @@ for (const [line, name] of [
   })
 
 test('the truncated skeleton fails in the runtime', async () => {
-  await assert.rejects(read('4.2', 'truncated'))
+  await assert.rejects(async () => read(await nodeRuntime('4.2'), 'truncated'))
 })

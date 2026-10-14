@@ -435,6 +435,18 @@ await write(
   'preview/knight.png',
   figurePage([[124, 58, 237, 255], [234, 88, 12, 255], red, [22, 163, 74, 255]]),
 )
+await write('preview/scout.skel', writeSkeleton(figure('4.0.64'), '4.0'))
+await write('preview/scout.atlas', figureAtlas('scout.png'))
+await write(
+  'preview/scout.png',
+  figurePage([[234, 179, 8, 255], [37, 99, 235, 255], red, [124, 58, 237, 255]]),
+)
+await write('preview/squire.skel', writeSkeleton(figure('4.1.24'), '4.1'))
+await write('preview/squire.atlas', figureAtlas('squire.png'))
+await write(
+  'preview/squire.png',
+  figurePage([[22, 163, 74, 255], [124, 58, 237, 255], red, [37, 99, 235, 255]]),
+)
 // No orphan.atlas next to it.
 await write('preview/orphan.skel', writeSkeleton(figure('4.2.43'), '4.2'))
 // Its atlas names a page that does not exist.
@@ -453,9 +465,9 @@ await write(
   ),
 )
 await write('preview/empty.atlas', figureAtlas('hero.png'))
-// Versions without a runtime in the plugin: a 4.1 header, and the 3.x header, where the hash is a
-// string. Only the header matters, so the rest is left out.
-await write('preview/spine-4.1.skel', writeSkeleton(figure('4.1.24'), '4.2').subarray(0, 32))
+// Versions without a runtime in the plugin: a newer header, and the 3.x header, where the hash is
+// a string. Only the header matters, so the rest is left out.
+await write('preview/spine-5.0.skel', writeSkeleton(figure('5.0.00'), '4.3').subarray(0, 32))
 const text = (value: string) => [value.length + 1, ...new TextEncoder().encode(value)]
 await write(
   'preview/spine-3.8.skel',
