@@ -3,7 +3,7 @@
 **来源**：全部是本仓库原创，由 [`scripts/fixtures/spine.ts`](../../scripts/fixtures/spine.ts) 程序生成，不含任何 Spine 官方示例或其他第三方内容，也不是 Spine 编辑器的真实导出。
 
 - 骨骼 JSON、图集文本和贴图页 PNG 依据 Esoteric Software 公开的格式说明写成。它们是结构样本，覆盖分析器读取的内容；贴图页是纯色块加白色的上、左边线，用来检查图集缩略图与查看器的颜色和比例。
-- `preview/` 中的二进制骨骼（`.skel`）是给 Spine 插件的骨骼缩略图与查看器渲染的小人偶，由 [`scripts/fixtures/spine-binary.ts`](../../scripts/fixtures/spine-binary.ts) 写出。公开的二进制格式说明还是 3.8 的布局，这个脚本按 Spine Runtimes（spine-core 4.0.31、4.1.56、4.2.120 与 4.3.13）的读取器写成，因此**脚本本身受 Spine Runtimes 许可协议约束**；它只在生成素材时使用，不进入任何插件包。
+- `preview/` 中的二进制骨骼（`.skel`）是给 Spine 插件的骨骼缩略图与查看器渲染的小人偶，由 [`scripts/fixtures/spine-binary.ts`](../../scripts/fixtures/spine-binary.ts) 写出。公开的二进制格式说明还是 3.8 的布局，这个脚本按 Spine Runtimes（spine-ts 3.8 的 `28727aff`，spine-core 4.0.31、4.1.56、4.2.120 与 4.3.13）的读取器写成，因此**脚本本身受 Spine Runtimes 许可协议约束**；它只在生成素材时使用，不进入任何插件包。
 
 **许可证**：素材与本仓库相同（MIT，见 [LICENSE](../../LICENSE)）；生成它们的 `spine-binary.ts` 见上。
 
@@ -39,6 +39,7 @@ pnpm run fixtures spine
 | `preview/empty.skel`、`preview/empty.atlas`                            | 只有一根骨骼，没有插槽与皮肤                                                                                                                                                                                                                            | 缩略图失败：初始姿势下没有可见的附件                                                      |
 | `preview/scout.skel`、`preview/scout.atlas`、`preview/scout.png`       | 同一个人偶的 Spine 4.0 二进制骨骼；身体黄、头蓝、头盔红、手臂紫                                                                                                                                                                                         | 4.0 运行时读取                                                                            |
 | `preview/squire.skel`、`preview/squire.atlas`、`preview/squire.png`    | 同一个人偶的 Spine 4.1 二进制骨骼；身体绿、头紫、头盔红、手臂蓝                                                                                                                                                                                         | 4.1 运行时读取                                                                            |
-| `preview/spine-5.0.skel`、`preview/spine-3.8.skel`                     | 只有 5.0 与 3.8（哈希是字符串）的文件头                                                                                                                                                                                                                 | 版本没有对应的运行时                                                                      |
+| `preview/ranger.skel`、`preview/ranger.atlas`、`preview/ranger.png`    | 同一个人偶的 Spine 3.8 二进制骨骼，图集用 3.x 写法；身体橙、头绿、头盔红、手臂紫                                                                                                                                                                        | 3.8 运行时读取                                                                            |
+| `preview/spine-5.0.skel`、`preview/spine-3.7.skel`                     | 只有 5.0 与 3.7（哈希是字符串）的文件头                                                                                                                                                                                                                 | 版本没有对应的运行时                                                                      |
 
 骨骼 JSON 由 `JSON.stringify` 写出，不经 Prettier 格式化（见仓库的 `.prettierignore`）。

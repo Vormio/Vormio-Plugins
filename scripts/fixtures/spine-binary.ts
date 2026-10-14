@@ -1,9 +1,10 @@
-// Writes binary Spine skeletons (.skel) for the test fixtures, in the 4.0 to 4.3 layouts. Only
+// Writes binary Spine skeletons (.skel) for the test fixtures, in the 3.8 and 4.0 to 4.3 layouts. Only
 // what the preview fixtures use is covered: bones, slots, region attachments, skins, and rotate and
 // attachment timelines; every constraint, event and other timeline list is written empty.
 //
-// The public binary format description still shows the 3.8 layout, so the field order here follows
-// the SkeletonBinary readers of the Spine Runtimes (spine-core 4.0.31, 4.1.56, 4.2.120 and 4.3.13).
+// The public binary format description is not detailed or current enough to write data the
+// runtimes accept, so the field order here follows the SkeletonBinary readers of the Spine Runtimes
+// (spine-ts 3.8 at 28727aff, spine-core 4.0.31, 4.1.56, 4.2.120 and 4.3.13).
 // This file is
 // therefore a derivative of the Spine Runtimes and, unlike the rest of the repository, is subject to
 // the Spine Runtimes License Agreement below, which redistribution must include. The Spine plugin
@@ -39,10 +40,16 @@
  * THE SPINE RUNTIMES, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-export type BinaryLayout = '4.0' | '4.1' | '4.2' | '4.3'
+export type BinaryLayout = '3.8' | '4.0' | '4.1' | '4.2' | '4.3'
 
 /** What differs between the layouts, as far as this writer goes. */
 interface Traits {
+  /**
+   * 4.0 made the hash two ints and put a timeline count at the start of each animation. In 3.8 a
+   * key's curve follows the key and a timeline has no Bézier count; from 4.0 the curve into a key
+   * follows that key.
+   */
+  modern: boolean
   /** 4.2 added the reference scale to the header. */
   referenceScale: boolean
   /** 4.3 writes the inherit mode of a bone before its length. */
@@ -63,7 +70,17 @@ interface Traits {
 
 const layouts: Record<BinaryLayout, Traits> = {
   // IK, transform, path; then IK, transform, path, deform, draw order and event timelines.
+  '3.8': {
+    modern: false,
+    referenceScale: false,
+    inheritFirst: false,
+    constraintLists: 3,
+    flags: false,
+    sequence: false,
+    emptyTimelineLists: 6,
+  },
   '4.0': {
+    modern: true,
     referenceScale: false,
     inheritFirst: false,
     constraintLists: 3,
@@ -72,6 +89,7 @@ const layouts: Record<BinaryLayout, Traits> = {
     emptyTimelineLists: 6,
   },
   '4.1': {
+    modern: true,
     referenceScale: false,
     inheritFirst: false,
     constraintLists: 3,
@@ -81,6 +99,7 @@ const layouts: Record<BinaryLayout, Traits> = {
   },
   // Adds physics constraints and their timelines.
   '4.2': {
+    modern: true,
     referenceScale: true,
     inheritFirst: false,
     constraintLists: 4,
@@ -90,6 +109,7 @@ const layouts: Record<BinaryLayout, Traits> = {
   },
   // One list for every kind of constraint; adds slider and draw order folder timelines.
   '4.3': {
+    modern: true,
     referenceScale: true,
     inheritFirst: true,
     constraintLists: 1,
@@ -202,10 +222,12 @@ export function writeSkeleton(skeleton: BinarySkeleton, layout: BinaryLayout): U
       for (const [, name] of keys) share(name)
   if (!traits.flags) for (const skin of skeleton.skins.slice(1)) share(skin.name)
 
-  // Header: hash as two ints, version, the setup pose bounds and (4.2) reference scale; no
-  // nonessential data (fps, image and audio paths, colours).
-  out.int32(0x766f726d)
-  out.int32(0x696f2d31)
+  // Header: hash (two ints, or in 3.8 a string), version, the setup pose bounds and (4.2) reference
+  // scale; no nonessential data (fps, image and audio paths, colours).
+  if (traits.modern) {
+    out.int32(0x766f726d)
+    out.int32(0x696f2d31)
+  } else out.string('vormio-fixture')
   out.string(skeleton.version)
   for (const value of [-100, 0, 200, 200]) out.float(value)
   if (traits.referenceScale) out.float(100)
@@ -298,7 +320,7 @@ export function writeSkeleton(skeleton: BinarySkeleton, layout: BinaryLayout): U
     out.string(animation.name)
     const slots = Object.entries(animation.attachment ?? {})
     const bones = Object.entries(animation.rotate ?? {})
-    out.varint(slots.length + bones.length) // timeline count, a capacity hint
+    if (traits.modern) out.varint(slots.length + bones.length) // timeline count, a capacity hint
     out.varint(slots.length)
     for (const [slot, keys] of slots) {
       out.varint(Number(slot))
@@ -316,12 +338,13 @@ export function writeSkeleton(skeleton: BinarySkeleton, layout: BinaryLayout): U
       out.varint(1)
       out.byte(0) // rotate timeline
       out.varint(keys.length)
-      out.varint(0) // no Bézier curves
+      if (traits.modern) out.varint(0) // no Bézier curves
       keys.forEach(([time, value], index) => {
         out.float(time)
         out.float(value)
-        // Each key but the first is followed by the curve from the previous key: 0 is linear.
-        if (index > 0) out.byte(0)
+        // Curves are linear (0). From 4.0 each key but the first is followed by the curve into it;
+        // in 3.8 each key but the last is followed by the curve out of it.
+        if (traits.modern ? index > 0 : index < keys.length - 1) out.byte(0)
       })
     }
     for (let count = traits.emptyTimelineLists; count > 0; count--) out.varint(0)

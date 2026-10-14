@@ -6,3 +6,4 @@ playwright-report
 pnpm-lock.yaml
 fixtures/**/*.gltf
 fixtures/spine/**/*.json
+vendor/spine-ts-3.8

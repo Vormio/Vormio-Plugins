@@ -72,6 +72,23 @@ test.describe('thumbnails', () => {
     expect(stats.hues.green).toBeGreaterThan(0.05)
   })
 
+  test('a 3.8 skeleton is drawn by the 3.8 script, loaded when needed', async ({ page }) => {
+    // ranger.skel (3.8): orange body, green head, purple arm; its atlas uses the 3.x syntax.
+    const result = await thumbnailOf(page, 'ranger.skel')
+    expect(result.error).toBeUndefined()
+    const stats = await pixelStats(page, result.png!)
+    expect([stats.width, stats.height]).toEqual([258, 320])
+    expect(stats.cornerAlpha).toBe(0)
+    expect(stats.hues.orange).toBeGreaterThan(0.2)
+    expect(stats.hues.green).toBeGreaterThan(0.1)
+    expect(stats.hues.purple).toBeGreaterThan(0.05)
+    expect(stats.hues.red).toBeLessThan(0.001)
+    // Under the host's CSP, as a file of the package.
+    expect(await page.evaluate(() => typeof (globalThis as { spine?: unknown }).spine)).toBe(
+      'object',
+    )
+  })
+
   test('4.0 and 4.1 skeletons are drawn by their own runtimes', async ({ page }) => {
     // scout.skel (4.0): yellow body, blue head, purple arm.
     const scout = await thumbnailOf(page, 'scout.skel')
@@ -97,10 +114,10 @@ test.describe('thumbnails', () => {
     expect(await failure('orphan.skel')).toBe('找不到同名图集 orphan.atlas（文件不存在）')
     expect(await failure('torn.skel')).toBe('贴图页无法读取：torn.png（文件不存在）')
     expect(await failure('spine-5.0.skel')).toBe(
-      'Spine 5.0.00 的数据：插件只包含这些版本的运行时：4.0、4.1、4.2、4.3。',
+      'Spine 5.0.00 的数据：插件只包含这些版本的运行时：3.8、4.0、4.1、4.2、4.3。',
     )
-    expect(await failure('spine-3.8.skel')).toBe(
-      'Spine 3.8.99 的数据：插件只包含这些版本的运行时：4.0、4.1、4.2、4.3。',
+    expect(await failure('spine-3.7.skel')).toBe(
+      'Spine 3.7.94 的数据：插件只包含这些版本的运行时：3.8、4.0、4.1、4.2、4.3。',
     )
     expect(await failure('truncated.skel')).toMatch(/^Spine 运行时无法读取这个骨骼：/)
     expect(await failure('empty.skel')).toBe('骨骼在初始姿势下没有可见的附件。')
@@ -186,6 +203,20 @@ test.describe('viewer', () => {
     const stats = await canvasStats(page)
     expect(stats.hues.purple).toBeGreaterThan(0.005)
     expect(stats.hues.blue).toBeLessThan(0.0005)
+  })
+
+  test('a 3.8 skeleton plays and switches skins', async ({ page }) => {
+    const { outcome } = await openViewer(page, 'ranger.skel')
+    expect(outcome).toEqual({ ready: true })
+    await expect(page.locator('#info')).toHaveText('Spine 3.8.99 · 4 根骨骼 · 3 个插槽')
+    await expect(page.locator('#play')).toHaveText('暂停')
+    const before = await canvasPng(page)
+    await page.waitForTimeout(300)
+    expect(await pixelDifference(page, before, await canvasPng(page))).toBeGreaterThan(0.0005)
+    await page.locator('#skin').selectOption('armored')
+    const stats = await canvasStats(page)
+    expect(stats.hues.red).toBeGreaterThan(0.003)
+    expect(stats.hues.green).toBeLessThan(0.0005)
   })
 
   test('4.0 and 4.1 skeletons play, without physics or (4.1) skeleton time', async ({ page }) => {
