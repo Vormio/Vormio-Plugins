@@ -135,6 +135,49 @@ test('Spine 3.8: deform timelines and the older field names', async () => {
   assert.deepEqual(report.diagnostics, [])
 })
 
+test('Spine 3.7: skins keyed by name and `paths` timelines', async () => {
+  const report = await analyzeFixture('legacy/druid.json')
+  const count = (kind: string) => report.subresources.filter((each) => each.kind === kind).length
+  assert.deepEqual(
+    ['骨骼', '插槽', 'IK 约束', '变换约束', '路径约束', '皮肤', '事件', '动画'].map(count),
+    [8, 9, 1, 1, 1, 2, 2, 2],
+  )
+  assert.deepEqual(
+    report.subresources.filter((each) => each.kind === '皮肤').map((each) => each.name),
+    ['default', 'robed'],
+  )
+  assert.deepEqual(report.diagnostics, [])
+  // Evidence points into the skin's object: /skins/<name>/<slot>/<key>.
+  const evidence = (from: string, key: string) =>
+    report.references.find((each) => each.from === from && each.key === key)?.evidence
+  assert.equal(evidence('attachments/10', 'attachments/0'), '/skins/robed/cape/cape/parent')
+  assert.equal(evidence('attachments/11', 'slots/2'), '/skins/robed/head')
+  assert.equal(
+    report.subresources.find((each) => each.key === 'attachments/11')?.name,
+    'head（区域 hood）',
+  )
+  // 3.7 skins contain no bones or constraints.
+  assert.deepEqual(links(report, 'skins/1'), [])
+  assert.deepEqual(links(report, 'animations/0'), [
+    '动画目标 → bones/2',
+    '动画目标 → slots/2',
+    '动画目标 → slots/4',
+    '动画目标 → ik/0',
+    '动画目标 → transform/0',
+    '动画目标 → path/0',
+    '动画目标 → attachments/0',
+    '动画目标 → events/0',
+    '动画目标 → slots/3',
+  ])
+  assert.equal(evidence('animations/0', 'path/0'), '/animations/cast/paths/vine-path')
+  // The draw order timeline spelled in lower case, which spine-ts 3.7 reads as well.
+  assert.deepEqual(links(report, 'animations/1'), [
+    '动画目标 → bones/1',
+    '动画目标 → events/1',
+    '动画目标 → slots/4',
+  ])
+})
+
 test('broken references are left out with a warning', async () => {
   const report = await analyzeFixture('problems/broken-references.json')
   assert.deepEqual(messages(report), [
@@ -148,25 +191,40 @@ test('broken references are left out with a warning', async () => {
   assert.equal(report.subresources.find((each) => each.key === 'bones/1')?.parent, undefined)
 })
 
-test('versions: 3.7 and older fail, newer than 4.2 is analyzed with a warning', async () => {
-  const old = await readFile(join(fixtures, 'problems/spine-3.7.json'), 'utf8')
+test('versions: 3.6 and older fail, newer than 4.2 is analyzed with a warning', async () => {
+  const old = await readFile(join(fixtures, 'preview/spine-3.6.json'), 'utf8')
   assert.throws(
     () => analyzeSkeleton(readSkeletonJson(old)),
     (error) =>
       error instanceof SpineError &&
       !(error instanceof NotSpineError) &&
-      error.message === '不支持 Spine 3.7.94 的骨骼文件，只支持 3.8 至 4.2。',
-  )
-  // A 3.8 version string with 3.7's skin layout is still refused.
-  assert.throws(
-    () => analyzeJson({ ...minimal, skeleton: { spine: '3.8.1' }, skins: { default: {} } }),
-    /不支持 Spine 3\.8\.1/,
+      error.message === '不支持 Spine 3.6.53 的骨骼文件，只支持 3.7 至 4.2。',
   )
   assert.throws(() => analyzeJson({ ...minimal, skeleton: { spine: 'beta' } }), /不支持 Spine beta/)
   const newer = analyzeJson({ ...minimal, skeleton: { spine: '4.3.1' } })
   assert.deepEqual(messages(newer), [
-    '文件由 Spine 4.3.1 导出，比本插件依据的 3.8 至 4.2 新，结果可能不完整。',
+    '文件由 Spine 4.3.1 导出，比本插件依据的 3.7 至 4.2 新，结果可能不完整。',
   ])
+})
+
+test('the skin layout must be the one of the version', () => {
+  // Each runtime reads only its own layout: a 3.8 file with 3.7 skins, and the other way round.
+  assert.throws(
+    () => analyzeJson({ ...minimal, skeleton: { spine: '3.8.1' }, skins: { default: {} } }),
+    (error) =>
+      error instanceof SpineError &&
+      error.message === 'Spine 3.8.1 的骨骼文件中 skins 是对象（3.7 及更早的写法），与版本不符。',
+  )
+  assert.throws(
+    () => analyzeJson({ ...minimal, skeleton: { spine: '3.7.94' }, skins: [] }),
+    (error) =>
+      error instanceof SpineError &&
+      error.message === 'Spine 3.7.94 的骨骼文件中 skins 是数组（3.8 起的写法），与版本不符。',
+  )
+  // Anything else in its place is a malformed part, as in other lists.
+  const malformed = analyzeJson({ ...minimal, skeleton: { spine: '3.7.94' }, skins: { a: 1 } })
+  assert.equal(malformed.partial, true)
+  assert.deepEqual(messages(malformed), ['/skins/a 不是 JSON 对象。'])
 })
 
 test('JSON that is not a Spine skeleton is recognised as such', async () => {

@@ -56,13 +56,15 @@ test('atlases in both syntaxes and with encoded page names', async ({ page }) =>
 })
 
 test('a JSON skeleton is analyzed from its text alone', async ({ page }) => {
-  for (const path of ['basic/hero.json', 'legacy/goblin.json', 'preview/knight.json'])
-    expect(await analyze(page, path), path).toEqual(await expected(path))
-  expect(host.requests).toEqual([
-    '200 basic/hero.json',
-    '200 legacy/goblin.json',
-    '200 preview/knight.json',
-  ])
+  // 4.2, 3.8, 3.7 (skins keyed by name), and 4.3 with its version warning.
+  const paths = [
+    'basic/hero.json',
+    'legacy/goblin.json',
+    'legacy/druid.json',
+    'preview/knight.json',
+  ]
+  for (const path of paths) expect(await analyze(page, path), path).toEqual(await expected(path))
+  expect(host.requests).toEqual(paths.map((path) => `200 ${path}`))
 })
 
 test('JSON that is not a Spine skeleton is not applicable', async ({ page }) => {
@@ -97,7 +99,7 @@ test('files that cannot be analyzed fail with the reason', async ({ page }) => {
   // A Spine skeleton too old to analyze is Spine, so it fails rather than being not applicable.
   const cases: [string, RegExp][] = [
     ['problems/not-an-atlas.atlas', /^不是 Spine 或 libGDX 图集：第 1 行/],
-    ['problems/spine-3.7.json', /^不支持 Spine 3\.7\.94 的骨骼文件/],
+    ['preview/spine-3.6.json', /^不支持 Spine 3\.6\.53 的骨骼文件/],
   ]
   for (const [path, message] of cases) {
     const result = await requestAnalysis(page, await host.input(path))

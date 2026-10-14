@@ -1,8 +1,13 @@
-// Builds the composition report of a Spine skeleton in JSON (Spine 3.8 to 4.2): bones, slots,
+// Builds the composition report of a Spine skeleton in JSON (Spine 3.7 to 4.2): bones, slots,
 // constraints, skins and their attachments, events and animations, and what refers to what. Spine
 // refers to objects by name. Atlas regions and audio files are not reported as references: the
 // skeleton does not name its atlas, and the base of its image and audio paths is not established.
 // No DOM, so it runs in Node tests as well as in the analyzer page.
+//
+// The format description Esoteric publishes covers the current format only. Where 3.7 differs from
+// it (skins are an object keyed by name, without bones or constraints of their own, and path
+// constraint timelines are called `paths`) comes from Spine's own 3.7 exports; the tests check the
+// analysis against what spine-ts 3.7 reads from the same file.
 
 import type { CompositionReport, ReportReference, ReportSubresource } from '@vormio/plugin-sdk'
 import {
@@ -66,7 +71,9 @@ const dropOrder: Collection[] = [
 ]
 
 /** The oldest and newest Spine versions whose JSON this analysis follows. */
-export const supported = { oldest: [3, 8], newest: [4, 2] } as const
+export const supported = { oldest: [3, 7], newest: [4, 2] } as const
+/** From 3.8, skins are an array of named skins; before, an object keyed by skin name. */
+const skinArrays = [3, 8] as const
 
 /** Parses the text of a skeleton file; anything that is not Spine JSON throws NotSpineError. */
 export function readSkeletonJson(text: string): Json {
@@ -104,12 +111,14 @@ export function analyzeSkeleton(json: Json): CompositionReport {
   const version = spineVersion(json)
   const written = String(objectAt(json, 'skeleton')?.spine)
   const range = `${supported.oldest.join('.')} 至 ${supported.newest.join('.')}`
-  if (
-    !version ||
-    compareVersions(version, supported.oldest) < 0 ||
-    !Array.isArray(json.skins ?? [])
-  )
+  if (!version || compareVersions(version, supported.oldest) < 0)
     throw new SpineError(`不支持 Spine ${written} 的骨骼文件，只支持 ${range}。`)
+  // The runtime of each version reads only its own skin layout, so the other one is refused.
+  const before38 = compareVersions(version, skinArrays) < 0
+  if (before38 ? Array.isArray(json.skins) : isObject(json.skins))
+    throw new SpineError(
+      `Spine ${written} 的骨骼文件中 skins 是${before38 ? '数组（3.8 起的写法）' : '对象（3.7 及更早的写法）'}，与版本不符。`,
+    )
   if (compareVersions(version, supported.newest) > 0)
     diagnose(
       'warning',
@@ -192,10 +201,30 @@ export function analyzeSkeleton(json: Json): CompositionReport {
       items[list].map((item, position) => listName(list, item, position)),
     )
   }
-  const skins = arrayAt(json.skins, '/skins')
+  // A skin's name, its entry (with the bones and constraints it contains, from 3.8), its attachments
+  // by slot and key, and where in the file they are: under /skins/<name> before 3.8, under
+  // /skins/<position>/attachments from 3.8.
+  const skins: {
+    name: string
+    entry: Json
+    attachments: unknown
+    at: (...parts: string[]) => string
+  }[] = before38
+    ? mapAt(json.skins, '/skins').map(([name, attachments]) => ({
+        name,
+        entry: {},
+        attachments,
+        at: (...parts) => pointer('skins', name, ...parts),
+      }))
+    : arrayAt(json.skins, '/skins').map((entry, position) => ({
+        name: listName('skins', entry, position),
+        entry,
+        attachments: entry.attachments,
+        at: (...parts) => pointer('skins', position, 'attachments', ...parts),
+      }))
   index(
     'skins',
-    skins.map((skin, position) => listName('skins', skin, position)),
+    skins.map((skin) => skin.name),
   )
   const events = mapAt(json.events, '/events')
   index(
@@ -303,13 +332,10 @@ export function analyzeSkeleton(json: Json): CompositionReport {
   const pending: (() => void)[] = []
   let attachmentCount = 0
   skins.forEach((skin, s) => {
-    const skinKey = add('skins', s, listName('skins', skin, s))
-    for (const [slot, attachments] of mapAt(skin.attachments, pointer('skins', s, 'attachments')))
-      for (const [name, attachment] of mapAt(
-        attachments,
-        pointer('skins', s, 'attachments', slot),
-      )) {
-        const evidence = pointer('skins', s, 'attachments', slot, name)
+    const skinKey = add('skins', s, skin.name)
+    for (const [slot, attachments] of mapAt(skin.attachments, skin.at()))
+      for (const [name, attachment] of mapAt(attachments, skin.at(slot))) {
+        const evidence = skin.at(slot, name)
         const type = typeof attachment.type === 'string' ? attachment.type : 'region'
         const kind = attachmentKinds[type]
         let shown = name
@@ -323,7 +349,7 @@ export function analyzeSkeleton(json: Json): CompositionReport {
         const key = add('attachments', attachmentCount++, shown, { kind, parent: skinKey })
         if (!kind) diagnose('warning', `附件 ${name} 的类型 ${type} 无法识别（${evidence}）。`, key)
         attachmentKeys.set(`${s}\0${slot}\0${name}`, key)
-        link(key, 'slots', slot, '所在插槽', pointer('skins', s, 'attachments', slot))
+        link(key, 'slots', slot, '所在插槽', skin.at(slot))
         if (type === 'clipping' && attachment.end !== undefined)
           link(key, 'slots', attachment.end, '结束插槽', `${evidence}/end`)
         if (type === 'linkedmesh')
@@ -345,7 +371,7 @@ export function analyzeSkeleton(json: Json): CompositionReport {
           })
       }
     for (const [list] of lists)
-      linkAll(skinKey, list, skin[list], '皮肤包含', pointer('skins', s, list))
+      linkAll(skinKey, list, skin.entry[list], '皮肤包含', pointer('skins', s, list))
   })
   for (const resolve of pending) resolve()
 
@@ -401,7 +427,8 @@ export function analyzeSkeleton(json: Json): CompositionReport {
       ['slots', 'slots'],
       ['ik', 'ik'],
       ['transform', 'transform'],
-      ['path', 'path'],
+      // Path constraint timelines are `paths` before 3.8.
+      [before38 ? 'paths' : 'path', 'path'],
       ['physics', 'physics'],
     ]
     for (const [timeline, list] of targets)

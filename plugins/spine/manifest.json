@@ -1,7 +1,7 @@
 {
   "apiVersion": 2,
   "id": "vormio-plugins.spine",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "name": "Spine 骨骼动画",
   "description": "包含 Spine Runtimes：每个使用者都需要自己的 Spine Editor 许可证。Spine 3.7、3.8 与 4.0 至 4.3 骨骼（.json 与 .skel）的缩略图（初始姿势）与查看器（切换皮肤、播放动画）；骨骼 JSON 的组成分析（骨骼、插槽、约束、皮肤、附件、事件与动画），不是 Spine 骨骼的 JSON 交给内置预览；Spine 与 libGDX 纹理图集（.atlas）的缩略图、查看器（贴图页上的区域框，可以搜索与定位区域）与组成分析（页面、区域与每页引用的贴图文件）。",
   "contributions": {
