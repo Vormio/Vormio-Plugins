@@ -37,7 +37,8 @@ test('each runtime reads the data of its own major and minor version', () => {
   assert.equal(runtimeLine('4.1.24'), '4.1')
   assert.equal(runtimeLine('5.0.00'), undefined)
   assert.equal(runtimeLine('3.8.99'), '3.8')
-  assert.equal(runtimeLine('3.7.94'), undefined)
+  assert.equal(runtimeLine('3.7.94'), '3.7')
+  assert.equal(runtimeLine('3.6.53'), undefined)
   assert.equal(runtimeLine('4.20.1'), undefined)
 })
 

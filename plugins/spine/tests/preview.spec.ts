@@ -73,6 +73,19 @@ test.describe('thumbnails', () => {
     expect(stats.hues.green).toBeGreaterThan(0.05)
   })
 
+  test('a 3.7 JSON skeleton is drawn by the 3.7 script', async ({ page }) => {
+    // wizard.json (3.7): blue body, yellow head, orange arm; skins are an object in 3.7 JSON.
+    const result = await thumbnailOf(page, 'wizard.json')
+    expect(result.error).toBeUndefined()
+    const stats = await pixelStats(page, result.png!)
+    expect([stats.width, stats.height]).toEqual([258, 320])
+    expect(stats.hues.blue).toBeGreaterThan(0.2)
+    expect(stats.hues.yellow).toBeGreaterThan(0.1)
+    expect(stats.hues.orange).toBeGreaterThan(0.05)
+    expect(stats.hues.red).toBeLessThan(0.001)
+    expect(host.requests).toEqual(['200 wizard.json', '200 wizard.atlas', '200 wizard.png'])
+  })
+
   test('a 3.8 skeleton is drawn by the 3.8 script, loaded when needed', async ({ page }) => {
     // ranger.skel (3.8): orange body, green head, purple arm; its atlas uses the 3.x syntax.
     const result = await thumbnailOf(page, 'ranger.skel')
@@ -149,15 +162,17 @@ test.describe('thumbnails', () => {
       (await requestThumbnail(page, await host.input(path))).error
     expect(await failure('orphan.skel')).toBe('找不到同名图集 orphan.atlas（文件不存在）')
     expect(await failure('torn.skel')).toBe('贴图页无法读取：torn.png（文件不存在）')
+    const lines = '3.7（只限 JSON）、3.8、4.0、4.1、4.2、4.3'
     expect(await failure('spine-5.0.skel')).toBe(
-      'Spine 5.0.00 的数据：插件只包含这些版本的运行时：3.8、4.0、4.1、4.2、4.3。',
+      `Spine 5.0.00 的数据：插件只包含这些版本的运行时：${lines}。`,
     )
+    // spine-ts 3.7 reads JSON only; the binary file stops before the runtime is loaded.
     expect(await failure('spine-3.7.skel')).toBe(
-      'Spine 3.7.94 的数据：插件只包含这些版本的运行时：3.8、4.0、4.1、4.2、4.3。',
+      'Spine 3.7.94 的二进制骨骼：Spine 3.7 的 Web 运行时只能读取 JSON，请从 Spine 导出 JSON。',
     )
     // A JSON skeleton of another version is Spine, so it fails rather than being not applicable.
-    expect(await failure('spine-3.7.json')).toBe(
-      'Spine 3.7.94 的数据：插件只包含这些版本的运行时：3.8、4.0、4.1、4.2、4.3。',
+    expect(await failure('spine-3.6.json')).toBe(
+      `Spine 3.6.53 的数据：插件只包含这些版本的运行时：${lines}。`,
     )
     expect(await failure('truncated.skel')).toMatch(/^Spine 运行时无法读取这个骨骼：/)
     expect(await failure('empty.skel')).toBe('骨骼在初始姿势下没有可见的附件。')
@@ -271,6 +286,31 @@ test.describe('viewer', () => {
     const stats = await canvasStats(page)
     expect(stats.hues.purple).toBeGreaterThan(0.005)
     expect(stats.hues.blue).toBeLessThan(0.0005)
+  })
+
+  test('3.7 and 3.8 keep their own classes when both are loaded in one page', async ({ page }) => {
+    await openViewer(page, 'ranger.skel')
+    await expect(page.locator('#info')).toHaveText('Spine 3.8.99 · 4 根骨骼 · 3 个插槽')
+    const wizard = await host.input('wizard.json')
+    await switchInput(page, wizard)
+    expect(await viewerOutcome(page, wizard.url)).toEqual({ ready: true })
+    await expect(page.locator('#info')).toHaveText('Spine 3.7.94 · 4 根骨骼 · 3 个插槽')
+    expect((await canvasStats(page)).hues.yellow).toBeGreaterThan(0.003)
+    // The global now holds the 3.7 namespace, which has no binary reader: 3.7 did not add its
+    // classes to the 3.8 namespace.
+    expect(
+      await page.evaluate(
+        () => typeof (globalThis as { spine?: { SkeletonBinary?: unknown } }).spine?.SkeletonBinary,
+      ),
+    ).toBe('undefined')
+    // And 3.8 still reads its binary skeleton with its own classes.
+    const ranger = await host.input('ranger.skel')
+    await switchInput(page, ranger)
+    expect(await viewerOutcome(page, ranger.url)).toEqual({ ready: true })
+    await expect(page.locator('#info')).toHaveText('Spine 3.8.99 · 4 根骨骼 · 3 个插槽')
+    const stats = await canvasStats(page)
+    expect(stats.hues.orange).toBeGreaterThan(0.005)
+    expect(stats.hues.yellow).toBeLessThan(0.0005)
   })
 
   test('a 3.8 skeleton plays and switches skins', async ({ page }) => {

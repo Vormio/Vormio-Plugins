@@ -2,8 +2,18 @@
 // read the rest depends on it. No DOM, so it runs in Node tests as well as in the plugin pages.
 
 /** The Spine runtimes in the package, by major and minor version. */
-export const runtimeLines = ['3.8', '4.0', '4.1', '4.2', '4.3'] as const
+export const runtimeLines = ['3.7', '3.8', '4.0', '4.1', '4.2', '4.3'] as const
 export type RuntimeLine = (typeof runtimeLines)[number]
+
+/** Lines whose runtime reads JSON only: spine-ts has a binary reader from 3.8. */
+export const jsonOnlyLines: readonly RuntimeLine[] = ['3.7']
+
+/** The runtimes in the package, for messages: 3.7（只限 JSON）、3.8、… */
+export function describeRuntimeLines(): string {
+  return runtimeLines
+    .map((line) => (jsonOnlyLines.includes(line) ? `${line}（只限 JSON）` : line))
+    .join('、')
+}
 
 /** A varint+ at `offset`: 7 bits per byte, low bits first; undefined past the end. */
 function readVarint(

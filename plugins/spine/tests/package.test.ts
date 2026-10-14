@@ -63,7 +63,7 @@ test('the license requirement comes first, and each runtime line ships its licen
     checked.manifest.description,
     /^包含 Spine Runtimes：每个使用者都需要自己的 Spine Editor 许可证。/,
   )
-  for (const line of ['3.8', '4.0', '4.1', '4.2', '4.3']) {
+  for (const line of ['3.7', '3.8', '4.0', '4.1', '4.2', '4.3']) {
     const shipped = await readFile(join(directory, `licenses/SPINE-RUNTIMES-${line}.txt`), 'utf8')
     assert.match(shipped, /^Spine Runtimes License Agreement/, line)
     assert.match(
@@ -71,10 +71,10 @@ test('the license requirement comes first, and each runtime line ships its licen
       /each user of the Products must obtain their own\s+Spine Editor license/,
       line,
     )
-    // The text the runtime itself carries; 3.8, 4.0 and 4.1 carry an older version.
+    // The text the runtime itself carries; 3.7, 3.8, 4.0 and 4.1 carry an older version.
     const source =
-      line === '3.8'
-        ? fileURLToPath(new URL('../../../vendor/spine-ts-3.8/LICENSE', import.meta.url))
+      line === '3.7' || line === '3.8'
+        ? fileURLToPath(new URL(`../../../vendor/spine-ts-${line}/LICENSE`, import.meta.url))
         : fileURLToPath(new URL('../LICENSE', import.meta.resolve(`spine-webgl-${line}`)))
     assert.equal(await readFile(source, 'utf8'), shipped, line)
   }
@@ -113,16 +113,19 @@ test('the pages and their scripts are in the package; only skeleton pages load a
   }
   // Each runtime is a chunk of its own, loaded only when a skeleton of its version is shown.
   const runtimes = [...paths].filter((path) => /^chunks\/runtime-\d\.\d-/.test(path))
-  assert.equal(runtimes.length, 5)
-  // 3.8 is a classic script in the package, loaded by its runtime chunk alone.
-  assert.ok(paths.has('runtimes/spine-webgl-3.8.js'))
-  for (const path of paths)
-    if (path.endsWith('.js') && path !== 'runtimes/spine-webgl-3.8.js')
-      assert.equal(
-        (await readFile(join(directory, path), 'utf8')).includes('runtimes/spine-webgl-3.8.js'),
-        /^chunks\/runtime-3\.8-/.test(path),
-        path,
-      )
+  assert.equal(runtimes.length, 6)
+  // 3.7 and 3.8 are classic scripts in the package, each loaded by its runtime chunk alone.
+  for (const line of ['3.7', '3.8']) {
+    const script = `runtimes/spine-webgl-${line}.js`
+    assert.ok(paths.has(script), script)
+    for (const path of paths)
+      if (path.endsWith('.js') && !path.startsWith('runtimes/'))
+        assert.equal(
+          (await readFile(join(directory, path), 'utf8')).includes(script),
+          path.startsWith(`chunks/runtime-${line}-`),
+          `${path} and ${script}`,
+        )
+  }
   const reachable = (entry: string, seen = new Set<string>()): Set<string> => {
     if (seen.has(entry)) return seen
     seen.add(entry)
@@ -144,7 +147,7 @@ test('vormio-plugin pack turns the output into an installable .vormioplugin', as
   const cli = fileURLToPath(new URL('cli.js', import.meta.resolve('@vormio/plugin-sdk/node')))
   const target = join(temporary, 'spine.vormioplugin')
   const { stdout } = await promisify(execFile)(process.execPath, [cli, 'pack', directory, target])
-  assert.match(stdout, /vormio-plugins\.spine 0\.4\.0/)
+  assert.match(stdout, /vormio-plugins\.spine 0\.5\.0/)
   const archive = readPackageArchive(await readFile(target))
   assert.equal(archive.checked.digest, checked.digest)
 })

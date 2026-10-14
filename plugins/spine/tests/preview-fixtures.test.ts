@@ -9,14 +9,14 @@ import { nodeRuntime, type Spine } from './node-runtime.ts'
 
 const fixtures = join(import.meta.dirname, '../../../fixtures/spine/preview')
 
-/** 3.8 asks for each page's texture while reading the atlas, and takes the page size from it. */
+/** 3.7 and 3.8 ask for each page texture while reading the atlas, and take the page size from it. */
 type Atlas38 = new (text: string, loader: () => unknown) => InstanceType<Spine['TextureAtlas']>
 const texture = { setFilters() {}, setWraps() {}, getImage: () => ({ width: 72, height: 72 }) }
 
 async function read(spine: Spine, line: string, name: string, form: 'skel' | 'json' = 'skel') {
   const text = await readFile(join(fixtures, `${name}.atlas`), 'utf8')
   const atlas =
-    line === '3.8'
+    line === '3.7' || line === '3.8'
       ? new (spine.TextureAtlas as unknown as Atlas38)(text, () => texture)
       : new spine.TextureAtlas(text)
   const loader = new spine.AtlasAttachmentLoader(atlas)
@@ -30,6 +30,7 @@ async function read(spine: Spine, line: string, name: string, form: 'skel' | 'js
 }
 
 const figures = [
+  ['3.7', 'wizard', '3.7.94'],
   ['3.8', 'ranger', '3.8.99'],
   ['4.0', 'scout', '4.0.64'],
   ['4.1', 'squire', '4.1.24'],
@@ -38,9 +39,11 @@ const figures = [
 ] as const
 
 for (const form of ['skel', 'json'] as const)
-  for (const [line, name, version] of figures)
+  for (const [line, name, version] of figures) {
+    // spine-ts 3.7 reads JSON only.
+    if (form === 'skel' && line === '3.7') continue
     test(`the ${line} runtime reads ${name}.${form}: bones, slots, skins and animations`, async () => {
-      // Arrays are copied into this realm for comparing: 3.8 runs in a context of its own.
+      // Arrays are copied into this realm for comparing: 3.7 and 3.8 run in contexts of their own.
       const spine = await nodeRuntime(line)
       const data = await read(spine, line, name, form)
       assert.equal(data.version, version)
@@ -73,6 +76,7 @@ for (const form of ['skel', 'json'] as const)
       // The body (32 × 48), the head on top (32 × 32) and the arm reaching to the right (32 wide).
       assert.deepEqual([offset.x, offset.y, size.x, size.y].map(Math.round), [-16, 0, 64, 80])
     })
+  }
 
 test('the truncated skeleton fails in the runtime', async () => {
   await assert.rejects(async () => read(await nodeRuntime('4.2'), '4.2', 'truncated'))
