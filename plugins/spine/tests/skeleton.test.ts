@@ -235,20 +235,76 @@ test('broken references are left out with a warning', async () => {
   assert.equal(report.subresources.find((each) => each.key === 'bones/1')?.parent, undefined)
 })
 
-test('versions: 3.6 and older fail, newer than 4.2 is analyzed with a warning', async () => {
+test('versions: 3.6 and older fail, newer than 4.3 is analyzed with a warning', async () => {
   const old = await readFile(join(fixtures, 'preview/spine-3.6.json'), 'utf8')
   assert.throws(
     () => analyzeSkeleton(readSkeletonJson(old), 'spine-3.6.json'),
     (error) =>
       error instanceof SpineError &&
       !(error instanceof NotSpineError) &&
-      error.message === '不支持 Spine 3.6.53 的骨骼文件，只支持 3.7 至 4.2。',
+      error.message === '不支持 Spine 3.6.53 的骨骼文件，只支持 3.7 至 4.3。',
   )
   assert.throws(() => analyzeJson({ ...minimal, skeleton: { spine: 'beta' } }), /不支持 Spine beta/)
-  const newer = analyzeJson({ ...minimal, skeleton: { spine: '4.3.1' } })
+  assert.deepEqual(messages(analyzeJson({ ...minimal, skeleton: { spine: '4.3.13' } })), [])
+  const newer = analyzeJson({ ...minimal, skeleton: { spine: '4.4.1' } })
   assert.deepEqual(messages(newer), [
-    '文件由 Spine 4.3.1 导出，比本插件依据的 3.7 至 4.2 新，结果可能不完整。',
+    '文件由 Spine 4.4.1 导出，比本插件依据的 3.7 至 4.3 新，结果可能不完整。',
   ])
+})
+
+test('a 4.3 skeleton: constraints from the one list, with their places in it', async () => {
+  const report = await analyzeFixture('basic/paladin.json')
+  assert.deepEqual(messages(report), [])
+  const named = (prefix: string) =>
+    report.subresources
+      .filter((each) => each.key.startsWith(prefix))
+      .map((each) => `${each.kind} ${each.name}`)
+  assert.deepEqual(['ik/', 'transform/', 'path/', 'physics/', 'slider/'].flatMap(named), [
+    'IK 约束 arm-ik',
+    '变换约束 head-follow',
+    '路径约束 cape-path',
+    '物理约束 cape-sway',
+    '滑块约束 visor-slider',
+    '滑块约束 idle-slider',
+  ])
+  const evidence = (from: string, key: string) =>
+    report.references.find((each) => each.from === from && each.key === key)?.evidence
+  assert.equal(evidence('transform/0', 'bones/2'), '/constraints/1/source')
+  assert.equal(evidence('path/0', 'slots/6'), '/constraints/2/slot')
+  assert.deepEqual(links(report, 'slider/0'), ['约束骨骼 → bones/3', '滑块动画 → animations/1'])
+  assert.equal(evidence('slider/1', 'animations/0'), '/constraints/5/animation')
+  assert.deepEqual(links(report, 'skins/1'), ['皮肤包含 → bones/7', '皮肤包含 → slider/0'])
+  assert.deepEqual(inferred(report), [
+    { uri: 'paladin.atlas', role: '图集', inferred: '与骨骼文件同名' },
+  ])
+})
+
+test('the constraint layout must be the one of the version', () => {
+  assert.throws(
+    () => analyzeJson({ ...minimal, skeleton: { spine: '4.3.13' }, ik: [], physics: [] }),
+    (error) =>
+      error instanceof SpineError &&
+      error.message ===
+        'Spine 4.3.13 的骨骼文件中约束写在 ik、physics 列表中（4.2 及更早的写法），与版本不符。',
+  )
+  assert.throws(
+    () => analyzeJson({ ...minimal, constraints: [] }),
+    (error) =>
+      error instanceof SpineError &&
+      error.message ===
+        'Spine 4.2.43 的骨骼文件中约束写在 constraints 列表中（4.3 起的写法），与版本不符。',
+  )
+  // An entry of a type the runtime does not know is skipped, as the runtime skips it.
+  const unknown = analyzeJson({
+    ...minimal,
+    skeleton: { spine: '4.3.13' },
+    constraints: [
+      { type: 'rope', name: 'r' },
+      { type: 'physics', name: 'p', bone: 'root' },
+    ],
+  })
+  assert.deepEqual(messages(unknown), ['/constraints/0 的约束类型 rope 无法识别，没有分析。'])
+  assert.deepEqual(links(unknown, 'physics/0'), ['约束骨骼 → bones/0'])
 })
 
 test('the skin layout must be the one of the version', () => {

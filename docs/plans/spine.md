@@ -341,7 +341,14 @@ Core 0.0.7 为 R2（Vormio/Vormio-Core#2）在报告中加入推断的引用：�
 
 ## 15. 4.3 骨骼 JSON 的约束（0.9.0 计划）
 
-状态：**已排定**（2026-10-15，路线图“下一批”第 1 项），未开始。
+状态：**已实现**（2026-10-15，路线图“下一批”第 1 项），结论写进了[插件 README](../../plugins/spine/README.md)；待手工验收。
+
+实施时与草案的不同：
+
+- 4.3 改名的字段不只约束列表：变换约束的目标骨骼叫 `source`，路径约束的插槽叫 `slot`，链接网格的父网格叫 `source`（在别的插槽时用 `slot` 指明）；动画多了绘制顺序文件夹 `drawOrderFolder`，按读取器全部处理。
+- 滑块约束的内部引用：驱动它的骨骼（“约束骨骼”，只在有 `bone` 时）与它播放的动画（新角色“滑块动画”）。
+- 素材没有改 `preview/` 的人偶（它要与二进制骨骼画得相同），而是新增结构素材 `basic/paladin.json`；人偶 `preview/knight.json` 也用运行时核对。
+- 未识别的约束类型记警告并跳过（运行时同样跳过）。
 
 **问题**：spine-core 4.3.13 的 `SkeletonJson` 从顶层的 `constraints` 数组读取约束，每项用 `type` 区分 `ik`、`transform`、`path`、`physics` 与新的 `slider`（滑块约束），全部放进 `skeletonData.constraints`；顶层的 `ik`、`transform`、`path`、`physics` 不再读取。0.8.0 的分析器按 4.2 的写法读，所以 4.3 的骨骼 JSON 列不出任何约束，约束相关的内部引用也缺失，只附“比 4.2 新”的警告。皮肤中的约束列表（`skins[].ik` 等）与动画中按约束类型分组的时间轴（`ik`、`transform`、`path`、`physics`，4.3 加 `slider`）仍是原来的写法。
 
