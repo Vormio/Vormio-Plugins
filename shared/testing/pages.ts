@@ -11,6 +11,8 @@ export interface BridgeState {
   failures: { url: string; message: string }[]
   violations: string[]
   listeners: ((input: PluginInput) => void)[]
+  /** Shows or hides a viewer page as the host does; undefined on other pages. */
+  setVisible?: (visible: boolean) => void
   thumbnail?: (input: PluginInput, size: { maxEdge: number }) => Promise<ArrayBuffer>
   analyze?: (input: PluginInput) => Promise<CompositionReport>
 }
@@ -43,6 +45,67 @@ export async function installBridge(page: Page): Promise<void> {
     document.addEventListener('securitypolicyviolation', (event) =>
       state.violations.push(`${event.effectiveDirective} ${event.blockedURI}`),
     )
+
+    // Like the host, a viewer stays hidden until it reports ready, and again from moving to another
+    // file until it reports ready for that one. A hidden page draws no frames, so animation frame
+    // callbacks and image decode() wait until it is shown. Viewer pages are the ones opened with an
+    // input; thumbnail and analyzer pages run in windows that keep drawing.
+    if (initial) {
+      let visible = false
+      const frame = window.requestAnimationFrame.bind(window)
+      const cancelFrame = window.cancelAnimationFrame.bind(window)
+      const decode = HTMLImageElement.prototype.decode
+      /** Callbacks requested and not yet run, by the ID the page got. */
+      const waiting = new Map<number, FrameRequestCallback>()
+      /** Native frame requests for the waiting callbacks, while the page is visible. */
+      const scheduled = new Map<number, number>()
+      const decodes: (() => void)[] = []
+      let next = 1
+      const schedule = (id: number) =>
+        scheduled.set(
+          id,
+          frame((time) => {
+            scheduled.delete(id)
+            const callback = waiting.get(id)
+            waiting.delete(id)
+            callback?.(time)
+          }),
+        )
+      window.requestAnimationFrame = (callback) => {
+        const id = next++
+        waiting.set(id, callback)
+        if (visible) schedule(id)
+        return id
+      }
+      window.cancelAnimationFrame = (id) => {
+        waiting.delete(id)
+        const handle = scheduled.get(id)
+        if (handle !== undefined) cancelFrame(handle)
+        scheduled.delete(id)
+      }
+      HTMLImageElement.prototype.decode = function (this: HTMLImageElement) {
+        if (visible) return decode.call(this)
+        return new Promise<void>((resolve, reject) =>
+          decodes.push(() => void decode.call(this).then(resolve, reject)),
+        )
+      }
+      Object.defineProperty(document, 'visibilityState', {
+        get: () => (visible ? 'visible' : 'hidden'),
+      })
+      Object.defineProperty(document, 'hidden', { get: () => !visible })
+      state.setVisible = (value) => {
+        if (value === visible) return
+        visible = value
+        document.dispatchEvent(new Event('visibilitychange'))
+        if (visible) {
+          for (const id of waiting.keys()) if (!scheduled.has(id)) schedule(id)
+          for (const run of decodes.splice(0)) run()
+        } else {
+          for (const handle of scheduled.values()) cancelFrame(handle)
+          scheduled.clear()
+        }
+      }
+    }
     Object.defineProperty(window, 'vormio', {
       value: Object.freeze({
         getInput: () => Promise.resolve(state.input),
@@ -50,7 +113,10 @@ export async function installBridge(page: Page): Promise<void> {
           state.listeners.push(listener)
           return () => undefined
         },
-        ready: (input: PluginInput) => state.ready.push(input.url),
+        ready: (input: PluginInput) => {
+          state.ready.push(input.url)
+          state.setVisible?.(true)
+        },
         fail: (input: PluginInput, message: string) =>
           state.failures.push({ url: input.url, message }),
         onThumbnailRequest(handler: BridgeState['thumbnail']) {
@@ -64,7 +130,10 @@ export async function installBridge(page: Page): Promise<void> {
   })
 }
 
-/** Waits until the viewer reported ready or failed for `url`. */
+/**
+ * Waits until the viewer reported ready or failed for `url`. Polls on a timer: until it is ready,
+ * the viewer is hidden and gets no animation frames.
+ */
 export async function viewerOutcome(
   page: Page,
   url: string,
@@ -74,6 +143,7 @@ export async function viewerOutcome(
       window.bridgeState.ready.includes(url) ||
       window.bridgeState.failures.some((failure) => failure.url === url),
     url,
+    { polling: 50 },
   )
   return page.evaluate((url) => {
     const failure = window.bridgeState.failures.find((each) => each.url === url)
@@ -85,6 +155,7 @@ export async function viewerOutcome(
 export async function switchInput(page: Page, input: PluginInput): Promise<void> {
   await page.evaluate((input) => {
     window.bridgeState.input = input
+    window.bridgeState.setVisible?.(false)
     for (const listener of window.bridgeState.listeners) listener(input)
   }, input)
 }
