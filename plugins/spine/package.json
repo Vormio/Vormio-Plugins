@@ -1,11 +1,11 @@
 {
   "name": "@vormio-plugins/spine",
-  "version": "0.10.0-r3.1",
+  "version": "0.10.0",
   "private": true,
   "description": "Spine skeleton previews (rendered with the Spine Runtimes), skeleton JSON analysis, and texture atlas thumbnails, viewer and composition analyzer for Vormio",
   "type": "module",
   "dependencies": {
-    "@vormio/plugin-sdk": "file:../../vendor/vormio-plugin-sdk-0.0.9-rc.1.tgz",
+    "@vormio/plugin-sdk": "file:../../vendor/vormio-plugin-sdk-0.0.9.tgz",
     "spine-webgl-4.0": "npm:@esotericsoftware/spine-webgl@4.0.31",
     "spine-webgl-4.1": "npm:@esotericsoftware/spine-webgl@4.1.56",
     "spine-webgl-4.2": "npm:@esotericsoftware/spine-webgl@4.2.120",
