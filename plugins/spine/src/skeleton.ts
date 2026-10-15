@@ -1,10 +1,10 @@
 // Builds the composition report of a Spine skeleton in JSON (Spine 3.7 to 4.3): bones, slots,
 // constraints, skins and their attachments, events and animations, and what refers to what. Spine
 // refers to objects by name. The skeleton does not name its atlas; Spine pairs it with the atlas of
-// the same name, which is reported as an inferred reference. Atlas regions and audio files are not
-// reported as references: regions are inside another file, and the base of the skeleton's image
-// and audio paths is not established. No DOM, so it runs in Node tests as well as in the analyzer
-// page.
+// the same name, which is reported as an inferred reference, and so is each region an attachment
+// draws, by the key the atlas analyzer gives it (regionNameKey). Image and audio files are not
+// reported: the base of the skeleton's image and audio paths is not established. No DOM, so it runs
+// in Node tests as well as in the analyzer page.
 //
 // The format description Esoteric publishes covers the current format only. Where 3.7 differs from
 // it (skins are an object keyed by name, without bones or constraints of their own, and path
@@ -25,6 +25,7 @@ import {
   withinLimits,
 } from '../../../shared/report.ts'
 import { fileUri } from '../../../shared/uri.ts'
+import { regionNameKey } from './atlas.ts'
 import { NotSpineError, SpineError } from './errors.ts'
 
 type Json = Record<string, unknown>
@@ -83,6 +84,8 @@ const dropOrder: Collection[] = [
 export const supported = { oldest: [3, 7], newest: [4, 3] } as const
 /** From 3.8, skins are an array of named skins; before, an object keyed by skin name. */
 const skinArrays = [3, 8] as const
+/** From 4.1, an attachment with a `sequence` draws a numbered region for each frame. */
+const sequences = [4, 1] as const
 /** From 4.3, constraints are one list whose entries have a `type`; before, a list for each type. */
 const constraintList = [4, 3] as const
 const constraintTypes = ['ik', 'transform', 'path', 'physics', 'slider'] as const
@@ -141,6 +144,7 @@ export function analyzeSkeleton(json: Json, fileName: string): CompositionReport
     )
   // Likewise for constraints: 4.3 reads only the `constraints` list, older versions only their own.
   const from43 = compareVersions(version, constraintList) >= 0
+  const from41 = compareVersions(version, sequences) >= 0
   const separate = constraintTypes.filter((type) => json[type] !== undefined)
   if (from43 && separate.length)
     throw new SpineError(
@@ -374,6 +378,40 @@ export function analyzeSkeleton(json: Json, fileName: string): CompositionReport
       }),
     )
 
+  // The atlas, inferred from the skeleton's name. The address is the atlas the skeleton previews
+  // read; whether it exists is decided by the host, and a missing one is "not found", not missing.
+  const atlas = reportedUri(fileUri(atlasName(fileName)))
+  const inferred = '与骨骼文件同名'
+  /** The regions attachments draw, by the atlas analyzer's key: inferred like the atlas itself. */
+  const regions: ReportReference[] = []
+  const drawn = new Set<string>()
+  /**
+   * Region references take at most half of a report's size, so that a skeleton with very many
+   * sequence frames keeps its attachments; the rest are left out and the report is partial.
+   */
+  let regionBytes = 0
+  let regionsLeftOut = false
+  const draws = (from: string, region: string, evidence: string) => {
+    const uriKey = regionNameKey(region)
+    // A name too long for a key cannot be referred to; the atlas reference still stands.
+    if (regionsLeftOut || !atlas || !uriKey || drawn.has(`${from}\0${uriKey}`)) return
+    const reference = {
+      from,
+      uri: atlas,
+      uriKey,
+      role: '图集区域',
+      evidence: plainText(evidence, limits.evidence),
+      inferred,
+    }
+    regionBytes += new TextEncoder().encode(JSON.stringify(reference)).byteLength
+    if (regionBytes > limits.size / 2 || regions.length >= limits.references) {
+      regionsLeftOut = true
+      return
+    }
+    drawn.add(`${from}\0${uriKey}`)
+    regions.push(reference)
+  }
+
   // Skins and attachments. Attachments are numbered across all skins.
   const attachmentKeys = new Map<string, string>()
   const attachmentAt = (skin: number, slot: string, name: string) =>
@@ -389,15 +427,27 @@ export function analyzeSkeleton(json: Json, fileName: string): CompositionReport
         const type = typeof attachment.type === 'string' ? attachment.type : 'region'
         const kind = attachmentKinds[type]
         let shown = name
+        /** The names the runtime looks regions up by, with where each comes from. */
+        let lookups: [string, string][] = []
         if (textured.has(type)) {
           drawsFromAtlas = true
           const region = [attachment.path, attachment.name].find((each) => typeof each === 'string')
           const lookup = typeof region === 'string' ? region : name
-          const frames = objectAt(attachment, 'sequence')?.count
+          const sequence = objectAt(attachment, 'sequence')
+          const frames = sequence?.count
           if (typeof frames === 'number') shown = `${name}（区域 ${lookup}，${frames} 帧）`
           else if (lookup !== name) shown = `${name}（区域 ${lookup}）`
+          lookups =
+            sequence && from41
+              ? framePaths(
+                  lookup,
+                  sequence,
+                  regionsLeftOut ? 0 : limits.references - regions.length,
+                ).map((path) => [path, `${evidence}/sequence`])
+              : [[lookup, evidence]]
         }
         const key = add('attachments', attachmentCount++, shown, { kind, parent: skinKey })
+        for (const [path, where] of lookups) draws(key, path, where)
         if (!kind) diagnose('warning', `附件 ${name} 的类型 ${type} 无法识别（${evidence}）。`, key)
         attachmentKeys.set(`${s}\0${slot}\0${name}`, key)
         link(key, 'slots', slot, '所在插槽', skin.at(slot))
@@ -430,6 +480,10 @@ export function analyzeSkeleton(json: Json, fileName: string): CompositionReport
       linkAll(skinKey, list, skin.entry[list], '皮肤包含', pointer('skins', s, list))
   })
   for (const resolve of pending) resolve()
+  if (regionsLeftOut) {
+    diagnose('info', '附件使用的图集区域太多，只列出一部分。')
+    partial = true
+  }
 
   // Slots, constraints and events.
   const defaultSkin = byName.skins.get('default')
@@ -562,12 +616,11 @@ export function analyzeSkeleton(json: Json, fileName: string): CompositionReport
     .sort((a, b) => order(a.each.key) - order(b.each.key) || a.position - b.position)
     .map(({ each }) => each)
 
-  // The atlas, when an attachment is drawn from it. The address is the atlas the skeleton previews
-  // read; whether it exists is decided by the host, and a missing one is "not found", not missing.
+  // The atlas, when an attachment is drawn from it, then the regions. The atlas comes first, so it
+  // stays when there are more references than a report may have.
   const fileReferences: ReportReference[] = []
-  const atlas = reportedUri(fileUri(atlasName(fileName)))
   if (drawsFromAtlas && atlas)
-    fileReferences.push({ uri: atlas, role: '图集', inferred: '与骨骼文件同名' })
+    fileReferences.push({ uri: atlas, role: '图集', inferred }, ...regions)
 
   return withinLimits({
     subresources: sorted,
@@ -577,4 +630,20 @@ export function analyzeSkeleton(json: Json, fileName: string): CompositionReport
     partial,
     dropOrder,
   })
+}
+
+/**
+ * The region names a sequence attachment draws, as spine-core's `Sequence.getPath` makes them: the
+ * base name followed by the frame number (`start`, 1 by default, counting up), padded with zeros
+ * to `digits`. At most `budget` names; a sequence the runtime cannot read gives none.
+ */
+function framePaths(base: string, sequence: Json, budget = Infinity): string[] {
+  const count = sequence.count ?? 0
+  const start = sequence.start ?? 1
+  const digits = sequence.digits ?? 0
+  if (![count, start, digits].every((each) => Number.isInteger(each))) return []
+  const paths: string[] = []
+  for (let index = 0; index < Math.min(count as number, budget); index++)
+    paths.push(base + String((start as number) + index).padStart(digits as number, '0'))
+  return paths
 }

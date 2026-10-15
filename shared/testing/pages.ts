@@ -13,6 +13,8 @@ export interface BridgeState {
   notApplicable: string[]
   violations: string[]
   listeners: ((input: PluginInput) => void)[]
+  /** The viewer's subscriptions to the host's requests to show a subresource. */
+  focusListeners: ((focus: { url: string; key: string }) => void)[]
   /** Shows or hides a viewer page as the host does; undefined on other pages. */
   setVisible?: (visible: boolean) => void
   thumbnail?: (
@@ -46,6 +48,7 @@ export async function installBridge(page: Page): Promise<void> {
       notApplicable: [],
       violations: [],
       listeners: [],
+      focusListeners: [],
     }
     window.bridgeState = state
     document.addEventListener('securitypolicyviolation', (event) =>
@@ -133,6 +136,10 @@ export async function installBridge(page: Page): Promise<void> {
         onAnalyzeRequest(handler: BridgeState['analyze']) {
           state.analyze = handler
         },
+        onFocus(listener: BridgeState['focusListeners'][number]) {
+          state.focusListeners.push(listener)
+          return () => undefined
+        },
       }),
     })
   })
@@ -170,6 +177,16 @@ export async function switchInput(page: Page, input: PluginInput): Promise<void>
     window.bridgeState.setVisible?.(false)
     for (const listener of window.bridgeState.listeners) listener(input)
   }, input)
+}
+
+/** Asks the viewer to show the subresource `key` of the file at `url`, as the host does. */
+export async function focusSubresource(page: Page, url: string, key: string): Promise<void> {
+  await page.evaluate(
+    ({ url, key }) => {
+      for (const listener of window.bridgeState.focusListeners) listener({ url, key })
+    },
+    { url, key },
+  )
 }
 
 /**

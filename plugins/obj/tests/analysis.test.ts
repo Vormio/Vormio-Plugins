@@ -31,7 +31,7 @@ const names = (report: CompositionReport) =>
 const references = (report: CompositionReport) =>
   report.references.map((each) =>
     each.uri !== undefined
-      ? `${each.from ?? '文件'} → ${each.uri}（${each.role}，${each.evidence}）`
+      ? `${each.from ?? '文件'} → ${each.uri}${each.uriKey ? ` ▸ ${each.uriKey}` : ''}（${each.role}，${each.evidence}）`
       : `${each.from} → ${each.key}（${each.role}，${each.evidence}）`,
   )
 const messages = (report: CompositionReport) => report.diagnostics.map((each) => each.message)
@@ -49,6 +49,9 @@ test('objects, the groups in them, the materials they use and the library', asyn
   ])
   assert.deepEqual(references(report), [
     '文件 → table.mtl（材质库，第 2 行）',
+    // With one library, each material is the one of its name there, by the MTL analyzer's key.
+    'materials/0 → table.mtl ▸ material:Wood（材质定义，第 5 行）',
+    'materials/1 → table.mtl ▸ material:Metal（材质定义，第 32 行）',
     'groups/0 → materials/0（使用材质，第 5 行）',
     'groups/1 → materials/1（使用材质，第 32 行）',
     'groups/2 → materials/1（使用材质，第 32 行）',
@@ -61,6 +64,7 @@ test('two libraries, one in a sibling folder; faces outside groups belong to the
   assert.deepEqual(references(report), [
     '文件 → base.mtl（材质库，第 1 行）',
     '文件 → ../materials/paint.mtl（材质库，第 2 行）',
+    // With two, which one defines a material is not written in the OBJ: no material is connected.
     'objects/0 → materials/0（使用材质，第 4 行）',
     'objects/0 → materials/1（使用材质，第 29 行）',
   ])
@@ -74,6 +78,29 @@ test('two libraries, one in a sibling folder; faces outside groups belong to the
   assert.deepEqual(messages(both), [
     '第 1 行的 mtllib 列出 2 个材质库，按空格分开读取；文件名中的空格无法写进 OBJ。',
   ])
+})
+
+test('materials are connected to the one library by the keys its MTL report gives them', async () => {
+  // The contract between the two analyzers: each uriKey is a key of the library's report.
+  const report = await obj('basic/table.obj')
+  const library = await mtl('basic/table.mtl')
+  const keys = new Set(library.subresources.map((each) => each.key))
+  const definitions = report.references.filter((each) => each.uriKey !== undefined)
+  assert.equal(definitions.length, 2)
+  for (const each of definitions) assert.ok(keys.has(each.uriKey!), each.uriKey)
+  // The same library named twice is still one library; an empty or overlong name has no key.
+  const long = 'm'.repeat(200)
+  const twice = accepted(
+    analyzeObj(
+      ['mtllib a.mtl', 'mtllib a.mtl', 'usemtl', 'f 1 1 1', `usemtl ${long}`, 'usemtl Ok'].join(
+        '\n',
+      ),
+    ),
+  )
+  assert.deepEqual(
+    twice.references.flatMap((each) => (each.uriKey ? [`${each.from} ▸ ${each.uriKey}`] : [])),
+    ['materials/2 ▸ material:Ok'],
+  )
 })
 
 test('library names: Windows separators become /, and %, ? and # are encoded', () => {
@@ -148,25 +175,39 @@ test('what the previews need: the libraries in order and whether anything can be
 test('MTL: materials and the textures they name, with options and Windows paths', async () => {
   const report = await mtl('basic/table.mtl')
   assert.deepEqual(names(report), ['材质 Wood', '材质 Metal'])
+  // Materials are keyed by name, which an OBJ's usemtl refers to.
+  assert.deepEqual(
+    report.subresources.map((each) => each.key),
+    ['material:Wood', 'material:Metal'],
+  )
   assert.deepEqual(references(report), [
-    'materials/0 → textures/wood grain.png（漫反射贴图，第 4 行）',
+    'material:Wood → textures/wood grain.png（漫反射贴图，第 4 行）',
   ])
   const paint = await mtl('layout/materials/paint.mtl')
   assert.deepEqual(references(paint), [
-    'materials/1 → ../textures/stripes %232.png（漫反射贴图，第 7 行）',
-    'materials/1 → ../textures/stripes %232.png（凹凸贴图，第 8 行）',
+    'material:Label → ../textures/stripes %232.png（漫反射贴图，第 7 行）',
+    'material:Label → ../textures/stripes %232.png（凹凸贴图，第 8 行）',
   ])
 })
 
 test('MTL: problems and every kind of texture statement', async () => {
   const report = await mtl('problems/library-issues.mtl')
+  // MTLLoader keeps the later of two materials of a name, so that one has the name key.
+  assert.deepEqual(
+    report.subresources.map((each) => each.key),
+    ['materials/0', 'material:Twice'],
+  )
   assert.deepEqual(references(report), [
     '文件 → orphan.png（漫反射贴图，第 1 行）',
-    'materials/1 → sky top.png（反射贴图（cube_top），第 7 行）',
-    'materials/1 → sky bottom.png（反射贴图（cube_bottom），第 8 行）',
-    'materials/1 → rough.png（粗糙度贴图，第 9 行）',
-    'materials/1 → custom.png（贴图（map_Xyz），第 10 行）',
+    'material:Twice → sky top.png（反射贴图（cube_top），第 7 行）',
+    'material:Twice → sky bottom.png（反射贴图（cube_bottom），第 8 行）',
+    'material:Twice → rough.png（粗糙度贴图，第 9 行）',
+    'material:Twice → custom.png（贴图（map_Xyz），第 10 行）',
   ])
+  assert.deepEqual(
+    report.diagnostics.map((each) => each.key),
+    [undefined, 'material:Twice', 'material:Twice', undefined],
+  )
   assert.deepEqual(messages(report), [
     '第 1 行的 map_Kd 在第一个 newmtl 之前，不属于任何材质。',
     '第 4 行又定义了名为 Twice 的材质（第 2 行已有），使用这个名称时按后一个显示。',

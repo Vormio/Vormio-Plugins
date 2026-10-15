@@ -64,11 +64,12 @@ test('a JSON skeleton is analyzed from its text alone', async ({ page }) => {
     'preview/knight.json',
   ]
   for (const path of paths) expect(await analyze(page, path), path).toEqual(await expected(path))
-  // The atlas of the same name comes from the file name the host gives; it is not read.
+  // The atlas of the same name comes from the file name the host gives; it is not read, nor are
+  // the regions in it that attachments refer to.
   const report = await analyze(page, 'preview/hero.json')
-  expect(report.references.filter((each) => each.uri !== undefined)).toEqual([
-    { uri: 'hero.atlas', role: '图集', inferred: '与骨骼文件同名' },
-  ])
+  expect(
+    report.references.filter((each) => each.uri !== undefined && each.uriKey === undefined),
+  ).toEqual([{ uri: 'hero.atlas', role: '图集', inferred: '与骨骼文件同名' }])
   expect(host.requests).toEqual([...paths, 'preview/hero.json'].map((path) => `200 ${path}`))
 })
 

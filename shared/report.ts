@@ -20,12 +20,24 @@ export const limits = {
   /** Serialized size: UTF-8 bytes of the report as JSON, as the host measures it. */
   size: 4 * 1024 * 1024,
   uri: 2048,
+  /** A subresource key, and so the `uriKey` of a reference to one. */
+  key: 200,
   name: 200,
   label: 80,
   evidence: 300,
   /** The basis of an inferred reference. */
   inferred: 120,
   message: 500,
+}
+
+/**
+ * The key of a subresource that other files look up by name: `<kind>:<name>`, the `uriKey` their
+ * references give. Undefined when it would be longer than a key may be; such a subresource keeps a
+ * positional key, and references from other files cannot name it.
+ */
+export function nameKey(kind: string, name: string): string | undefined {
+  const key = `${kind}:${name}`
+  return key.length <= limits.key ? key : undefined
 }
 
 /** A JSON pointer (RFC 6901) into a JSON document. */
@@ -79,10 +91,11 @@ export interface ReportParts {
   diagnostics: ReportDiagnostic[]
   partial: boolean
   /**
-   * Key prefixes (the part before the first `/`) in the order their subresources are dropped when
-   * the report is too large, last one in the file first. Subresources of other prefixes go last.
+   * Key prefixes (the part before the first `/` or `:`) in the order their subresources are dropped
+   * when the report is too large, last one in the file first. A list of prefixes is dropped as one,
+   * such as the positional and the name keys of one kind. Subresources of other prefixes go last.
    */
-  dropOrder: readonly string[]
+  dropOrder: readonly (string | readonly string[])[]
 }
 
 /**
@@ -95,11 +108,11 @@ export function withinLimits(parts: ReportParts): CompositionReport {
   const notes: string[] = []
   const dropSubresources = (count: number) => {
     const dropped = new Set<string>()
-    const prefixes = [...dropOrder, '']
-    for (const prefix of prefixes) {
+    const groups = [...dropOrder.map((each) => [each].flat()), undefined]
+    for (const group of groups) {
       for (let index = subresources.length - 1; index >= 0 && dropped.size < count; index--) {
         const key = subresources[index]!.key
-        if (prefix === '' || key.startsWith(`${prefix}/`)) dropped.add(key)
+        if (!group || group.includes(key.slice(0, key.search(/[/:]|$/)))) dropped.add(key)
       }
       if (dropped.size >= count) break
     }

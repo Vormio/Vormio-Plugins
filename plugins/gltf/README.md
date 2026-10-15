@@ -1,9 +1,10 @@
 # glTF 模型
 
-插件 ID `vormio-plugins.gltf`，版本 0.4.0。为 glTF 2.0 与 GLB 文件提供网格缩略图、只读三维查看器和组成分析。
+插件 ID `vormio-plugins.gltf`，版本 0.4.1。为 glTF 2.0 与 GLB 文件提供网格缩略图、只读三维查看器和组成分析。
 
-- **宿主**：Vormio-Core 0.0.7 起（插件契约 `apiVersion: 3`）。宿主只加载与自己契约版本相同的插件：0.2.3 与 0.2.1、0.2.0 的代码相同，只换了契约，0.3.0 起查看器播放动画，0.4.0 起切换材质变体与文件中的相机；Core 0.0.6 用 0.2.1（`apiVersion: 2`），Core 0.0.3 至 0.0.5 用 0.2.0（`apiVersion: 1`），0.0.2 只认识缩略图和查看器，用 0.1.0。0.2.2 是同样的代码用 SDK 预发布版构建的包，只交给 Core 验收，没有发布。SDK 使用 [`vendor/`](../../vendor/README.md) 中固定的 0.0.7 打包产物。
+- **宿主**：Vormio-Core 0.0.9 起（插件契约 `apiVersion: 4`）。宿主只加载与自己契约版本相同的插件：0.4.1 与 0.4.0 的代码相同，只换了契约（SDK 0.0.9）；Core 0.0.7 与 0.0.8 用 0.4.0（`apiVersion: 3`）。0.2.3 与 0.2.1、0.2.0 的代码相同，只换了契约，0.3.0 起查看器播放动画，0.4.0 起切换材质变体与文件中的相机；Core 0.0.6 用 0.2.1（`apiVersion: 2`），Core 0.0.3 至 0.0.5 用 0.2.0（`apiVersion: 1`），0.0.2 只认识缩略图和查看器，用 0.1.0。0.2.2 是同样的代码用 SDK 预发布版构建的包，只交给 Core 验收，没有发布。SDK 使用 [`vendor/`](../../vendor/README.md) 中固定的 0.0.9 打包产物。
 - **不修改任何文件**：只读取宿主绑定的模型文件，以及它引用的、扩展名在声明范围内的配套文件。
+- 从 0.4.0 升级到 0.4.1：只换插件契约（`apiVersion: 4`），给 Core 0.0.9 起的宿主；代码没有变化。
 - 从 0.3.0 升级到 0.4.0：查看器可以切换材质变体（`KHR_materials_variants`）与文件中的相机。声明的格式与配套格式没有变化，不用重新启用。
 - 从 0.2.3 升级到 0.3.0：查看器播放动画。声明的格式与配套格式没有变化，不用重新启用。
 - 从 0.1.0 升级时新增了分析器扩展点，权限指纹改变，需要在资源库中重新启用。
@@ -98,7 +99,7 @@ buffer 与图像可以是外部文件（相对模型文件的路径，可以用 
 | meshoptimizer 解码器（随 three.js 发布）                                           | 1.1     | MIT        | 打包进 `chunks/`                                |
 | Draco glTF 解码器（随 three.js 发布）                                              | —       | Apache-2.0 | `decoders/draco/`，原样复制                     |
 | Basis Universal 转码器（随 three.js 发布）                                         | —       | Apache-2.0 | `decoders/basis/`，原样复制                     |
-| `@vormio/plugin-sdk` 运行时                                                        | 0.0.7   | MIT        | 打包进 `chunks/`                                |
+| `@vormio/plugin-sdk` 运行时                                                        | 0.0.9   | MIT        | 打包进 `chunks/`                                |
 
 许可证全文与说明随包放在 `licenses/`（`THREE.txt`、`MESHOPTIMIZER.txt`、`APACHE-2.0.txt`、`NOTICE.txt`）。只在开发与测试中使用的工具见仓库 [README](../../README.md#依赖与许可证)。
 
@@ -116,7 +117,7 @@ pnpm run build gltf
 pnpm run package gltf
 ```
 
-生成 `artifacts/vormio-plugins.gltf-0.4.0.vormioplugin`（内部调用 `vormio-plugin pack`）。
+生成 `artifacts/vormio-plugins.gltf-0.4.1.vormioplugin`（内部调用 `vormio-plugin pack`）。
 
 测试（`pnpm test` 会先构建）：
 
@@ -125,7 +126,7 @@ pnpm run package gltf
 | `tests/gltf-file.test.ts` | 文件头、版本与必需扩展检查；支持的扩展清单与打包的 GLTFLoader 一致；动画片段的显示名称                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | `tests/analysis.test.ts`  | 组成报告：各素材的子资源、层级与引用；地址原样报告与超长 `data:`；扩展中的贴图槽与图像来源；皮肤、动画、相机与光源；错误序号、多父节点与成环变为诊断；超出上限时部分报告；深层级只遍历一次。每份报告都用 SDK 的 `parseReport` 校验，上限与 SDK 的 `reportLimits` 一致                                                                                                                                                                                                                                                               |
 | `tests/framing.test.ts`   | 取景：随机包围盒与方向下，所有角点都在视野内且留出边距                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
-| `tests/package.test.ts`   | 构建产物通过 SDK 的包校验，契约是 `apiVersion: 3`；三个扩展点的权限；页面引用的文件都在包内；页面不含 SDK 的 schema，分析器页面不含 three.js；`vormio-plugin pack` 生成的包与目录摘要一致                                                                                                                                                                                                                                                                                                                                           |
+| `tests/package.test.ts`   | 构建产物通过 SDK 的包校验，契约是 `apiVersion: 4`；三个扩展点的权限；页面引用的文件都在包内；页面不含 SDK 的 schema，分析器页面不含 three.js；`vormio-plugin pack` 生成的包与目录摘要一致                                                                                                                                                                                                                                                                                                                                           |
 | `tests/render.spec.ts`    | 在 Chromium 中运行构建好的页面（宿主的 CSP、跨源配套读取、模拟的 `window.vormio`）：缩略图颜色与读取的配套文件、Draco/meshopt 与未压缩结果一致、重叠任务不串图；查看器就绪、拖动旋转、滚轮缩放、适应与重置、改变大小时不出现空帧、换文件、缺失贴图警告与失败原因；动画（就绪前已画好第一帧、播放时画面变化、暂停后不变、进度条同一时间画面相同、空格、切换片段、减少动态效果时不播放、换到没有动画的文件后控件隐藏）；材质变体的切换与恢复；文件相机（正交与透视、拖动后回到自由视角、重置、查看区变形后不拉伸）；全程没有 CSP 拦截 |
 | `tests/analyzer.spec.ts`  | 在 Chromium 中运行分析器页面：报告与 Node 中的分析一致并通过 `parseReport`；`.gltf` 只读主文件，GLB 只用 Range 读文件头与 JSON 块；重叠的分析不串；无法解析的文件给出原因；全程没有 CSP 拦截                                                                                                                                                                                                                                                                                                                                        |
 

@@ -25,15 +25,15 @@ test('a 4.x atlas: pages, the regions on them and the page images', async () => 
   assert.deepEqual(rows(report), [
     ['pages/0', '页面', 'hero.png', undefined],
     ['pages/1', '页面', 'hero_2.png', undefined],
-    ['regions/0', '区域', 'torso', 'pages/0'],
-    ['regions/1', '区域', 'head-front', 'pages/0'],
-    ['regions/2', '区域', 'head-blink01', 'pages/0'],
-    ['regions/3', '区域', 'head-blink02', 'pages/0'],
-    ['regions/4', '区域', 'head-blink03', 'pages/0'],
-    ['regions/5', '区域', 'arm', 'pages/0'],
-    ['regions/6', '区域', 'cape', 'pages/1'],
-    ['regions/7', '区域', 'cape-armored', 'pages/1'],
-    ['regions/8', '区域', 'helmet', 'pages/1'],
+    ['region:torso', '区域', 'torso', 'pages/0'],
+    ['region:head-front', '区域', 'head-front', 'pages/0'],
+    ['region:head-blink01', '区域', 'head-blink01', 'pages/0'],
+    ['region:head-blink02', '区域', 'head-blink02', 'pages/0'],
+    ['region:head-blink03', '区域', 'head-blink03', 'pages/0'],
+    ['region:arm', '区域', 'arm', 'pages/0'],
+    ['region:cape', '区域', 'cape', 'pages/1'],
+    ['region:cape-armored', '区域', 'cape-armored', 'pages/1'],
+    ['region:helmet', '区域', 'helmet', 'pages/1'],
   ])
   assert.deepEqual(report.references, [
     { from: 'pages/0', uri: 'hero.png', role: '贴图页', evidence: '第 1 行' },
@@ -47,8 +47,8 @@ test('the 3.x syntax: a leading blank line, indented xy/size/orig/offset and ind
   const report = await analyzeFixture('legacy/goblin.atlas')
   assert.deepEqual(rows(report), [
     ['pages/0', '页面', 'goblin.png', undefined],
-    ['regions/0', '区域', 'body', 'pages/0'],
-    ['regions/1', '区域', 'head', 'pages/0'],
+    ['region:body', '区域', 'body', 'pages/0'],
+    ['region:head', '区域', 'head', 'pages/0'],
   ])
   assert.deepEqual(report.references, [
     { from: 'pages/0', uri: 'goblin.png', role: '贴图页', evidence: '第 2 行' },
@@ -79,6 +79,47 @@ test('frames and duplicates: index is part of the name; a repeated name and inde
       key: 'regions/1',
     },
   ])
+})
+
+test('regions are keyed by name as Spine finds them; later ones of the same name by position', async () => {
+  // Spine's findRegion returns the first region of a name and ignores the frame index, so a
+  // skeleton's attachment refers to region:<name>, which only the first one has.
+  const report = await analyzeFixture('problems/duplicate-region.atlas')
+  assert.deepEqual(
+    report.subresources.map((each) => each.key),
+    ['pages/0', 'region:a', 'regions/1', 'region:b', 'regions/3'],
+  )
+})
+
+test('a name too long for a key keeps the positional key', () => {
+  // A key has at most 200 characters, and region: takes 7 of them.
+  const fits = 'f'.repeat(limits.key - 'region:'.length)
+  const long = `${fits}x`
+  const report = accepted(
+    analyzeAtlas(
+      [
+        'page.png',
+        'size: 8, 8',
+        fits,
+        'bounds: 0, 0, 1, 1',
+        long,
+        'bounds: 0, 0, 1, 1',
+        long,
+        'bounds: 0, 0, 1',
+        'fx/odd name #1',
+        'bounds: 0, 0, 1, 1',
+      ].join('\n'),
+    ),
+  )
+  assert.deepEqual(
+    report.subresources.map((each) => each.key),
+    ['pages/0', `region:${fits}`, 'regions/1', 'regions/2', 'region:fx/odd name #1'],
+  )
+  // Diagnostics point at the region by its key: bad bounds, so no position, and a repeated name.
+  assert.deepEqual(
+    report.diagnostics.map((each) => each.key),
+    ['regions/2', 'regions/2', 'regions/2'],
+  )
 })
 
 test('a missing page image is still reported; the host decides it is missing', async () => {

@@ -1,5 +1,5 @@
 import { viewer, type PluginInput } from '@vormio/plugin-sdk'
-import { parseAtlas, regionName, type Atlas, type AtlasRegion } from './atlas.ts'
+import { pageKey, parseAtlas, regionName, type Atlas, type AtlasRegion } from './atlas.ts'
 import { describePageProblem, loadPage, readText, type PageImage } from './source.ts'
 import { fitView, focusView, hit, toPage, zoomAt, type View } from './view.ts'
 
@@ -409,4 +409,30 @@ async function show(input: PluginInput, signal: AbortSignal): Promise<void> {
   await showPage(0, signal)
 }
 
-viewer(show)
+/**
+ * Shows the subresource the host asks for by its key in the atlas report: a region is selected in
+ * the list and framed, on its page; a page is switched to. Other keys are ignored.
+ */
+function focus(key: string): void {
+  if (!shown) return
+  const region = shown.atlas.regions.findIndex((each) => each.key === key)
+  if (region >= 0) {
+    // A search that hides the region would leave nothing highlighted in the list.
+    if (!list.querySelector(`button[data-region="${region}"]`) && search.value) {
+      search.value = ''
+      renderList()
+    }
+    select(region, true)
+    return
+  }
+  const page = shown.atlas.pages.findIndex((_, index) => pageKey(index) === key)
+  if (page < 0) return
+  select(-1, false)
+  if (page !== shown.page) void showPage(page)
+  else {
+    userMoved = false
+    fit()
+  }
+}
+
+viewer(show, { focus })
