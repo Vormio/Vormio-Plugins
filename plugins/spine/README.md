@@ -1,6 +1,6 @@
 # Spine 骨骼动画
 
-插件 ID `vormio-plugins.spine`，版本 0.10.0-r3.1（SDK 预发布版 0.0.9-rc.1 的试用构建，见下）。
+插件 ID `vormio-plugins.spine`，版本 0.10.0。
 
 - **骨骼（`.json` 与 `.skel`）**：缩略图显示初始姿势，查看器可以切换皮肤、播放动画。渲染使用 Esoteric Software 的官方运行时 spine-ts。骨骼 JSON 还有组成分析：骨骼、插槽、约束、皮肤、附件、事件与动画，以及它们之间的引用；同名图集与附件使用的图集区域作为推断的引用列出。
 - **不是 Spine 骨骼的 JSON**（`package.json`、配置、数据表等）：插件回答“不适用”，宿主照常显示类型图标与内置文本预览，没有组成区，也不记为失败。
@@ -8,10 +8,9 @@
 
 > **许可要求**：插件包含 Spine Runtimes，按 Spine Runtimes 许可协议分发，**每个使用者都需要自己的 Spine Editor 许可证**，只用图集查看与组成分析也一样：许可协议约束的是包含运行时的整个插件。分发方不持有 Spine Editor 许可证；插件无法核实使用者是否持有。每个运行时的协议原文随插件包附在 `licenses/SPINE-RUNTIMES-<版本>.txt`（3.7、3.8、4.0 与 4.1 带的是 2019 年版，4.2 与 4.3 带的是 2025 年版，条款相同）。
 
-- **宿主**：Vormio-Core 0.0.9 起（插件契约 `apiVersion: 4`：引用可以用 `uriKey` 指向另一个文件中的子资源，查看器可以接受宿主定位子资源的请求；0.0.7 起的推断引用与 0.0.6 起的“不适用”照旧）。宿主只加载与自己契约版本相同的插件：0.8.0 与 0.9.0 是 `apiVersion: 3`，给 Core 0.0.7 与 0.0.8；0.4.0 是 `apiVersion: 2`，给 Core 0.0.6；0.3.0 及更早的版本是 `apiVersion: 1`，给 Core 0.0.3 至 0.0.5。SDK 使用 [`vendor/`](../../vendor/README.md) 中固定的 0.0.9-rc.1 打包产物。
-- **试用构建**：0.10.0-r3.1 用 Core 为 Vormio/Vormio-Core#3（R3）在 npm 标签 `next` 下发布的 SDK 0.0.9-rc.1 构建，只交给 Core 验收 0.0.9，不进官方目录。版本号带预发布标识，不会与 master 上发布的版本重复；Core 0.0.9 发布后，换成正式版 SDK 重新构建的包另给一个正式版本号。
+- **宿主**：Vormio-Core 0.0.9 起（插件契约 `apiVersion: 4`：引用可以用 `uriKey` 指向另一个文件中的子资源，查看器可以接受宿主定位子资源的请求；0.0.7 起的推断引用与 0.0.6 起的“不适用”照旧）。宿主只加载与自己契约版本相同的插件：0.8.0 与 0.9.0 是 `apiVersion: 3`，给 Core 0.0.7 与 0.0.8；0.4.0 是 `apiVersion: 2`，给 Core 0.0.6；0.3.0 及更早的版本是 `apiVersion: 1`，给 Core 0.0.3 至 0.0.5。SDK 使用 [`vendor/`](../../vendor/README.md) 中固定的 0.0.9 打包产物。
 - **不修改任何文件**：骨骼的缩略图与查看器读取骨骼、同一目录中的同名图集与图集的贴图页；图集的缩略图与查看器读取图集与它的 PNG、JPEG 贴图页；两个分析器只读取文件本身。
-- 从 0.9.0 升级到 0.10.0-r3.1：图集区域的 key 从 `regions/<序号>` 改为 `region:<名称>`（见图集的组成分析）；骨骼 JSON 的分析器把每个附件使用的区域报告为推断的引用，指向同名图集报告中的这个 key；图集查看器接受宿主定位页面与区域的请求。声明的格式没有变化，但 `apiVersion: 4` 只有 Core 0.0.9 起加载。
+- 从 0.9.0 升级到 0.10.0（Vormio/Vormio-Core#3）：图集区域的 key 从 `regions/<序号>` 改为 `region:<名称>`（见图集的组成分析）；骨骼 JSON 的分析器把每个附件使用的区域报告为推断的引用，指向同名图集报告中的这个 key；图集查看器接受宿主定位页面与区域的请求。声明的格式没有变化，但 `apiVersion: 4` 只有 Core 0.0.9 起加载。
 - 从 0.8.0 升级到 0.9.0：组成分析读取 4.3 骨骼 JSON 的约束（4.3 把各种约束写在一个 `constraints` 列表中，并加入滑块约束），之前 4.3 的骨骼 JSON 列不出约束。声明的格式没有变化，不用重新启用。
 - 从 0.4.0 升级到 0.8.0：加入 3.7 骨骼 JSON 的预览（0.5.0）、3.7 二进制骨骼的预览（0.6.0）与 3.7 骨骼 JSON 的组成分析（0.7.0），这三个版本没有单独发布；骨骼 JSON 的同名图集作为推断的引用报告（0.8.0）。声明的格式与配套格式都没有变化。0.8.0 是 `apiVersion: 3`，Vormio 要先更新到 Core 0.0.7 起。从 0.3.0 升级时为 `json` 新增了缩略图、查看器与分析器，需要在资源库中重新启用；Core 0.0.6 的资源库（格式 6）本身也要新建。从 0.2.0 升级时新增了骨骼的缩略图与查看器，许可要求也从那个版本开始；从 0.1.0 升级时新增了图集的缩略图与查看器。
 - 设计与后续版本见 [设计计划](../../docs/plans/spine.md)。
@@ -158,7 +157,7 @@ JSON 骨骼与二进制骨骼的缩略图、查看器相同。
 | `@esotericsoftware/spine-webgl`（npm 别名 `spine-webgl-4.2`）                                                                             | 4.2.120                         | Spine Runtimes 许可协议（2025-04-05 版）          | 读取与绘制 4.2 骨骼               |
 | `@esotericsoftware/spine-webgl`（npm 别名 `spine-webgl-4.3`）                                                                             | 4.3.13                          | 同上                                              | 读取与绘制 4.3 骨骼               |
 | `@esotericsoftware/spine-core`                                                                                                            | 4.0.31、4.1.56、4.2.120、4.3.13 | 与同版本的 spine-webgl 相同（spine-webgl 的依赖） |                                   |
-| `@vormio/plugin-sdk`                                                                                                                      | 0.0.9-rc.1                      | MIT                                               | 宿主接口                          |
+| `@vormio/plugin-sdk`                                                                                                                      | 0.0.9                           | MIT                                               | 宿主接口                          |
 
 许可协议允许不持有 Spine Editor 许可证的一方集成运行时，条件是产品的每个使用者都自己持有许可证，再分发时附上协议与版权声明。插件的自写代码按仓库的 MIT 许可；插件包作为整体包含 Spine Runtimes，受上述协议约束。
 
@@ -180,7 +179,7 @@ pnpm run build spine
 pnpm run package spine
 ```
 
-生成 `artifacts/vormio-plugins.spine-0.10.0-r3.1.vormioplugin`。
+生成 `artifacts/vormio-plugins.spine-0.10.0.vormioplugin`。
 
 测试（`pnpm test` 会先构建），素材见 [`fixtures/spine/`](../../fixtures/spine/README.md)，骨骼预览用其中的 `preview/`：
 

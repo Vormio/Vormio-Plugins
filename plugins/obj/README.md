@@ -1,10 +1,9 @@
 # OBJ 模型
 
-插件 ID `vormio-plugins.obj`，版本 0.2.0-r3.1（SDK 预发布版 0.0.9-rc.1 的试用构建，见下）。为 Wavefront OBJ 模型提供缩略图、只读三维查看器和组成分析，为 MTL 材质库提供组成分析。
+插件 ID `vormio-plugins.obj`，版本 0.2.0。为 Wavefront OBJ 模型提供缩略图、只读三维查看器和组成分析，为 MTL 材质库提供组成分析。
 
-- **宿主**：Vormio-Core 0.0.9 起（插件契约 `apiVersion: 4`：引用可以用 `uriKey` 指向另一个文件中的子资源）。“不适用”的回答要求 Core 0.0.6 起。0.1.0 是 `apiVersion: 3`，给 Core 0.0.7 与 0.0.8。SDK 使用 [`vendor/`](../../vendor/README.md) 中固定的 0.0.9-rc.1 打包产物。
-- **试用构建**：0.2.0-r3.1 用 Core 为 Vormio/Vormio-Core#3（R3）在 npm 标签 `next` 下发布的 SDK 0.0.9-rc.1 构建，只交给 Core 验收 0.0.9，不进官方目录；版本号带预发布标识，不会与 master 上发布的版本重复。
-- 从 0.1.0 升级到 0.2.0-r3.1：MTL 的材质 key 从 `materials/<序号>` 改为 `material:<名称>`；只有一个材质库的 OBJ 把用到的每个材质连到材质库中同名的材质。声明的格式没有变化。
+- **宿主**：Vormio-Core 0.0.9 起（插件契约 `apiVersion: 4`：引用可以用 `uriKey` 指向另一个文件中的子资源）。“不适用”的回答要求 Core 0.0.6 起。0.1.0 是 `apiVersion: 3`，给 Core 0.0.7 与 0.0.8。SDK 使用 [`vendor/`](../../vendor/README.md) 中固定的 0.0.9 打包产物。
+- 从 0.1.0 升级到 0.2.0（Vormio/Vormio-Core#3）：MTL 的材质 key 从 `materials/<序号>` 改为 `material:<名称>`；只有一个材质库的 OBJ 把用到的每个材质连到材质库中同名的材质。声明的格式没有变化。
 - **不修改任何文件**：只读取宿主绑定的文件，以及模型写出的、扩展名在声明范围内的材质库与贴图。
 - 设计与后续版本见 [设计计划](../../docs/plans/obj.md)。
 
@@ -53,7 +52,7 @@
 ## 不支持的情况
 
 - 自由曲线与曲面（`curv`、`surf` 等）：分析器记一条信息，查看器与缩略图不显示。
-- 多个材质库时 `usemtl` 指向哪个材质库中的材质：分析器只报告材质名与各个材质库文件，不连到具体材质（[设计计划](../../docs/plans/obj.md) §7）。
+- 多个材质库时 `usemtl` 指向哪个材质库中的材质：分析器只报告材质名与各个材质库文件，不连到具体材质（[设计计划](../../docs/plans/obj.md) §7，Vormio/Vormio-Core#9）。
 - DDS 等压缩纹理、未声明扩展名的贴图：宿主拒绝读取，查看器列出“插件不读取这种类型的文件”。分析器照常报告这些引用。
 - 绝对路径（例如 `C:\textures\wood.png`）与 `http(s):` 地址：插件不能读取关联文件夹以外的文件；分析器原样报告，由宿主归类。
 - MTLLoader 不支持的材质效果不显示：反射贴图（`refl`）、`-clamp`、`-mm` 等贴图选项、`illum` 光照模型与 PBR 参数；材质类型是 Phong。
@@ -64,10 +63,10 @@
 
 打进插件包的代码：
 
-| 组件                                                                           | 版本       | 许可证 | 位置                                            |
-| ------------------------------------------------------------------------------ | ---------- | ------ | ----------------------------------------------- |
-| three.js（含 OBJLoader、MTLLoader、TGALoader、OrbitControls、RoomEnvironment） | 0.186.1    | MIT    | 打包进 `viewer.js`、`thumbnail.js` 与 `chunks/` |
-| `@vormio/plugin-sdk` 运行时                                                    | 0.0.9-rc.1 | MIT    | 打包进 `chunks/`                                |
+| 组件                                                                           | 版本    | 许可证 | 位置                                            |
+| ------------------------------------------------------------------------------ | ------- | ------ | ----------------------------------------------- |
+| three.js（含 OBJLoader、MTLLoader、TGALoader、OrbitControls、RoomEnvironment） | 0.186.1 | MIT    | 打包进 `viewer.js`、`thumbnail.js` 与 `chunks/` |
+| `@vormio/plugin-sdk` 运行时                                                    | 0.0.9   | MIT    | 打包进 `chunks/`                                |
 
 许可证全文随包放在 `licenses/THREE.txt`。
 
@@ -85,7 +84,7 @@ pnpm run build obj
 pnpm run package obj
 ```
 
-生成 `artifacts/vormio-plugins.obj-0.2.0-r3.1.vormioplugin`。
+生成 `artifacts/vormio-plugins.obj-0.2.0.vormioplugin`。
 
 测试（`pnpm test` 会先构建）：
 
