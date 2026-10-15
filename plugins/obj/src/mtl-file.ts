@@ -11,7 +11,7 @@ import {
   reportedUri,
   withinLimits,
 } from '../../../shared/report.ts'
-import { fileName } from './names.ts'
+import { fileName, materialNameKey } from './names.ts'
 import { StatementReader, type Statement } from './obj-file.ts'
 
 /** Texture statements (in lower case, as keywords are matched) and the roles of their files. */
@@ -116,6 +116,8 @@ export function analyzeMtl(text: string): CompositionReport {
   const subresources: ReportSubresource[] = []
   const fileReferences: ReportReference[] = []
   const names = new Map<string, number>()
+  /** The name of each material, by position; keys are settled once the last one is known. */
+  const defined: string[] = []
   let material: string | undefined
   const unknown = new Map<string, number>()
   const reader = new StatementReader(({ keyword, rest, line }: Statement) => {
@@ -131,6 +133,7 @@ export function analyzeMtl(text: string): CompositionReport {
           key,
         )
       names.set(rest, line)
+      defined.push(rest)
       subresources.push({ key, kind: '材质', name: shown })
       material = key
       return
@@ -164,13 +167,27 @@ export function analyzeMtl(text: string): CompositionReport {
   reader.end()
   for (const [keyword, line] of unknown)
     diagnose('info', `无法识别的语句 ${keyword}（第 ${line} 行起）。`)
+  // The material MTLLoader keeps for a name is the last one, so that one is keyed by the name and
+  // earlier ones keep their position.
+  const last = new Map(defined.map((name, position) => [name, position]))
+  const keys = new Map(
+    defined.map((name, position) => [
+      `materials/${position}`,
+      (last.get(name) === position && materialNameKey(name)) || `materials/${position}`,
+    ]),
+  )
+  const rekey = <T extends { key?: string; from?: string }>(each: T): T => ({
+    ...each,
+    ...(each.key !== undefined ? { key: keys.get(each.key) ?? each.key } : {}),
+    ...(each.from !== undefined ? { from: keys.get(each.from) ?? each.from } : {}),
+  })
   return withinLimits({
-    subresources,
-    fileReferences,
+    subresources: subresources.map(rekey),
+    fileReferences: fileReferences.map(rekey),
     internal: [],
-    diagnostics,
+    diagnostics: diagnostics.map(rekey),
     partial: false,
-    dropOrder: ['materials'],
+    dropOrder: [['materials', 'material']],
   })
 }
 

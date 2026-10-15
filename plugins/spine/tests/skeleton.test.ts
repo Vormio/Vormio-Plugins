@@ -18,9 +18,18 @@ const analyzeText = (text: string, name = 'hero.json') =>
 const analyzeFixture = async (path: string) =>
   analyzeText(await readFile(join(fixtures, path), 'utf8'), basename(path))
 const analyzeJson = (value: object, name?: string) => analyzeText(JSON.stringify(value), name)
-const inferred = (report: CompositionReport) => report.references.filter((each) => each.inferred)
+/** The inferred atlas: inferred references to the atlas itself, not to a region in it. */
+const atlas = (report: CompositionReport) =>
+  report.references.filter((each) => each.inferred && each.uriKey === undefined)
+/** The atlas regions each attachment draws, as "from → key in the atlas". */
+const regions = (report: CompositionReport) =>
+  report.references.flatMap((each) =>
+    each.uriKey === undefined ? [] : [`${each.from} → ${each.uriKey}`],
+  )
 const links = (report: CompositionReport, from: string) =>
-  report.references.filter((each) => each.from === from).map((each) => `${each.role} → ${each.key}`)
+  report.references
+    .filter((each) => each.from === from && each.key !== undefined)
+    .map((each) => `${each.role} → ${each.key}`)
 const messages = (report: CompositionReport) => report.diagnostics.map((each) => each.message)
 const minimal = { skeleton: { spine: '4.2.43' }, bones: [{ name: 'root' }] }
 
@@ -73,10 +82,33 @@ test('a 4.2 skeleton: every kind of object, in display order', async () => {
     'footstep（音频 footstep.wav）',
   )
   assert.deepEqual(report.diagnostics, [])
-  // The only file is the atlas of the same name, which the skeleton does not write.
+  // The only file is the atlas of the same name, which the skeleton does not write; then the
+  // regions in it that attachments draw: by path when given, one for each frame of a sequence.
+  const files = report.references.filter((each) => each.uri !== undefined)
+  assert.deepEqual(files[0], { uri: 'hero.atlas', role: '图集', inferred: '与骨骼文件同名' })
+  assert.ok(files.every((each) => each.uri === 'hero.atlas'))
+  assert.deepEqual(regions(report), [
+    'attachments/0 → region:cape',
+    'attachments/1 → region:arm',
+    'attachments/2 → region:torso',
+    'attachments/3 → region:head-front',
+    'attachments/4 → region:head-blink01',
+    'attachments/4 → region:head-blink02',
+    'attachments/4 → region:head-blink03',
+    'attachments/5 → region:arm',
+    'attachments/10 → region:cape-armored',
+    'attachments/11 → region:helmet',
+  ])
   assert.deepEqual(
-    report.references.filter((each) => each.uri !== undefined),
-    [{ uri: 'hero.atlas', role: '图集', inferred: '与骨骼文件同名' }],
+    report.references.find((each) => each.uriKey === 'region:head-blink02'),
+    {
+      from: 'attachments/4',
+      uri: 'hero.atlas',
+      uriKey: 'region:head-blink02',
+      role: '图集区域',
+      evidence: '/skins/0/attachments/head/head-blink/sequence',
+      inferred: '与骨骼文件同名',
+    },
   )
 })
 
@@ -89,17 +121,17 @@ test('the atlas of the same name is an inferred reference, whether or not it exi
   // Region, mesh and linked mesh attachments are drawn from atlas regions.
   for (const type of ['region', 'mesh', 'linkedmesh'])
     assert.deepEqual(
-      inferred(analyzeJson(drawn(type), 'orphan.json')),
+      atlas(analyzeJson(drawn(type), 'orphan.json')),
       [{ uri: 'orphan.atlas', role: '图集', inferred: '与骨骼文件同名' }],
       type,
     )
   // A skeleton that draws nothing from an atlas does not need one.
-  assert.deepEqual(inferred(analyzeJson(minimal)), [])
+  assert.deepEqual(atlas(analyzeJson(minimal)), [])
   for (const type of ['boundingbox', 'point', 'path', 'clipping'])
-    assert.deepEqual(inferred(analyzeJson(drawn(type))), [], type)
+    assert.deepEqual(atlas(analyzeJson(drawn(type))), [], type)
   // The address is the file name, encoded as the previews read it; only the last extension goes.
   assert.deepEqual(
-    inferred(analyzeJson(drawn('region'), 'hero #2 100%.v2.json')).map((each) => each.uri),
+    atlas(analyzeJson(drawn('region'), 'hero #2 100%.v2.json')).map((each) => each.uri),
     ['hero %232 100%25.v2.atlas'],
   )
 })
@@ -113,10 +145,66 @@ test('two skeletons sharing one atlas: only the one with its name infers it', ()
   }
   assert.deepEqual(
     ['hero.json', 'hero-armored.json'].map((name) =>
-      inferred(analyzeJson(skeleton, name)).map((each) => each.uri),
+      atlas(analyzeJson(skeleton, name)).map((each) => each.uri),
     ),
     [['hero.atlas'], ['hero-armored.atlas']],
   )
+})
+
+test('sequences draw a region for each frame, from 4.1', () => {
+  const sequenced = (spine: string, sequence: object) => ({
+    skeleton: { spine },
+    bones: [{ name: 'root' }],
+    slots: [{ name: 's', bone: 'root' }],
+    skins: [
+      { name: 'default', attachments: { s: { fx: { type: 'mesh', path: 'fx/smoke', sequence } } } },
+    ],
+  })
+  // start is 1 and digits 0 unless written, as in spine-core's SkeletonJson.
+  assert.deepEqual(regions(analyzeJson(sequenced('4.2.43', { count: 3 }))), [
+    'attachments/0 → region:fx/smoke1',
+    'attachments/0 → region:fx/smoke2',
+    'attachments/0 → region:fx/smoke3',
+  ])
+  assert.deepEqual(regions(analyzeJson(sequenced('4.1.24', { count: 2, start: 9, digits: 3 }))), [
+    'attachments/0 → region:fx/smoke009',
+    'attachments/0 → region:fx/smoke010',
+  ])
+  // Before 4.1 the runtime does not read sequences: the attachment draws its path.
+  assert.deepEqual(regions(analyzeJson(sequenced('4.0.64', { count: 3 }))), [
+    'attachments/0 → region:fx/smoke',
+  ])
+  // A sequence the runtime cannot read draws nothing that can be named.
+  assert.deepEqual(regions(analyzeJson(sequenced('4.2.43', { count: 1.5 }))), [])
+})
+
+test('a region name too long for a key is not referred to; the atlas still is', () => {
+  const report = analyzeJson({
+    ...minimal,
+    slots: [{ name: 's', bone: 'root' }],
+    skins: [{ name: 'default', attachments: { s: { a: { path: 'r'.repeat(200) } } } }],
+  })
+  assert.deepEqual(regions(report), [])
+  assert.equal(atlas(report).length, 1)
+})
+
+test('more region references than a report may have make it partial, not invalid', () => {
+  // One sequence of 60,000 frames, more than the host's 50,000 references and far more than fit in
+  // 4 MiB: region references stop at half the size; the attachment and the atlas stay.
+  const report = analyzeJson({
+    ...minimal,
+    slots: [{ name: 's', bone: 'root' }],
+    skins: [{ name: 'default', attachments: { s: { a: { sequence: { count: 60_000 } } } } }],
+  })
+  assert.equal(report.partial, true)
+  assert.ok(report.references.length <= limits.references)
+  assert.ok(serializedSize(report) <= limits.size)
+  assert.ok(report.subresources.some((each) => each.key === 'attachments/0'))
+  assert.deepEqual(atlas(report), [{ uri: 'hero.atlas', role: '图集', inferred: '与骨骼文件同名' }])
+  const kept = regions(report)
+  assert.ok(kept.length > 1000 && kept.length < 60_000, String(kept.length))
+  assert.equal(kept[0], 'attachments/0 → region:a1')
+  assert.deepEqual(messages(report), ['附件使用的图集区域太多，只列出一部分。'])
 })
 
 test('bones form a hierarchy; slots and constraints refer to bones', async () => {
@@ -274,9 +362,11 @@ test('a 4.3 skeleton: constraints from the one list, with their places in it', a
   assert.deepEqual(links(report, 'slider/0'), ['约束骨骼 → bones/3', '滑块动画 → animations/1'])
   assert.equal(evidence('slider/1', 'animations/0'), '/constraints/5/animation')
   assert.deepEqual(links(report, 'skins/1'), ['皮肤包含 → bones/7', '皮肤包含 → slider/0'])
-  assert.deepEqual(inferred(report), [
+  assert.deepEqual(atlas(report), [
     { uri: 'paladin.atlas', role: '图集', inferred: '与骨骼文件同名' },
   ])
+  // Its region attachments name their regions as before.
+  assert.ok(regions(report).length > 0)
 })
 
 test('the constraint layout must be the one of the version', () => {

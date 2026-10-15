@@ -5,6 +5,7 @@ import { join } from 'node:path'
 import { expect, test, type Page } from '@playwright/test'
 import { startHost, type MockHost } from '../../../shared/testing/host.ts'
 import {
+  focusSubresource,
   installBridge,
   pageUrl,
   pixelStats,
@@ -109,6 +110,44 @@ test.describe('viewer', () => {
     )
     expect((await canvasStats(page)).hues.red).toBeGreaterThan(0.2)
     expect(host.requests).toContain('200 basic/hero_2.png')
+  })
+
+  test('the host focuses a region or a page by its key in the atlas report', async ({ page }) => {
+    const { input } = await openViewer(page, 'basic/hero.atlas')
+    const current = (name: string) =>
+      expect(regionButtons(page).filter({ hasText: name })).toHaveAttribute('aria-current', 'true')
+    // A region on another page: the page is switched to and the region selected and framed.
+    await focusSubresource(page, input.url, 'region:helmet')
+    await expect(page.locator('#page')).toHaveValue('1')
+    await expect(page.locator('#detail')).toHaveText('helmet · 18 × 32 · 位置 44, 2')
+    await current('helmet')
+    // A search that hides the region is cleared, so the list shows it.
+    await page.locator('#search').fill('cape')
+    await focusSubresource(page, input.url, 'region:head-front')
+    await expect(page.locator('#search')).toHaveValue('')
+    await expect(page.locator('#page')).toHaveValue('0')
+    await current('head-front')
+    // A page key switches to the page; keys that are not in the atlas and other files are ignored.
+    await focusSubresource(page, input.url, 'pages/1')
+    await expect(page.locator('#info')).toHaveText('页面 2/2 · hero_2.png · 64 × 64 · 3 个区域')
+    await expect(page.locator('#detail')).toHaveText('')
+    await focusSubresource(page, input.url, 'region:absent')
+    await focusSubresource(page, `${input.url}x`, 'region:torso')
+    await expect(page.locator('#info')).toHaveText('页面 2/2 · hero_2.png · 64 × 64 · 3 个区域')
+    await expect(page.locator('#regions button[aria-current="true"]')).toHaveCount(0)
+    // The same key again shows it again.
+    await focusSubresource(page, input.url, 'region:helmet')
+    await current('helmet')
+    await focusSubresource(page, input.url, 'region:helmet')
+    await current('helmet')
+  })
+
+  test('a later region of the same name is focused by its position', async ({ page }) => {
+    const { input } = await openViewer(page, 'problems/duplicate-region.atlas')
+    await focusSubresource(page, input.url, 'regions/1')
+    await expect(page.locator('#detail')).toHaveText('a · 8 × 8 · 位置 8, 0')
+    await focusSubresource(page, input.url, 'region:a')
+    await expect(page.locator('#detail')).toHaveText('a · 8 × 8 · 位置 0, 0')
   })
 
   test('clicking a region on the canvas selects it; search narrows the list', async ({ page }) => {

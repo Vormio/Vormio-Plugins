@@ -1,7 +1,8 @@
 // Reads a Spine / libGDX texture atlas: pages, the regions on them and where each region lies on its
 // page. Both the 4.x syntax (`bounds`, `offsets`) and the 3.x syntax (`xy`, `size`, `orig`,
 // `offset`) are read. `analyzeAtlas` turns the result into a composition report; the thumbnail and
-// the viewer draw from it. No DOM, so it runs in Node tests as well as in the plugin pages.
+// the viewer draw from it. Regions are keyed by name, so that a skeleton's attachments can refer to
+// them (see regionNameKey). No DOM, so it runs in Node tests as well as in the plugin pages.
 
 import type {
   CompositionReport,
@@ -14,6 +15,7 @@ import {
   compact,
   diagnosticList,
   limits,
+  nameKey,
   plainText,
   reportedUri,
   withinLimits,
@@ -56,6 +58,11 @@ export interface AtlasPage {
 
 export interface AtlasRegion {
   name: string
+  /**
+   * Its key in the report: `region:<name>` for the region Spine finds by that name, else
+   * `regions/<position>` (a later region of the same name, or a name too long for a key).
+   */
+  key: string
   /** Index into the atlas's pages. */
   page: number
   line: number
@@ -93,7 +100,14 @@ function field(line: string): { name: string; values: string[] } | undefined {
 const isInteger = (value: string) => /^-?\d+$/.test(value)
 const isNumber = (value: string) => /^-?(\d+\.?\d*|\.\d+)$/.test(value)
 export const pageKey = (index: number) => `pages/${index}`
+/** The positional key of a region, for regions that cannot be looked up by name. */
 export const regionKey = (index: number) => `regions/${index}`
+/**
+ * The key of the region Spine finds by `name`: the first region of that name in the atlas, as
+ * `TextureAtlas.findRegion` looks it up. A skeleton's references to atlas regions give it as
+ * `uriKey`, so it must stay `region:<name>`. Undefined when the key would be too long.
+ */
+export const regionNameKey = (name: string) => nameKey('region', name)
 
 /**
  * Parses the text of an .atlas file. Problems that still leave a usable atlas go to `diagnose`;
@@ -107,6 +121,8 @@ export function parseAtlas(text: string, diagnose: Diagnose = () => undefined): 
   const positions: { bounds?: number[]; xy?: number[]; size?: number[] }[] = []
   let page: AtlasPage | undefined
   let region: AtlasRegion | undefined
+  /** Names of the regions so far: a later region of the same name is not the one Spine finds. */
+  const named = new Set<string>()
   /** Whether the line after the current page's name was a field, as exporters always write. */
   let pageHasFields = false
 
@@ -141,8 +157,11 @@ export function parseAtlas(text: string, diagnose: Diagnose = () => undefined): 
         region = undefined
       } else {
         if (!pageHasFields) failNotAtlas(page.line)
+        const byName = named.has(line) ? undefined : regionNameKey(line)
+        named.add(line)
         region = {
           name: line,
+          key: byName ?? regionKey(regions.length),
           page: pages.length - 1,
           line: lineNumber,
           index: -1,
@@ -176,7 +195,7 @@ export function parseAtlas(text: string, diagnose: Diagnose = () => undefined): 
         page.size = { width: Number(entry.values[0]), height: Number(entry.values[1]) }
       return
     }
-    const key = regionKey(regions.length - 1)
+    const key = region.key
     if (entry.name === 'rotate') {
       const value = entry.values.join(',')
       if (value === 'true') region.degrees = 90
@@ -206,7 +225,7 @@ export function parseAtlas(text: string, diagnose: Diagnose = () => undefined): 
       diagnose(
         'warning',
         `第 ${each.line} 行的区域 ${each.name} 没有位置（bounds 或 xy）。`,
-        regionKey(index),
+        each.key,
       )
       return
     }
@@ -249,8 +268,8 @@ export function analyzeAtlas(text: string): CompositionReport {
       })
   })
   const seen = new Map<string, number>()
-  regions.forEach((each, index) => {
-    const key = regionKey(index)
+  regions.forEach((each) => {
+    const key = each.key
     const name = regionName(each)
     subresources.push(
       compact({
@@ -278,7 +297,7 @@ export function analyzeAtlas(text: string): CompositionReport {
     internal: [],
     diagnostics,
     partial: false,
-    dropOrder: ['regions', 'pages'],
+    dropOrder: [['regions', 'region'], 'pages'],
   })
 }
 

@@ -15,7 +15,7 @@ import {
   reportedUri,
   withinLimits,
 } from '../../../shared/report.ts'
-import { fileName } from './names.ts'
+import { fileName, materialNameKey } from './names.ts'
 
 /** The file is not an OBJ at all, as opposed to a broken one; the pages answer "not applicable". */
 export class NotObjError extends Error {
@@ -185,6 +185,8 @@ export class ObjAnalysis {
   /** Group index by object and name: a group named again in the same object is the same group. */
   private readonly groupIndex = new Map<string, number>()
   private readonly materials: string[] = []
+  /** The line of each material's first `usemtl`. */
+  private readonly materialLines: number[] = []
   private readonly materialIndex = new Map<string, number>()
   private readonly libraries: ReportReference[] = []
   /** Where faces go: the current group, or the object when no group is set since it started. */
@@ -226,6 +228,7 @@ export class ObjAnalysis {
         let index = this.materialIndex.get(name)
         if (index === undefined) {
           index = this.materials.push(name) - 1
+          this.materialLines.push(line)
           this.materialIndex.set(name, index)
         }
         this.material = index
@@ -352,9 +355,28 @@ export class ObjAnalysis {
         compact({ key: `materials/${index}`, kind: '材质', name: shown(name, '（无名称）') }),
       ),
     )
+    // With one library, each material is the one of that name in it, by the key the MTL analyzer
+    // gives it. With several, the OBJ does not say which library defines a material (the previews
+    // take the last library that does), so materials are not connected.
+    const libraries = new Set(this.libraries.map((each) => each.uri))
+    const definitions: ReportReference[] = []
+    if (libraries.size === 1) {
+      const [uri] = libraries
+      this.materials.forEach((name, index) => {
+        const uriKey = materialNameKey(name)
+        if (uriKey)
+          definitions.push({
+            from: `materials/${index}`,
+            uri: uri!,
+            uriKey,
+            role: '材质定义',
+            evidence: `第 ${this.materialLines[index]} 行`,
+          })
+      })
+    }
     return withinLimits({
       subresources,
-      fileReferences: this.libraries,
+      fileReferences: [...this.libraries, ...definitions],
       internal: [...this.uses.values()],
       diagnostics,
       partial: false,

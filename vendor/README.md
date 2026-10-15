@@ -5,13 +5,16 @@
 - Vormio-Core 发布到 npm 的插件 SDK（`@vormio/plugin-sdk`）。本仓库只通过这里的固定版本使用 SDK，不导入 Core 源码，也不依赖同级检出。
 - Spine 3.7 与 3.8 运行时（`spine-ts-3.7/`、`spine-ts-3.8/`），见文末。它们不在 npm 上，Spine 插件把它们打进包里。
 
-| 文件                          | 版本  | 来源                                                     | SHA-256                                                            |
-| ----------------------------- | ----- | -------------------------------------------------------- | ------------------------------------------------------------------ |
-| `vormio-plugin-sdk-0.0.7.tgz` | 0.0.7 | npm `@vormio/plugin-sdk@0.0.7`（Core 0.0.7），`npm pack` | `b9c6f5badc5b8c05753a0813e61427246c186dc3c5808262bb4fdfc669ff9391` |
+| 文件                               | 版本       | 来源                                                                                                        | SHA-256                                                            |
+| ---------------------------------- | ---------- | ----------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| `vormio-plugin-sdk-0.0.9-rc.1.tgz` | 0.0.9-rc.1 | npm `@vormio/plugin-sdk@0.0.9-rc.1`（标签 `next`，Core 为 Vormio/Vormio-Core#3 发布的预发布版），`npm pack` | `89f0c8ce1411ef8b9223236052f31cbfc63d0241f5f76f439f135d4332d693ab` |
 
-- 2026-10-15 用 `npm pack` 从 npm 取下：SHA-512 与 `npm view @vormio/plugin-sdk@0.0.7 dist.integrity` 一致；锁文件中的 integrity 与这份 tarball 一致。
+- 试用分支 `r3-uri-keys`：2026-10-15 用 `npm pack` 从 npm 取下：SHA-512（`sha512-D71I0QsH…VoQVgprw==`）与 `npm view @vormio/plugin-sdk@0.0.9-rc.1 dist.integrity` 一致，SHA-256 与 Core 给出的一致；锁文件中的 integrity 与这份 tarball 一致。它替换了 0.0.7，与 0.0.7 的差别只有下面一条与版本号。
+- 0.0.9-rc.1 新增跨文件的子资源引用与查看器定位：报告中带 `uri` 的引用可以带 `uriKey`（目标文件报告中的 key，至多 200 个字符，可以与 `inferred` 一起出现），宿主只在同一个插件构建（插件 ID 与包摘要都相同）分析了目标文件时，在查询时按目标的报告判断；`viewer(show, { focus })` 接收宿主定位子资源的请求。语义见 SDK README 的 “References to subresources of other files” 与 “Focusing a subresource”。插件契约随之升到 `apiVersion: 4`，所有插件的 manifest 都要改，SDK 的 `parseManifest` 与 `vormio-plugin pack` 只接受 4。报告的上限（子资源 10,000、引用 50,000、诊断 500、4 MiB）不变。
+- 宿主只加载与自己相同 `apiVersion` 的插件：Core 0.0.9 只加载 `apiVersion: 4`。
+- 之前用的是 0.0.7（npm `@vormio/plugin-sdk@0.0.7`，Core 0.0.7，SHA-256 `b9c6f5badc5b8c05753a0813e61427246c186dc3c5808262bb4fdfc669ff9391`），master 上仍是它；Core 0.0.8 没有发布新的 SDK。
 - 0.0.7 新增推断的引用：报告中的引用可以带 `inferred`（推断依据，1–120 个字符，只能与 `uri` 一起出现），语义见 SDK README 的 “Inferred references”。插件契约随之升到 `apiVersion: 3`，所有插件的 manifest 都要改，SDK 的 `parseManifest` 与 `vormio-plugin pack` 只接受 3。
-- 宿主只加载与自己相同 `apiVersion` 的插件：Core 0.0.7 只加载 `apiVersion: 3`，Core 0.0.6 只加载 `apiVersion: 2`，Core 0.0.5 及更早只加载 `apiVersion: 1`。
+- Core 0.0.7 与 0.0.8 只加载 `apiVersion: 3`，Core 0.0.6 只加载 `apiVersion: 2`，Core 0.0.5 及更早只加载 `apiVersion: 1`。
 - 之前在试用分支上用过 Core 为 Vormio/Vormio-Core#2 发布的预发布版 0.0.7-rc.1（SHA-256 `6227ababb315bff3cc314e7885d88098f7b2a0d10a04eabd2389d81b9cd8f596`），它与 0.0.7 只有 `package.json` 中的版本号不同。
 - 它替换了 0.0.6（`vormio-plugin-sdk-0.0.6-02188f0.tgz`，Core `02188f0` 构建，与 npm 上的 0.0.6 逐字节相同，SHA-256 `471ab5a7342f424cdf88a82654a19d88b46809b2ad8b3f2e81fca2ef3eefdc92`）。0.0.6 新增“不适用”：`notApplicable()` 与 `isNotApplicable`，语义见 SDK README 的 “Files that are not your format”，契约是 `apiVersion: 2`。
 - 再往前是 0.0.5（Core `6cf994f` 构建，SHA-256 `d53a560d3682bca9c4dbcf000a8604e8cc2a83414c738c579900d8687d2b6f6f`）与 0.0.3（Core `9d56146` 构建，SHA-256 `61b94764f7b85b823b8a23ffad6bed2a8c33c6e17e3fd67d2141f5af35d300e2`）。0.0.5 新增签名的插件目录（`@vormio/plugin-sdk/node` 的 `verifyCatalog`、`signCatalog`、`writeCatalog` 等，命令 `vormio-plugin keygen` 与 `vormio-plugin catalog`），以及 `.vormioplugin` 文件的上限 96 MiB。SDK 以 MIT 许可证发布，包内带 `LICENSE`。
@@ -26,7 +29,7 @@
 校验：
 
 ```bash
-sha256sum vendor/vormio-plugin-sdk-0.0.7.tgz
+sha256sum vendor/vormio-plugin-sdk-0.0.9-rc.1.tgz
 ```
 
 ## Spine 3.7 与 3.8 运行时
