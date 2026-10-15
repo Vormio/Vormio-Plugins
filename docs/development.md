@@ -52,7 +52,7 @@ pnpm exec playwright install chromium-headless-shell
 | `pnpm test`                 | 构建，运行 Node 测试（`plugins/*/tests/*.test.ts` 与 `shared/tests/*.test.ts`），再在 Chromium 中运行页面测试（`*.spec.ts`）                 |
 | `pnpm run fixtures [格式…]` | 用 `scripts/fixtures/<格式>.ts` 重新生成 `fixtures/<格式>/`（`gltf`、`obj`、`spine`；不写时全部），每次结果相同                              |
 
-每次改动都运行 `lint`、`typecheck` 与 `test`。
+每次改动都运行 `lint`、`typecheck` 与 `test`。GitHub Actions（`.github/workflows/ci.yml`）在推送到 master 与每个 pull request 上做同样的事：在 Ubuntu 上按 `.node-version` 与 `packageManager` 安装 Node 与 pnpm，`pnpm install --frozen-lockfile`，安装 Playwright 的 Chromium，依次运行这三条命令。CI 不设置 `SPINE_37_EXAMPLES`，下面的 Spine 3.7 示例对照在 CI 上跳过；它也不代替手工验收：把插件装进 Core 的发布版本里验收仍要手工做（见 AGENTS.md 的“验证”）。
 
 **Spine 3.7 示例对照**：两个测试用 Spine 官方的 3.7 示例核对插件。`plugins/spine/tests/preview-binary-37.test.ts` 核对 3.7 二进制读取器：每个示例骨骼都有 `.skel` 与 `.json` 两份导出，spine-ts 3.7 的 `SkeletonJson` 读 JSON，插件的读取器读二进制，两份数据要相同。`plugins/spine/tests/skeleton-37.test.ts` 核对骨骼 JSON 的组成分析：分析结果要与 spine-ts 3.7 读取同一个 JSON 得到的数据相同。示例的许可不允许再分发，不进仓库，所以这两个测试中用示例的部分只在环境变量 `SPINE_37_EXAMPLES` 指向本机的示例文件夹时运行（Spine Runtimes 仓库 3.7 分支的 `examples/`，或每个示例一个文件夹、导出直接放在其中的副本），否则跳过。改动 3.7 读取器或骨骼 JSON 的分析时运行：
 
@@ -87,7 +87,7 @@ SPINE_37_EXAMPLES=<示例文件夹> node --test plugins/spine/tests/preview-bina
 
 - `release.json` 的 `plugins` 列出目录收录的插件（`plugins/` 下的目录名）。新目录收录每个插件在当前提交上的版本，以及上一份目录中这个插件其他 `apiVersion` 的发布；没有列出的插件不进目录，它在上一份目录中的所有发布都撤下。从目录撤下一个插件，就是把它从这里删掉再发布一次；已经装上的插件不会被远程删除。
 - 宿主只安装与自己 `apiVersion` 相同的发布：Core 0.0.9 是 `apiVersion: 4`（现在的插件），Core 0.0.7 与 0.0.8 是 `apiVersion: 3`，Core 0.0.6 是 `apiVersion: 2`，Core 0.0.5 是 `apiVersion: 1`。所以与当前插件 `apiVersion` 相同的发布只来自当前提交，上一份目录中同一 `apiVersion` 的旧版本不再收录；其他 `apiVersion` 的发布原样保留，旧宿主继续看到能安装的版本。例如上一份目录有 glTF 0.2.0 与 Spine 0.2.0（`apiVersion: 1`），从 glTF 0.2.1 与 Spine 0.4.0（`apiVersion: 2`）的提交发布，新目录四个都有。目前不能单独撤下其他 `apiVersion` 的发布。
-- 只在每个列出的版本都已在 Core 上手工验收（[插件规划](roadmap.md)的状态列）的提交上发布，发布前照常运行 `lint`、`typecheck` 与 `test`。
+- 只在每个列出的版本都已在 Core 上手工验收（[插件规划](roadmap.md)的状态列）、且 CI 已通过的提交上发布：发布前核对 GitHub Actions 上这个提交的运行结果，它运行的正是 `lint`、`typecheck` 与 `test`；手工验收 CI 不做。
 - 命令，路径相对于运行命令的文件夹：
 
   ```bash
