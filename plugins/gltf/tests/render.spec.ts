@@ -76,8 +76,9 @@ test.describe('thumbnails', () => {
     expect(stats.opaque).toBeGreaterThan(0.2)
     for (const hue of ['red', 'green', 'blue', 'yellow'] as const)
       expect(stats.hues[hue], hue).toBeGreaterThan(0.01)
-    expect(host.requests).toEqual([
-      '200 cube/cube.gltf',
+    // The loader reads the buffer and the texture at the same time, in either order.
+    expect(host.requests[0]).toBe('200 cube/cube.gltf')
+    expect(host.requests.slice(1).sort()).toEqual([
       '200 cube/cube.bin',
       '200 cube/textures/quadrants.png',
     ])
