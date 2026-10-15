@@ -1,0 +1,8 @@
+# Body is defined again here; the later library wins.
+newmtl Body
+Kd 0.1 0.6 0.2
+
+newmtl Label
+Kd 1 1 1
+map_Kd -clamp on -s 1 1 1 -o 0 0 ..\textures\stripes #2.png
+bump -bm 0.5 ..\textures\stripes #2.png

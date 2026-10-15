@@ -1,4 +1,4 @@
-// Builds the composition report of a Spine skeleton in JSON (Spine 3.7 to 4.2): bones, slots,
+// Builds the composition report of a Spine skeleton in JSON (Spine 3.7 to 4.3): bones, slots,
 // constraints, skins and their attachments, events and animations, and what refers to what. Spine
 // refers to objects by name. The skeleton does not name its atlas; Spine pairs it with the atlas of
 // the same name, which is reported as an inferred reference. Atlas regions and audio files are not
@@ -9,7 +9,10 @@
 // The format description Esoteric publishes covers the current format only. Where 3.7 differs from
 // it (skins are an object keyed by name, without bones or constraints of their own, and path
 // constraint timelines are called `paths`) comes from Spine's own 3.7 exports; the tests check the
-// analysis against what spine-ts 3.7 reads from the same file.
+// analysis against what spine-ts 3.7 reads from the same file. 4.3 keeps every constraint in one
+// `constraints` list told apart by `type`, adds slider constraints, and names a transform
+// constraint's bone `source`, a path constraint's slot `slot` and a linked mesh's mesh `source`;
+// that comes from spine-core 4.3's reader, and the tests check the analysis against it as well.
 
 import type { CompositionReport, ReportReference, ReportSubresource } from '@vormio/plugin-sdk'
 import {
@@ -36,6 +39,7 @@ const lists = [
   ['transform', '变换约束'],
   ['path', '路径约束'],
   ['physics', '物理约束'],
+  ['slider', '滑块约束'],
 ] as const
 type List = (typeof lists)[number][0]
 type Collection = List | 'skins' | 'attachments' | 'events' | 'animations'
@@ -64,6 +68,7 @@ const textured = new Set(['region', 'mesh', 'linkedmesh'])
 const dropOrder: Collection[] = [
   'attachments',
   'animations',
+  'slider',
   'physics',
   'path',
   'transform',
@@ -75,9 +80,14 @@ const dropOrder: Collection[] = [
 ]
 
 /** The oldest and newest Spine versions whose JSON this analysis follows. */
-export const supported = { oldest: [3, 7], newest: [4, 2] } as const
+export const supported = { oldest: [3, 7], newest: [4, 3] } as const
 /** From 3.8, skins are an array of named skins; before, an object keyed by skin name. */
 const skinArrays = [3, 8] as const
+/** From 4.3, constraints are one list whose entries have a `type`; before, a list for each type. */
+const constraintList = [4, 3] as const
+const constraintTypes = ['ik', 'transform', 'path', 'physics', 'slider'] as const
+const isConstraintType = (value: unknown): value is (typeof constraintTypes)[number] =>
+  (constraintTypes as readonly unknown[]).includes(value)
 
 /** Parses the text of a skeleton file; anything that is not Spine JSON throws NotSpineError. */
 export function readSkeletonJson(text: string): Json {
@@ -128,6 +138,17 @@ export function analyzeSkeleton(json: Json, fileName: string): CompositionReport
   if (before38 ? Array.isArray(json.skins) : isObject(json.skins))
     throw new SpineError(
       `Spine ${written} 的骨骼文件中 skins 是${before38 ? '数组（3.8 起的写法）' : '对象（3.7 及更早的写法）'}，与版本不符。`,
+    )
+  // Likewise for constraints: 4.3 reads only the `constraints` list, older versions only their own.
+  const from43 = compareVersions(version, constraintList) >= 0
+  const separate = constraintTypes.filter((type) => json[type] !== undefined)
+  if (from43 && separate.length)
+    throw new SpineError(
+      `Spine ${written} 的骨骼文件中约束写在 ${separate.join('、')} 列表中（4.2 及更早的写法），与版本不符。`,
+    )
+  if (!from43 && json.constraints !== undefined)
+    throw new SpineError(
+      `Spine ${written} 的骨骼文件中约束写在 constraints 列表中（4.3 起的写法），与版本不符。`,
     )
   if (compareVersions(version, supported.newest) > 0)
     diagnose(
@@ -186,10 +207,13 @@ export function analyzeSkeleton(json: Json, fileName: string): CompositionReport
     })
   }
 
-  // Named lists: Spine refers to their items by name, so the first of two equal names wins.
+  // Named lists: Spine refers to their items by name, so the first of two equal names wins. `place`
+  // gives where in the file an item is: /<list>/<position>, or /constraints/<index> from 4.3.
+  type Named = List | 'skins' | 'events' | 'animations'
   const items = {} as Record<List, Json[]>
-  const byName = {} as Record<List | 'skins' | 'events', Map<string, number>>
-  const index = (collection: List | 'skins' | 'events', entries: string[]) => {
+  const place = {} as Record<List, (position: number, ...parts: (string | number)[]) => string>
+  const byName = {} as Record<Named, Map<string, number>>
+  const index = (collection: Named, entries: string[]) => {
     const map = new Map<string, number>()
     entries.forEach((name, position) => {
       if (map.has(name))
@@ -204,8 +228,25 @@ export function analyzeSkeleton(json: Json, fileName: string): CompositionReport
   }
   const listName = (collection: Collection, item: Json, position: number) =>
     typeof item.name === 'string' ? item.name : `${kinds[collection]} ${position}`
+  const constraintEntries = from43 ? arrayAt(json.constraints, '/constraints') : []
+  constraintEntries.forEach((entry, position) => {
+    if (!isConstraintType(entry.type))
+      diagnose(
+        'warning',
+        `/constraints/${position} 的约束类型 ${String(entry.type)} 无法识别，没有分析。`,
+      )
+  })
   for (const [list] of lists) {
-    items[list] = arrayAt(json[list], `/${list}`)
+    if (from43 && isConstraintType(list)) {
+      const positions = constraintEntries.flatMap((entry, position) =>
+        entry.type === list ? [position] : [],
+      )
+      items[list] = positions.map((position) => constraintEntries[position]!)
+      place[list] = (position, ...parts) => pointer('constraints', positions[position]!, ...parts)
+    } else {
+      items[list] = list === 'slider' ? [] : arrayAt(json[list], `/${list}`)
+      place[list] = (position, ...parts) => pointer(list, position, ...parts)
+    }
     index(
       list,
       items[list].map((item, position) => listName(list, item, position)),
@@ -242,6 +283,10 @@ export function analyzeSkeleton(json: Json, fileName: string): CompositionReport
     events.map(([name]) => name),
   )
   const animations = mapAt(json.animations, '/animations')
+  index(
+    'animations',
+    animations.map(([name]) => name),
+  )
 
   // --- References -------------------------------------------------------------------------------
   const internal: ReportReference[] = []
@@ -257,13 +302,7 @@ export function analyzeSkeleton(json: Json, fileName: string): CompositionReport
     })
   }
   /** A reference from `from` to the item of `collection` named `name`, if there is one. */
-  const link = (
-    from: string,
-    collection: List | 'skins' | 'events',
-    name: unknown,
-    role: string,
-    evidence: string,
-  ) => {
+  const link = (from: string, collection: Named, name: unknown, role: string, evidence: string) => {
     const position = typeof name === 'string' ? byName[collection].get(name) : undefined
     if (position === undefined) {
       diagnose(
@@ -365,19 +404,24 @@ export function analyzeSkeleton(json: Json, fileName: string): CompositionReport
         if (type === 'clipping' && attachment.end !== undefined)
           link(key, 'slots', attachment.end, '结束插槽', `${evidence}/end`)
         if (type === 'linkedmesh')
-          // The parent may belong to a skin listed later.
+          // The parent may belong to a skin listed later. From 4.3 it is called `source`, and
+          // `slot` names its slot when that is not the linked mesh's own.
           pending.push(() => {
+            const field = from43 ? 'source' : 'parent'
+            const parentName = attachment[field]
+            const parentSlot =
+              from43 && typeof attachment.slot === 'string' ? attachment.slot : slot
             const skinName = typeof attachment.skin === 'string' ? attachment.skin : 'default'
             const parentSkin = byName.skins.get(skinName)
             const parent =
-              parentSkin !== undefined && typeof attachment.parent === 'string'
-                ? attachmentAt(parentSkin, slot, attachment.parent)
+              parentSkin !== undefined && typeof parentName === 'string'
+                ? attachmentAt(parentSkin, parentSlot, parentName)
                 : undefined
-            if (parent) reference(key, parent, '父网格', `${evidence}/parent`)
+            if (parent) reference(key, parent, '父网格', `${evidence}/${field}`)
             else
               diagnose(
                 'warning',
-                `链接网格 ${name} 的父网格 ${String(attachment.parent)}（皮肤 ${skinName}）不存在（${evidence}）。`,
+                `链接网格 ${name} 的父网格 ${String(parentName)}（皮肤 ${skinName}）不存在（${evidence}）。`,
                 key,
               )
           })
@@ -403,28 +447,36 @@ export function analyzeSkeleton(json: Json, fileName: string): CompositionReport
         reference(from, attachment, '初始附件', pointer('slots', position, 'attachment'))
     }
   })
+  // The target of a transform constraint is `source` from 4.3, of a path constraint `slot`.
+  const targets = {
+    ik: ['bones', 'target'],
+    transform: ['bones', from43 ? 'source' : 'target'],
+    path: ['slots', from43 ? 'slot' : 'target'],
+  } as const
   for (const list of ['ik', 'transform', 'path'] as const)
     items[list].forEach((constraint, position) => {
       const from = keyOf(list, position)
-      linkAll(from, 'bones', constraint.bones, '约束骨骼', pointer(list, position, 'bones'))
-      if (constraint.target !== undefined)
+      const at = (...parts: string[]) => place[list](position, ...parts)
+      linkAll(from, 'bones', constraint.bones, '约束骨骼', at('bones'))
+      const [collection, field] = targets[list]
+      if (constraint[field] !== undefined)
+        link(from, collection, constraint[field], '约束目标', at(field))
+    })
+  // Physics constraints have one bone; a slider has a bone only when a bone property drives it.
+  for (const list of ['physics', 'slider'] as const)
+    items[list].forEach((constraint, position) => {
+      const from = keyOf(list, position)
+      if (list === 'physics' || constraint.bone !== undefined)
+        link(from, 'bones', constraint.bone, '约束骨骼', place[list](position, 'bone'))
+      if (list === 'slider')
         link(
           from,
-          list === 'path' ? 'slots' : 'bones',
-          constraint.target,
-          '约束目标',
-          pointer(list, position, 'target'),
+          'animations',
+          constraint.animation,
+          '滑块动画',
+          place[list](position, 'animation'),
         )
     })
-  items.physics.forEach((constraint, position) =>
-    link(
-      keyOf('physics', position),
-      'bones',
-      constraint.bone,
-      '约束骨骼',
-      pointer('physics', position, 'bone'),
-    ),
-  )
   events.forEach(([name, event], position) => {
     const audio = typeof event.audio === 'string' && event.audio ? `（音频 ${event.audio}）` : ''
     add('events', position, `${name}${audio}`)
@@ -442,6 +494,7 @@ export function analyzeSkeleton(json: Json, fileName: string): CompositionReport
       // Path constraint timelines are `paths` before 3.8.
       [before38 ? 'paths' : 'path', 'path'],
       ['physics', 'physics'],
+      ['slider', 'slider'],
     ]
     for (const [timeline, list] of targets)
       for (const target of Object.keys(objectAt(animation, timeline) ?? {}))
@@ -478,12 +531,30 @@ export function analyzeSkeleton(json: Json, fileName: string): CompositionReport
         })
       })
     }
+    // From 4.3, a draw order folder reorders the slots it lists among themselves.
+    const folders = Array.isArray(animation.drawOrderFolder) ? animation.drawOrderFolder : []
+    folders.forEach((folder, f) => {
+      const slots = isObject(folder) && Array.isArray(folder.slots) ? folder.slots : []
+      slots.forEach((slot, s) =>
+        link(from, 'slots', slot, '动画目标', at('drawOrderFolder', f, 'slots', s)),
+      )
+    })
   })
 
   // Display order: the lists, then skins with their attachments, events and animations.
   const order = (key: string) => {
     const collection = key.slice(0, key.indexOf('/'))
-    const rank = ['bones', 'slots', 'ik', 'transform', 'path', 'physics', 'skins', 'attachments']
+    const rank = [
+      'bones',
+      'slots',
+      'ik',
+      'transform',
+      'path',
+      'physics',
+      'slider',
+      'skins',
+      'attachments',
+    ]
     return rank.includes(collection) ? rank.indexOf(collection) : rank.length
   }
   const sorted = subresources

@@ -108,3 +108,45 @@ button:disabled {
 #info:empty {
   display: none;
 }
+
+.playback {
+  bottom: 12px;
+  right: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+}
+
+.playback[hidden] {
+  display: none;
+}
+
+select {
+  max-width: 160px;
+  padding: 3px 6px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  font: inherit;
+  background: var(--panel);
+}
+
+#time {
+  width: clamp(80px, 20vw, 240px);
+  accent-color: var(--text);
+}
+
+#clock {
+  min-width: 7.5em;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+/* Narrow views keep the controls; the hint goes. */
+@media (width < 640px) {
+  .hint {
+    display: none;
+  }
+}

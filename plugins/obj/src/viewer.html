@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <title>OBJ 查看器</title>
+    <link rel="stylesheet" href="viewer.css" />
+    <script type="module" src="viewer.js"></script>
+  </head>
+  <body>
+    <canvas
+      id="view"
+      tabindex="0"
+      aria-label="三维模型。拖动旋转，滚轮缩放，右键拖动平移。"
+    ></canvas>
+    <ul id="warnings" class="panel warnings" role="status" hidden></ul>
+    <div class="toolbar" role="toolbar" aria-label="视图">
+      <button id="fit" type="button" title="让整个模型回到视野中（F）" disabled>适应</button>
+      <button id="reset" type="button" title="回到初始视角（R）" disabled>重置视角</button>
+    </div>
+    <footer class="panel footer">
+      <span id="info"></span>
+      <span class="hint">拖动旋转 · 滚轮缩放 · 右键拖动平移</span>
+    </footer>
+  </body>
+</html>

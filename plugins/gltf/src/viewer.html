@@ -14,6 +14,8 @@
     ></canvas>
     <ul id="warnings" class="panel warnings" role="status" hidden></ul>
     <div class="toolbar" role="toolbar" aria-label="视图">
+      <select id="variant" aria-label="材质变体" title="材质变体" hidden></select>
+      <select id="camera" aria-label="视角" title="视角：自由视角或文件中的相机" hidden></select>
       <button id="fit" type="button" title="让整个模型回到视野中（F）" disabled>适应</button>
       <button id="reset" type="button" title="回到初始视角（R）" disabled>重置视角</button>
     </div>
@@ -21,5 +23,11 @@
       <span id="info"></span>
       <span class="hint">拖动旋转 · 滚轮缩放 · 右键拖动平移</span>
     </footer>
+    <div id="playback" class="panel playback" role="group" aria-label="动画" hidden>
+      <select id="clip" aria-label="动画片段" title="动画片段"></select>
+      <button id="play" type="button" title="播放或暂停（空格）">暂停</button>
+      <input id="time" type="range" min="0" max="1" step="any" value="0" aria-label="时间" />
+      <span id="clock"></span>
+    </div>
   </body>
 </html>

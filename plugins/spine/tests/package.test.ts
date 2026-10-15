@@ -147,7 +147,7 @@ test('vormio-plugin pack turns the output into an installable .vormioplugin', as
   const cli = fileURLToPath(new URL('cli.js', import.meta.resolve('@vormio/plugin-sdk/node')))
   const target = join(temporary, 'spine.vormioplugin')
   const { stdout } = await promisify(execFile)(process.execPath, [cli, 'pack', directory, target])
-  assert.match(stdout, /vormio-plugins\.spine 0\.8\.0/)
+  assert.match(stdout, /vormio-plugins\.spine 0\.9\.0/)
   const archive = readPackageArchive(await readFile(target))
   assert.equal(archive.checked.digest, checked.digest)
 })

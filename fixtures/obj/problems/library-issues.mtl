@@ -1,0 +1,11 @@
+map_Kd orphan.png
+newmtl Twice
+Kd 1 0 0
+newmtl Twice
+Kd 0 1 0
+map_Ks
+refl -type cube_top sky top.png
+refl -type cube_bottom sky bottom.png
+map_Pr rough.png
+map_Xyz custom.png
+zz unknown

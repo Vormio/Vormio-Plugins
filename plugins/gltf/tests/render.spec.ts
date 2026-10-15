@@ -88,8 +88,9 @@ test.describe('thumbnails', () => {
     const { stats } = await thumbnailOf(page, 'crate/scene/crate.gltf')
     expect(stats.opaque).toBeGreaterThan(0.15)
     expect(stats.hues.orange).toBeGreaterThan(0.1)
-    expect(host.requests).toEqual([
-      '200 crate/scene/crate.gltf',
+    // The loader reads the buffer and the texture at the same time, in either order.
+    expect(host.requests[0]).toBe('200 crate/scene/crate.gltf')
+    expect(host.requests.slice(1).sort()).toEqual([
       '200 crate/buffers/crate.bin',
       '200 crate/textures/crate color.png',
     ])
@@ -226,6 +227,150 @@ test.describe('viewer', () => {
     expect(outcome).toEqual({ ready: true })
     await expect(page.locator('#warnings')).toBeVisible()
     await expect(page.locator('#warnings')).toContainText('textures/absent.png（文件不存在）')
+  })
+
+  test('plays the first animation, pauses, and goes to a time with the slider', async ({
+    page,
+  }) => {
+    const { outcome } = await openViewer(page, 'animated/robot.glb')
+    // Ready without animation frames: the first frame of "Wave" was drawn before reporting.
+    expect(outcome).toEqual({ ready: true })
+    await expect(page.locator('#info')).toHaveText('48 个三角形 · 2 段动画')
+    await expect(page.locator('#playback')).toBeVisible()
+    await expect(page.locator('#clip option')).toHaveText(['Wave（2.00 秒）', '动画 2（1.00 秒）'])
+    const play = page.locator('#play')
+    await expect(play).toHaveText('暂停')
+
+    // Playing: the picture and the clock keep changing.
+    const canvas = page.locator('#view')
+    const first = (await canvas.screenshot()).toString('base64')
+    await page.waitForTimeout(400)
+    const later = (await canvas.screenshot()).toString('base64')
+    expect(await pixelDifference(page, first, later)).toBeGreaterThan(0.002)
+    await expect(page.locator('#clock')).not.toHaveText('0.00 / 2.00 秒')
+
+    // Paused: nothing moves.
+    await play.click()
+    await expect(play).toHaveText('播放')
+    const paused = await settledCanvas(page)
+    await page.waitForTimeout(300)
+    expect(await settledCanvas(page)).toBe(paused)
+
+    // The slider: the same time gives the same picture.
+    const seek = (time: number) =>
+      page.locator('#time').evaluate((input: HTMLInputElement, time) => {
+        input.value = String(time)
+        input.dispatchEvent(new Event('input', { bubbles: true }))
+        input.dispatchEvent(new Event('change', { bubbles: true }))
+      }, time)
+    await seek(1)
+    await expect(page.locator('#clock')).toHaveText('1.00 / 2.00 秒')
+    const bent = await settledCanvas(page)
+    await seek(0)
+    const straight = await settledCanvas(page)
+    expect(await pixelDifference(page, bent, straight)).toBeGreaterThan(0.002)
+    await seek(1)
+    expect(await pixelDifference(page, bent, await settledCanvas(page))).toBeLessThan(0.001)
+
+    // The space bar plays again; it is not taken from the buttons.
+    await canvas.focus()
+    await page.keyboard.press(' ')
+    await expect(play).toHaveText('暂停')
+  })
+
+  test('another clip, reduced motion, and a file without animations', async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' })
+    await openViewer(page, 'animated/robot.glb')
+    await expect(page.locator('#play')).toHaveText('播放')
+    await expect(page.locator('#clock')).toHaveText('0.00 / 2.00 秒')
+    const still = await settledCanvas(page)
+    await page.waitForTimeout(300)
+    expect(await settledCanvas(page)).toBe(still)
+
+    // The second clip moves only the blue cube; it starts at its own beginning.
+    const blueBefore = (await pixelStats(page, still)).hues.blue
+    await page.locator('#clip').selectOption('1')
+    await expect(page.locator('#clock')).toHaveText('0.00 / 1.00 秒')
+    await page.locator('#time').evaluate((input: HTMLInputElement) => {
+      input.value = '0.5'
+      input.dispatchEvent(new Event('input', { bubbles: true }))
+    })
+    const raised = await pixelStats(page, await settledCanvas(page))
+    expect(raised.hues.blue).toBeGreaterThan(0.001)
+    expect(Math.abs(raised.hues.blue - blueBefore)).toBeLessThan(blueBefore)
+
+    const cube = await host.input('cube/cube.gltf')
+    await switchInput(page, cube)
+    expect(await viewerOutcome(page, cube.url)).toEqual({ ready: true })
+    await expect(page.locator('#playback')).toBeHidden()
+    await expect(page.locator('#info')).toHaveText('12 个三角形')
+  })
+
+  test('material variants replace the default material', async ({ page }) => {
+    await openViewer(page, 'variants/showroom.glb')
+    const variant = page.locator('#variant')
+    await expect(variant).toBeVisible()
+    await expect(variant.locator('option')).toHaveText(['默认材质', 'Red', 'Blue'])
+    const shares = async () => (await pixelStats(page, await settledCanvas(page))).hues
+    const grey = await shares()
+    expect(grey.red).toBeLessThan(0.001)
+    expect(grey.blue).toBeLessThan(0.001)
+    expect(grey.yellow).toBeGreaterThan(0.001)
+
+    await variant.selectOption('0')
+    await expect.poll(async () => (await shares()).red).toBeGreaterThan(0.02)
+    await variant.selectOption('1')
+    await expect.poll(async () => (await shares()).blue).toBeGreaterThan(0.02)
+    expect((await shares()).red).toBeLessThan(0.001)
+    await variant.selectOption('default')
+    await expect.poll(async () => (await shares()).blue).toBeLessThan(0.001)
+    // The marker has no variants and keeps its colour throughout.
+    expect((await shares()).yellow).toBeGreaterThan(0.001)
+
+    const cube = await host.input('cube/cube.gltf')
+    await switchInput(page, cube)
+    expect(await viewerOutcome(page, cube.url)).toEqual({ ready: true })
+    await expect(variant).toBeHidden()
+    await expect(page.locator('#camera')).toBeHidden()
+  })
+
+  test('looks through the cameras in the file until the view is moved', async ({ page }) => {
+    await openViewer(page, 'variants/showroom.glb')
+    const cameras = page.locator('#camera')
+    await expect(cameras.locator('option')).toHaveText(['自由视角', 'Top', 'Side'])
+    const free = await settledCanvas(page)
+
+    await cameras.selectOption('0')
+    const top = await settledCanvas(page)
+    expect(await pixelDifference(page, free, top)).toBeGreaterThan(0.05)
+    await cameras.selectOption('1')
+    const side = await settledCanvas(page)
+    expect(await pixelDifference(page, top, side)).toBeGreaterThan(0.05)
+    // Looking along -X, the marker stands in front of the cube's middle.
+    const sideStats = await pixelStats(page, side)
+    const topStats = await pixelStats(page, top)
+    expect(sideStats.hues.yellow).toBeGreaterThan(0.001)
+    expect(topStats.hues.yellow).toBeGreaterThan(0.001)
+
+    // Dragging leaves the file camera for the free camera.
+    const box = (await page.locator('#view').boundingBox())!
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
+    await page.mouse.down()
+    await page.mouse.move(box.x + box.width / 2 + 40, box.y + box.height / 2, { steps: 4 })
+    await page.mouse.up()
+    await expect(cameras).toHaveValue('free')
+    // R goes back to the starting view (once the drag has come to rest).
+    await settledCanvas(page)
+    await page.locator('#view').focus()
+    await page.keyboard.press('r')
+    expect(await pixelDifference(page, free, await settledCanvas(page))).toBeLessThan(0.01)
+
+    // The view keeps a file camera's proportions when the view changes shape.
+    await cameras.selectOption('0')
+    await page.setViewportSize({ width: 600, height: 600 })
+    const square = await pixelStats(page, await settledCanvas(page))
+    expect(square.width).toBe(square.height)
+    expect(square.hues.yellow).toBeGreaterThan(0.001)
   })
 
   test('explains why a file cannot be shown', async ({ page }) => {

@@ -5,8 +5,8 @@
 
 import { mkdir, readdir, rm, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
-import { Document, NodeIO, TextureInfo } from '@gltf-transform/core'
-import { ALL_EXTENSIONS } from '@gltf-transform/extensions'
+import { Document, NodeIO, TextureInfo, type Material } from '@gltf-transform/core'
+import { ALL_EXTENSIONS, KHRMaterialsVariants } from '@gltf-transform/extensions'
 import { draco, meshopt } from '@gltf-transform/functions'
 import draco3d from 'draco3dgltf'
 import { MeshoptEncoder } from 'meshoptimizer'
@@ -368,6 +368,230 @@ await writeGltf(
     parts: [{ name: 'Seat', mesh: 'Seat', at: [0, 0.475, 0] }, ...legs(0.16, 0.16, 0.225)],
   }),
 )
+
+// An animated model: a skinned arm (red) bending at its elbow joint, a block (green) whose morph
+// target stretches it upwards, and a cube (blue) that spins and bobs. The first clip, "Wave", bends
+// the arm and stretches the block; the second has no name and moves the cube.
+function animated(): Document {
+  const document = new Document()
+  document.getRoot().getAsset().generator = generator
+  const buffer = document.createBuffer('robot')
+  const accessor = (
+    type: 'SCALAR' | 'VEC3' | 'VEC4' | 'MAT4',
+    array: Float32Array<ArrayBuffer> | Uint16Array<ArrayBuffer>,
+  ) => document.createAccessor().setType(type).setArray(array).setBuffer(buffer)
+  const material = (name: string, [r, g, b]: Rgba) =>
+    document
+      .createMaterial(name)
+      .setBaseColorFactor([r / 255, g / 255, b / 255, 1])
+      .setMetallicFactor(0)
+      .setRoughnessFactor(0.6)
+  const primitive = (geometry: Geometry, color: Material) =>
+    document
+      .createPrimitive()
+      .setAttribute('POSITION', accessor('VEC3', new Float32Array(geometry.positions)))
+      .setAttribute('NORMAL', accessor('VEC3', new Float32Array(geometry.normals)))
+      .setIndices(accessor('SCALAR', new Uint16Array(geometry.indices)))
+      .setMaterial(color)
+
+  // The arm: two stacked boxes 0.6 high at x = -0.8, the lower bound to the shoulder joint, the
+  // upper to the elbow joint at height 0.6. A skinned mesh is placed by its joints, not its node.
+  const lower = box(0.2, 0.6, 0.2)
+  const upper = box(0.2, 0.6, 0.2)
+  const arm: Geometry = { positions: [], normals: [], uvs: [], indices: [] }
+  const joints: number[] = []
+  const weights: number[] = []
+  for (const [part, lift, joint] of [
+    [lower, 0.3, 0],
+    [upper, 0.9, 1],
+  ] as const) {
+    const base = arm.positions.length / 3
+    part.positions.forEach((value, index) =>
+      arm.positions.push(index % 3 === 0 ? value - 0.8 : index % 3 === 1 ? value + lift : value),
+    )
+    arm.normals.push(...part.normals)
+    arm.indices.push(...part.indices.map((index) => index + base))
+    for (let vertex = 0; vertex < part.positions.length / 3; vertex++) {
+      joints.push(joint, 0, 0, 0)
+      weights.push(1, 0, 0, 0)
+    }
+  }
+  const shoulder = document.createNode('Shoulder').setTranslation([-0.8, 0, 0])
+  const elbow = document.createNode('Elbow').setTranslation([0, 0.6, 0])
+  shoulder.addChild(elbow)
+  // Inverse bind matrices: the joints sit at heights 0 and 0.6 of the arm's own space.
+  const inverseBind = new Float32Array([
+    ...[1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0.8, 0, 0, 1],
+    ...[1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0.8, -0.6, 0, 1],
+  ])
+  const skin = document
+    .createSkin('Arm')
+    .addJoint(shoulder)
+    .addJoint(elbow)
+    .setSkeleton(shoulder)
+    .setInverseBindMatrices(accessor('MAT4', inverseBind))
+  const armMesh = document.createMesh('Arm').addPrimitive(
+    primitive(arm, material('Red', red))
+      .setAttribute('JOINTS_0', accessor('VEC4', new Uint16Array(joints)))
+      .setAttribute('WEIGHTS_0', accessor('VEC4', new Float32Array(weights))),
+  )
+  const armNode = document.createNode('Arm').setMesh(armMesh).setSkin(skin)
+
+  // The block: its morph target moves the top four vertices of each side up by 0.6.
+  const block = box(0.4, 0.4, 0.4)
+  const stretch = block.positions.map((value, index) =>
+    index % 3 === 1 && block.positions[index]! > 0 ? 0.6 : 0,
+  )
+  const blockPrimitive = primitive(block, material('Green', green)).addTarget(
+    document
+      .createPrimitiveTarget('Stretch')
+      .setAttribute('POSITION', accessor('VEC3', new Float32Array(stretch))),
+  )
+  const blockNode = document
+    .createNode('Block')
+    .setMesh(document.createMesh('Block').addPrimitive(blockPrimitive).setWeights([0]))
+    .setTranslation([0, 0.2, 0])
+
+  const cube = document
+    .createNode('Cube')
+    .setMesh(
+      document
+        .createMesh('Cube')
+        .addPrimitive(primitive(box(0.3, 0.3, 0.3), material('Blue', blue))),
+    )
+    .setTranslation([0.8, 0.3, 0])
+
+  const sampler = (times: number[], values: number[], type: 'SCALAR' | 'VEC3' | 'VEC4') =>
+    document
+      .createAnimationSampler()
+      .setInput(accessor('SCALAR', new Float32Array(times)))
+      .setOutput(accessor(type, new Float32Array(values)))
+      .setInterpolation('LINEAR')
+  const animation = (
+    name: string,
+    channels: [
+      node: ReturnType<Document['createNode']>,
+      path: 'rotation' | 'translation' | 'weights',
+      ReturnType<typeof sampler>,
+    ][],
+  ) => {
+    const clip = document.createAnimation(name)
+    for (const [node, path, each] of channels)
+      clip
+        .addSampler(each)
+        .addChannel(
+          document
+            .createAnimationChannel()
+            .setTargetNode(node)
+            .setTargetPath(path)
+            .setSampler(each),
+        )
+    return clip
+  }
+  // Quaternions about Z: 0°, 90°, 0°; about Y: 0°, 180°, 360°.
+  const s = Math.SQRT1_2
+  animation('Wave', [
+    [elbow, 'rotation', sampler([0, 1, 2], [0, 0, 0, 1, 0, 0, s, s, 0, 0, 0, 1], 'VEC4')],
+    [blockNode, 'weights', sampler([0, 1, 2], [0, 1, 0], 'SCALAR')],
+  ])
+  animation('', [
+    [cube, 'rotation', sampler([0, 0.5, 1], [0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, -1], 'VEC4')],
+    [cube, 'translation', sampler([0, 0.5, 1], [0.8, 0.3, 0, 0.8, 0.8, 0, 0.8, 0.3, 0], 'VEC3')],
+  ])
+
+  document
+    .getRoot()
+    .setDefaultScene(
+      document
+        .createScene('Robot')
+        .addChild(shoulder)
+        .addChild(armNode)
+        .addChild(blockNode)
+        .addChild(cube),
+    )
+  return document
+}
+await write('animated/robot.glb', await io.writeBinary(animated()))
+
+// Material variants and cameras: a grey cube whose material the variants "Red" and "Blue" replace,
+// a small yellow cube beside it, an orthographic camera "Top" looking down and a perspective camera
+// "Side" looking along -X.
+function showroom(): Document {
+  const document = new Document()
+  document.getRoot().getAsset().generator = generator
+  const buffer = document.createBuffer('showroom')
+  const accessor = (
+    type: 'SCALAR' | 'VEC3',
+    array: Float32Array<ArrayBuffer> | Uint16Array<ArrayBuffer>,
+  ) => document.createAccessor().setType(type).setArray(array).setBuffer(buffer)
+  const material = (name: string, [r, g, b]: Rgba) =>
+    document
+      .createMaterial(name)
+      .setBaseColorFactor([r / 255, g / 255, b / 255, 1])
+      .setMetallicFactor(0)
+      .setRoughnessFactor(0.6)
+  const primitive = (geometry: Geometry, color: Material) =>
+    document
+      .createPrimitive()
+      .setAttribute('POSITION', accessor('VEC3', new Float32Array(geometry.positions)))
+      .setAttribute('NORMAL', accessor('VEC3', new Float32Array(geometry.normals)))
+      .setIndices(accessor('SCALAR', new Uint16Array(geometry.indices)))
+      .setMaterial(color)
+
+  const variants = document.createExtension(KHRMaterialsVariants)
+  const mapping = (name: string, color: Rgba) =>
+    variants
+      .createMapping()
+      .addVariant(variants.createVariant(name))
+      .setMaterial(material(name, color))
+  const body = primitive(box(1, 1, 1), material('Grey', [160, 160, 160, 255])).setExtension(
+    'KHR_materials_variants',
+    variants.createMappingList().addMapping(mapping('Red', red)).addMapping(mapping('Blue', blue)),
+  )
+  const cube = document.createNode('Cube').setMesh(document.createMesh('Cube').addPrimitive(body))
+  const marker = document
+    .createNode('Marker')
+    .setMesh(
+      document
+        .createMesh('Marker')
+        .addPrimitive(primitive(box(0.3, 0.3, 0.3), material('Yellow', yellow))),
+    )
+    .setTranslation([0.9, 0, 0])
+  const s = Math.SQRT1_2
+  const top = document
+    .createNode('Top')
+    .setCamera(
+      document
+        .createCamera('Top')
+        .setType('orthographic')
+        .setXMag(1.5)
+        .setYMag(1.5)
+        .setZNear(0.1)
+        .setZFar(10),
+    )
+    .setTranslation([0, 5, 0])
+    .setRotation([-s, 0, 0, s])
+  const side = document
+    .createNode('Side')
+    .setCamera(
+      document
+        .createCamera('Side')
+        .setType('perspective')
+        .setYFov(0.8)
+        .setAspectRatio(1.5)
+        .setZNear(0.1)
+        .setZFar(100),
+    )
+    .setTranslation([4, 0, 0])
+    .setRotation([0, s, 0, s])
+  document
+    .getRoot()
+    .setDefaultScene(
+      document.createScene('Showroom').addChild(cube).addChild(marker).addChild(top).addChild(side),
+    )
+  return document
+}
+await write('variants/showroom.glb', await io.writeBinary(showroom()))
 
 // Files the plugin has to refuse or show with a warning.
 await writeGltf(
