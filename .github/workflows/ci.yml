@@ -1,0 +1,46 @@
+# Runs the same checks as docs/development.md asks for on every change: lint, typecheck and test.
+# It does not replace manual acceptance in a released Vormio-Core, and the Spine 3.7 example
+# comparison tests skip here because SPINE_37_EXAMPLES is not set (the examples cannot be
+# redistributed).
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+# Read-only: the workflow only checks the source. Third-party actions are pinned to commits
+# (the tag is in the comment), the same commits Vormio-Core's workflow uses.
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version-file: .node-version
+          # No dependency cache: the pnpm install from the registry takes well under a minute,
+          # about as long as restoring and saving a store cache of the same size, and a cache is
+          # one more thing that can go stale or be poisoned on a public repository. Likewise the
+          # Chromium download below is not cached.
+          package-manager-cache: false
+      # Installs the pnpm version from package.json's packageManager field.
+      - uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa # v4
+      - run: pnpm install --frozen-lockfile
+      # The render tests (*.spec.ts) run in headless Chromium with the SwiftShader software
+      # renderer, so the runner needs no GPU. The runner image already has Chrome's shared
+      # libraries, so --with-deps is not needed.
+      - run: pnpm exec playwright install chromium-headless-shell
+      - run: pnpm run lint
+      - run: pnpm run typecheck
+      - run: pnpm test

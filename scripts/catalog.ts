@@ -1,12 +1,16 @@
 // Publishes the official plugin catalog: packs the plugins that release.json lists from the current
-// commit and signs a catalog of them. A host installs only releases of its own plugin apiVersion, so
-// the previous catalog's releases of a listed plugin for another apiVersion stay in the new catalog
-// with their published packages, and hosts the current plugins no longer serve keep what they had.
-// Releases of the current apiVersion come from this commit alone. A version the previous catalog
-// already offers keeps its published package, so one version never has two packages (a rebuild can
-// differ in its chunk names alone, for example after an SDK update). The private key, the previous
-// catalog and the output stay outside the repository; uploading is an operational step: the
-// packages folder first, then catalog.json.
+// commit and signs a catalog of them. release.json records each plugin's version and the Core
+// version it was accepted on, and the manifest a plugin builds must have that version. A host
+// installs only releases of its own plugin apiVersion, so the previous catalog's releases of a
+// listed plugin for another apiVersion stay in the new catalog with their published packages (all
+// of them, or only the apiVersions release.json's `keepApiVersions` names), and hosts the current
+// plugins no longer serve keep what they had. Releases of the current apiVersion come from this
+// commit alone. A version the previous catalog already offers keeps its published package, so one
+// version never has two packages (a rebuild can differ in its chunk names alone, for example after
+// an SDK update). The private key, the previous catalog and the output stay outside the
+// repository; uploading is an operational step: the packages folder first, then catalog.json.
+// publication.json, written next to them, records what was published for the publisher's records
+// and is not uploaded.
 //
 // The SDK's `vormio-plugin catalog` accepts only packages of its own apiVersion, so the catalog is
 // signed here with the SDK's `signCatalog`. New packages get the checks a host makes before
@@ -21,6 +25,7 @@ import { createHash } from 'node:crypto'
 import { existsSync } from 'node:fs'
 import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises'
 import { dirname, isAbsolute, join, relative, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { parseArgs } from 'node:util'
 import {
   CatalogError,
@@ -36,17 +41,26 @@ import {
 } from '@vormio/plugin-sdk/node'
 import { pluginNames, root } from './build.ts'
 import { packPlugin } from './pack.ts'
+import {
+  checkListedVersion,
+  parseReleaseConfig,
+  planReleases,
+  ReleaseError,
+  sdkVersionOf,
+  type Publication,
+  type ReleaseConfig,
+  type ReleaseManifest,
+  type Withdrawal,
+} from './release.ts'
 
 const usage =
   'Usage: pnpm run catalog --key <private key.pem> --out <new folder> (--previous <catalog.json> | --initial-sequence <n>)'
-
-/** A publication that cannot go ahead. */
-class ReleaseError extends Error {}
 
 /** A release of the new catalog with the bytes of its package. */
 interface Published {
   release: CatalogRelease
   data: Buffer
+  source: Publication['releases'][number]['source']
 }
 
 const sha256 = (data: Uint8Array) => createHash('sha256').update(data).digest('hex')
@@ -70,23 +84,32 @@ function check<T>(what: string, run: () => T): T {
   }
 }
 
-/** The plugin folders release.json lists, in its order. */
-async function listedPlugins(): Promise<string[]> {
-  const config = JSON.parse(await readFile(join(root, 'release.json'), 'utf8')) as {
-    plugins?: unknown
-  }
-  const names = await pluginNames()
-  const listed = config.plugins
-  if (
-    !Array.isArray(listed) ||
-    !listed.length ||
-    listed.some((name) => typeof name !== 'string' || !names.includes(name)) ||
-    new Set(listed).size !== listed.length
+async function readJson<T>(file: string): Promise<T> {
+  return JSON.parse(await readFile(file, 'utf8')) as T
+}
+
+/** release.json, checked against the folders under plugins/. */
+async function releaseConfig(): Promise<ReleaseConfig> {
+  return parseReleaseConfig(await readFile(join(root, 'release.json'), 'utf8'), await pluginNames())
+}
+
+/**
+ * The SDK version in vendor/ that builds the packages, from the root package.json; the installed
+ * package must be that version, or node_modules is stale.
+ */
+async function sdkVersion(): Promise<string> {
+  const pkg = await readJson<{ devDependencies?: Record<string, string> }>(
+    join(root, 'package.json'),
   )
+  const version = sdkVersionOf(pkg.devDependencies?.['@vormio/plugin-sdk'] ?? '')
+  const installed = await readJson<{ version: string }>(
+    fileURLToPath(new URL('../../package.json', import.meta.resolve('@vormio/plugin-sdk/node'))),
+  )
+  if (installed.version !== version)
     throw new ReleaseError(
-      `release.json: "plugins" must list folders under plugins/ once each (${names.join(', ')})`,
+      `The installed plugin SDK is ${installed.version}, but package.json pins ${version}; run pnpm install --frozen-lockfile`,
     )
-  return listed as string[]
+  return version
 }
 
 /** The catalog currently published, which the new one continues: signed with the same key. */
@@ -106,7 +129,11 @@ async function built(file: string): Promise<Published> {
   ) as CatalogRelease['manifest']
   const hash = sha256(data)
   const name = `${manifest.id}-${manifest.version}-${hash.slice(0, 12)}.vormioplugin`
-  return { release: { manifest, file: `packages/${name}`, bytes: data.length, sha256: hash }, data }
+  return {
+    release: { manifest, file: `packages/${name}`, bytes: data.length, sha256: hash },
+    data,
+    source: 'built',
+  }
 }
 
 /** A release of the previous catalog with its published package, which must still match it. */
@@ -117,7 +144,19 @@ async function published(previous: string, release: CatalogRelease): Promise<Pub
     throw new ReleaseError(
       `${release.manifest.id} ${release.manifest.version} is published, but ${file} is missing or differs from the previous catalog`,
     )
-  return { release, data }
+  return { release, data, source: 'carried' }
+}
+
+const describe = ({ manifest }: CatalogRelease) =>
+  `${manifest.id} ${manifest.version} (apiVersion ${manifest.apiVersion})`
+
+function reportWithdrawal({ release, reason }: Withdrawal, current?: ReleaseManifest): void {
+  const why = {
+    superseded: `replaced by ${current?.version} for apiVersion ${release.manifest.apiVersion} hosts`,
+    apiVersion: 'its apiVersion is not in keepApiVersions',
+    unlisted: 'the plugin is not listed in release.json',
+  }[reason]
+  console.log(`Withdrawing ${describe(release)}: ${why}`)
 }
 
 async function main(): Promise<number> {
@@ -166,36 +205,52 @@ async function main(): Promise<number> {
   if (privateKey === undefined) throw new ReleaseError(`Private key not found: ${key}`)
   const publicKey = check(key, () => catalogPublicKey(privateKey))
   const previous = previousFile ? await previousCatalog(previousFile, publicKey) : undefined
-  const names = await listedPlugins()
+  const config = await releaseConfig()
+  const sdk = await sdkVersion()
+  // A version release.json does not record is refused before anything is packed.
+  for (const [name, listed] of Object.entries(config.plugins))
+    checkListedVersion(
+      name,
+      listed,
+      await readJson<ReleaseManifest>(join(root, 'plugins', name, 'manifest.json')),
+    )
 
   // Every check runs before anything is written.
   const plugins: { id: string; releases: Published[] }[] = []
-  for (const name of names) {
+  const withdrawn: Withdrawal[] = []
+  const acceptedOn = new Map<string, string>()
+  for (const [name, listed] of Object.entries(config.plugins)) {
     const current = await built((await packPlugin(name)).file)
-    const { id, version, apiVersion } = current.release.manifest
+    const manifest = current.release.manifest as ReleaseManifest
+    checkListedVersion(name, listed, manifest)
+    acceptedOn.set(`${manifest.id}@${manifest.version}`, listed.acceptedOn)
+    const plan = planReleases(
+      manifest,
+      previous?.plugins.find((plugin) => plugin.id === manifest.id)?.releases ?? [],
+      config.keepApiVersions,
+    )
     const releases: Published[] = []
-    for (const release of previous?.plugins.find((plugin) => plugin.id === id)?.releases ?? []) {
-      const same = {
-        version: release.manifest.version === version,
-        api: release.manifest.apiVersion === apiVersion,
-      }
-      if (same.version && !same.api)
-        throw new ReleaseError(
-          `${id} ${version} is published for apiVersion ${release.manifest.apiVersion}; give the apiVersion ${apiVersion} release a new version`,
-        )
-      // Releases of this apiVersion come from this commit alone.
-      if (!same.version && same.api) continue
+    for (const release of plan.keep) {
       console.log(
-        same.version
-          ? `${id} ${version} is already published; keeping ${release.file}`
-          : `Keeping ${id} ${release.manifest.version} for apiVersion ${release.manifest.apiVersion} hosts`,
+        release.manifest.version === manifest.version
+          ? `${describe(release)} is already published; keeping ${release.file}`
+          : `Keeping ${describe(release)} for apiVersion ${release.manifest.apiVersion} hosts`,
       )
       releases.push(await published(previousFile!, release))
     }
-    if (!releases.some(({ release }) => release.manifest.version === version))
+    for (const withdrawal of plan.withdraw) reportWithdrawal(withdrawal, manifest)
+    withdrawn.push(...plan.withdraw)
+    if (!releases.some(({ release }) => release.manifest.version === manifest.version))
       releases.push(current)
-    plugins.push({ id, releases })
+    plugins.push({ id: manifest.id, releases })
   }
+  for (const plugin of previous?.plugins ?? [])
+    if (!plugins.some(({ id }) => id === plugin.id))
+      for (const release of plugin.releases) {
+        const withdrawal: Withdrawal = { release, reason: 'unlisted' }
+        reportWithdrawal(withdrawal)
+        withdrawn.push(withdrawal)
+      }
   plugins.sort((a, b) => (a.id < b.id ? -1 : 1))
   for (const plugin of plugins)
     plugin.releases.sort((a, b) =>
@@ -216,20 +271,47 @@ async function main(): Promise<number> {
       privateKey,
     ),
   )
-
+  const signed = check('The new catalog', () => verifyCatalog(catalog, publicKey))
   const releases = plugins.flatMap(({ releases }) => releases)
+  const publication: Publication = {
+    sequence: signed.sequence,
+    publishedAt: signed.publishedAt,
+    keyId: signed.keyId,
+    commit,
+    sdkVersion: sdk,
+    releases: releases.map(({ release: { manifest, file, sha256 }, source }) => ({
+      id: manifest.id,
+      version: manifest.version,
+      apiVersion: manifest.apiVersion,
+      file,
+      sha256,
+      source,
+      ...(acceptedOn.has(`${manifest.id}@${manifest.version}`)
+        ? { acceptedOn: acceptedOn.get(`${manifest.id}@${manifest.version}`) }
+        : {}),
+    })),
+    withdrawn: withdrawn.map(({ release: { manifest }, reason }) => ({
+      id: manifest.id,
+      version: manifest.version,
+      apiVersion: manifest.apiVersion,
+      reason,
+    })),
+  }
+
   await mkdir(join(out, 'packages'), { recursive: true })
   for (const { release, data } of releases)
     await writeFile(join(out, release.file), data, { flag: 'wx' })
   await writeFile(join(out, 'catalog.json'), catalog, { flag: 'wx' })
+  await writeFile(join(out, 'publication.json'), `${JSON.stringify(publication, null, 2)}\n`, {
+    flag: 'wx',
+  })
   const written = verifyCatalog(await readFile(join(out, 'catalog.json')), publicKey)
   console.log(`catalog.json: sequence ${written.sequence}, key ${written.keyId}`)
-  for (const { release } of releases)
-    console.log(
-      `  ${release.manifest.id} ${release.manifest.version} (apiVersion ${release.manifest.apiVersion}) → ${release.file}`,
-    )
+  for (const { release, source } of releases)
+    console.log(`  ${describe(release)} → ${release.file} (${source})`)
+  console.log(`publication.json: the record of this publication; it is not uploaded`)
   console.log(`Upload the packages folder of ${out} first, then catalog.json.`)
-  console.log(`Built from Vormio-Plugins ${commit}`)
+  console.log(`Built from Vormio-Plugins ${commit} with plugin SDK ${sdk}`)
   return 0
 }
 

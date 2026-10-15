@@ -8,7 +8,7 @@
 Vormio-Plugins/
 ├─ package.json           构建、测试与素材工具；packageManager 锁定 pnpm 版本
 ├─ pnpm-workspace.yaml    plugins/* 各是一个包；唯一的锁文件 pnpm-lock.yaml
-├─ release.json           官方目录收录的插件（发布配置，见“发布官方目录”）
+├─ release.json           官方目录收录的插件、版本与验收的 Core 版本（发布配置，见“发布官方目录”）
 ├─ docs/                  工程文档：插件规划与设计计划
 ├─ vendor/                固定版本的外部产物，附来源记录：Core 发布的 plugin-sdk 打包产物、Spine 3.7 与 3.8 运行时
 ├─ plugins/
@@ -41,18 +41,18 @@ pnpm install --frozen-lockfile
 pnpm exec playwright install chromium-headless-shell
 ```
 
-| 命令                        | 作用                                                                                                                                         |
-| --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| `pnpm run build [插件…]`    | 构建到 `dist/<插件>/`，只写入有变化的文件并删除多余文件                                                                                      |
-| `pnpm run dev [插件…]`      | 同上，并在插件目录变化时重新构建                                                                                                             |
-| `pnpm run package [插件…]`  | 构建后用 `vormio-plugin pack` 生成 `artifacts/<插件 ID>-<版本>.vormioplugin`（不是 `pnpm pack`：那是 pnpm 自带的命令，会把整个仓库打成 tgz） |
-| `pnpm run catalog …`        | 打包 `release.json` 列出的插件，连同上一份目录中其他 `apiVersion` 的发布签名成官方目录，见[发布官方目录](#发布官方目录)                      |
-| `pnpm run lint`             | Prettier 格式检查                                                                                                                            |
-| `pnpm run typecheck`        | TypeScript 类型检查（插件源码、测试与脚本）                                                                                                  |
-| `pnpm test`                 | 构建，运行 Node 测试（`plugins/*/tests/*.test.ts` 与 `shared/tests/*.test.ts`），再在 Chromium 中运行页面测试（`*.spec.ts`）                 |
-| `pnpm run fixtures [格式…]` | 用 `scripts/fixtures/<格式>.ts` 重新生成 `fixtures/<格式>/`（`gltf`、`obj`、`spine`；不写时全部），每次结果相同                              |
+| 命令                        | 作用                                                                                                                                                       |
+| --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pnpm run build [插件…]`    | 构建到 `dist/<插件>/`，只写入有变化的文件并删除多余文件                                                                                                    |
+| `pnpm run dev [插件…]`      | 同上，并在插件目录变化时重新构建                                                                                                                           |
+| `pnpm run package [插件…]`  | 构建后用 `vormio-plugin pack` 生成 `artifacts/<插件 ID>-<版本>.vormioplugin`（不是 `pnpm pack`：那是 pnpm 自带的命令，会把整个仓库打成 tgz）               |
+| `pnpm run catalog …`        | 打包 `release.json` 列出的插件，连同上一份目录中其他 `apiVersion` 的发布签名成官方目录，并写出发布记录 `publication.json`，见[发布官方目录](#发布官方目录) |
+| `pnpm run lint`             | Prettier 格式检查                                                                                                                                          |
+| `pnpm run typecheck`        | TypeScript 类型检查（插件源码、测试与脚本）                                                                                                                |
+| `pnpm test`                 | 构建，运行 Node 测试（`plugins/*/tests/*.test.ts`、`shared/tests/*.test.ts` 与 `scripts/tests/*.test.ts`），再在 Chromium 中运行页面测试（`*.spec.ts`）    |
+| `pnpm run fixtures [格式…]` | 用 `scripts/fixtures/<格式>.ts` 重新生成 `fixtures/<格式>/`（`gltf`、`obj`、`spine`；不写时全部），每次结果相同                                            |
 
-每次改动都运行 `lint`、`typecheck` 与 `test`。
+每次改动都运行 `lint`、`typecheck` 与 `test`。GitHub Actions（`.github/workflows/ci.yml`）在推送到 master 与每个 pull request 上做同样的事：在 Ubuntu 上按 `.node-version` 与 `packageManager` 安装 Node 与 pnpm，`pnpm install --frozen-lockfile`，安装 Playwright 的 Chromium，依次运行这三条命令。CI 不设置 `SPINE_37_EXAMPLES`，下面的 Spine 3.7 示例对照在 CI 上跳过；它也不代替手工验收：把插件装进 Core 的发布版本里验收仍要手工做（见 AGENTS.md 的“验证”）。
 
 **Spine 3.7 示例对照**：两个测试用 Spine 官方的 3.7 示例核对插件。`plugins/spine/tests/preview-binary-37.test.ts` 核对 3.7 二进制读取器：每个示例骨骼都有 `.skel` 与 `.json` 两份导出，spine-ts 3.7 的 `SkeletonJson` 读 JSON，插件的读取器读二进制，两份数据要相同。`plugins/spine/tests/skeleton-37.test.ts` 核对骨骼 JSON 的组成分析：分析结果要与 spine-ts 3.7 读取同一个 JSON 得到的数据相同。示例的许可不允许再分发，不进仓库，所以这两个测试中用示例的部分只在环境变量 `SPINE_37_EXAMPLES` 指向本机的示例文件夹时运行（Spine Runtimes 仓库 3.7 分支的 `examples/`，或每个示例一个文件夹、导出直接放在其中的副本），否则跳过。改动 3.7 读取器或骨骼 JSON 的分析时运行：
 
@@ -85,10 +85,24 @@ SPINE_37_EXAMPLES=<示例文件夹> node --test plugins/spine/tests/preview-bina
 
 官方目录是一份签名的 `catalog.json` 加上它列出的插件包，放在静态托管上，Vormio 的插件窗口从这里安装与更新插件。格式见 SDK README 的“插件目录”一节。仓库里只有发布配置与命令；目录地址、托管配置、上传凭据与签名私钥都不进仓库，上传是发布者的运营步骤。
 
-- `release.json` 的 `plugins` 列出目录收录的插件（`plugins/` 下的目录名）。新目录收录每个插件在当前提交上的版本，以及上一份目录中这个插件其他 `apiVersion` 的发布；没有列出的插件不进目录，它在上一份目录中的所有发布都撤下。从目录撤下一个插件，就是把它从这里删掉再发布一次；已经装上的插件不会被远程删除。
-- 宿主只安装与自己 `apiVersion` 相同的发布：Core 0.0.9 是 `apiVersion: 4`（现在的插件），Core 0.0.7 与 0.0.8 是 `apiVersion: 3`，Core 0.0.6 是 `apiVersion: 2`，Core 0.0.5 是 `apiVersion: 1`。所以与当前插件 `apiVersion` 相同的发布只来自当前提交，上一份目录中同一 `apiVersion` 的旧版本不再收录；其他 `apiVersion` 的发布原样保留，旧宿主继续看到能安装的版本。例如上一份目录有 glTF 0.2.0 与 Spine 0.2.0（`apiVersion: 1`），从 glTF 0.2.1 与 Spine 0.4.0（`apiVersion: 2`）的提交发布，新目录四个都有。目前不能单独撤下其他 `apiVersion` 的发布。
+- `release.json` 是发布配置：
+
+  ```json
+  {
+    "plugins": {
+      "gltf": { "version": "0.4.1", "acceptedOn": "0.0.9" },
+      "obj": { "version": "0.2.0", "acceptedOn": "0.0.9" },
+      "spine": { "version": "0.10.0", "acceptedOn": "0.0.9" }
+    }
+  }
+  ```
+
+  - `plugins` 的键是目录收录的插件（`plugins/` 下的目录名）。`version` 是当前提交构建的版本，`acceptedOn` 是这个版本手工验收所用的 Core 发布版本（与[插件规划](roadmap.md)的状态列一致）。命令校验每个插件构建出的 manifest 版本与 `version` 相同，不同就拒绝：先在 Core 的发布版本上验收新版本，再更新这里。新目录收录每个列出的版本，以及上一份目录中这个插件其他 `apiVersion` 的发布；没有列出的插件不进目录，它在上一份目录中的所有发布都撤下。从目录撤下一个插件，就是把它从这里删掉再发布一次；已经装上的插件不会被远程删除。
+  - 可选的 `keepApiVersions`（整数数组）：列出时，上一份目录中其他 `apiVersion` 的发布只沿用这些 `apiVersion` 的，其余撤下，命令逐条打印；不列出时全部沿用。SDK 规定目录中每个插件至多 8 个发布，每个 Core 版本都留一个就会撞上限，到时用它撤下最老的 `apiVersion`。当前 `apiVersion` 的发布不受它影响，只来自当前提交。
+
+- 宿主只安装与自己 `apiVersion` 相同的发布：Core 0.0.9 是 `apiVersion: 4`（现在的插件），Core 0.0.7 与 0.0.8 是 `apiVersion: 3`，Core 0.0.6 是 `apiVersion: 2`，Core 0.0.5 是 `apiVersion: 1`。所以与当前插件 `apiVersion` 相同的发布只来自当前提交，上一份目录中同一 `apiVersion` 的旧版本不再收录；其他 `apiVersion` 的发布原样保留，旧宿主继续看到能安装的版本。例如上一份目录有 glTF 0.2.0 与 Spine 0.2.0（`apiVersion: 1`），从 glTF 0.2.1 与 Spine 0.4.0（`apiVersion: 2`）的提交发布，新目录四个都有；要撤下其中的 `apiVersion: 1`，在 `release.json` 写 `"keepApiVersions": []`（或列出要保留的其他 `apiVersion`）。
 - 合并会改变插件 `apiVersion` 的 SDK 升级之前，先从合并前的提交发布一次目录。合并之后，上一个 `apiVersion` 的版本只能从上一份目录保留，不能再新发布：没有在合并前进目录的版本再也进不了目录，那些宿主就永远装不到它们。
-- 只在每个列出的版本都已在 Core 上手工验收（[插件规划](roadmap.md)的状态列）的提交上发布，发布前照常运行 `lint`、`typecheck` 与 `test`。
+- 只在每个列出的版本都已在 Core 上手工验收（[插件规划](roadmap.md)的状态列）、且 CI 已通过的提交上发布：发布前核对 GitHub Actions 上这个提交的运行结果，它运行的正是 `lint`、`typecheck` 与 `test`；手工验收 CI 不做。
 - 命令，路径相对于运行命令的文件夹：
 
   ```bash
@@ -100,8 +114,9 @@ SPINE_37_EXAMPLES=<示例文件夹> node --test plugins/spine/tests/preview-bina
   - `--previous` 是当前线上的目录，旁边是它的 `packages/`。新目录的序号是它的序号加 1，它必须由同一把私钥签名。它已经收录的版本沿用已发布的包，不用重新打的包：同一版本只有一个包。重新构建可能只有分块文件名不同（例如换了 `vendor/` 中的 SDK 之后），代码相同；要发布改动，先提高插件版本。保留的其他 `apiVersion` 的发布同样沿用已发布的包，文件名与目录记录不变。这些包必须与上一份目录记录的 SHA-256 一致，否则命令拒绝发布。同一版本已经以另一个 `apiVersion` 发布时也拒绝：换一个版本号。
   - 没有上一份目录时（首次发布、换了密钥、本地演练）改用 `--initial-sequence <序号>`。
   - 私钥不能放在本仓库里；输出目录必须是新目录或空目录。
+  - `<新目录>/publication.json` 是这次发布的记录：序号、发布时间、密钥 ID、构建所用的 Vormio-Plugins 提交、`vendor/` 中的 SDK 版本（取自根 `package.json` 的 `file:` 路径，必须与安装的版本一致），每个发布的 ID、版本、`apiVersion`、文件名、SHA-256、是新打包（`built`）还是沿用（`carried`），以及 `release.json` 记录的 `acceptedOn`（只有它列出的版本有）；还有撤下的发布与原因（`superseded`：被当前 `apiVersion` 的新版本取代；`apiVersion`：不在 `keepApiVersions` 中；`unlisted`：插件不在 `release.json` 中）。它与 `catalog.json` 一样只在所有检查通过后写出，供发布记录使用。
 
-- 上传时先上传 `packages/`，最后上传 `catalog.json`。`catalog.json` 不要缓存；包的文件名随内容变化，可以长期缓存。
+- 上传时先上传 `packages/`，最后上传 `catalog.json`；`publication.json` 不上传。`catalog.json` 不要缓存；包的文件名随内容变化，可以长期缓存。
 
 **本地演练**：用 `pnpm exec vormio-plugin keygen <仓库外的路径前缀>` 生成一把临时密钥，用它发布到临时目录，在 127.0.0.1 上静态托管。要演练保留其他 `apiVersion` 的发布，先用同一把临时密钥签一份含 `apiVersion: 1` 发布的上一份目录（SDK 的 `signCatalog`，包可以由当前构建改 manifest 后用 `writeZip` 打成），再把它作为 `--previous`。未打包的 Core 构建通过环境变量 `VORMIO_CATALOG_URL`（例如 `http://127.0.0.1:8787/catalog.json`）与 `VORMIO_CATALOG_PUBLIC_KEY`（`.public.txt` 中的公钥）改用这个目录；打包后的 Vormio 只用内置的官方目录。
 
