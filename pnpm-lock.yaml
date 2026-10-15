@@ -182,8 +182,8 @@ importers:
         specifier: ^24.19.2
         version: 24.19.2
       '@vormio/plugin-sdk':
-        specifier: file:vendor/vormio-plugin-sdk-0.0.9.tgz
-        version: file:vendor/vormio-plugin-sdk-0.0.9.tgz
+        specifier: file:vendor/vormio-plugin-sdk-0.0.10-rc.1.tgz
+        version: file:vendor/vormio-plugin-sdk-0.0.10-rc.1.tgz
       draco3dgltf:
         specifier: 1.5.7
         version: 1.5.7
@@ -203,8 +203,8 @@ importers:
   plugins/gltf:
     dependencies:
       '@vormio/plugin-sdk':
-        specifier: file:../../vendor/vormio-plugin-sdk-0.0.9.tgz
-        version: file:vendor/vormio-plugin-sdk-0.0.9.tgz
+        specifier: file:../../vendor/vormio-plugin-sdk-0.0.10-rc.1.tgz
+        version: file:vendor/vormio-plugin-sdk-0.0.10-rc.1.tgz
       three:
         specifier: 0.186.1
         version: 0.186.1
@@ -216,8 +216,8 @@ importers:
   plugins/obj:
     dependencies:
       '@vormio/plugin-sdk':
-        specifier: file:../../vendor/vormio-plugin-sdk-0.0.9.tgz
-        version: file:vendor/vormio-plugin-sdk-0.0.9.tgz
+        specifier: file:../../vendor/vormio-plugin-sdk-0.0.10-rc.1.tgz
+        version: file:vendor/vormio-plugin-sdk-0.0.10-rc.1.tgz
       three:
         specifier: 0.186.1
         version: 0.186.1
@@ -229,8 +229,8 @@ importers:
   plugins/spine:
     dependencies:
       '@vormio/plugin-sdk':
-        specifier: file:../../vendor/vormio-plugin-sdk-0.0.9.tgz
-        version: file:vendor/vormio-plugin-sdk-0.0.9.tgz
+        specifier: file:../../vendor/vormio-plugin-sdk-0.0.10-rc.1.tgz
+        version: file:vendor/vormio-plugin-sdk-0.0.10-rc.1.tgz
       spine-webgl-4.0:
         specifier: npm:@esotericsoftware/spine-webgl@4.0.31
         version: '@esotericsoftware/spine-webgl@4.0.31'
@@ -626,9 +626,9 @@ packages:
   '@types/webxr@0.5.24':
     resolution: {integrity: sha512-h8fgEd/DpoS9CBrjEQXR+dIDraopAEfu4wYVNY2tEPwk60stPWhvZMf4Foo5FakuQ7HFZoa8WceaWFervK2Ovg==}
 
-  '@vormio/plugin-sdk@file:vendor/vormio-plugin-sdk-0.0.9.tgz':
-    resolution: {integrity: sha512-l+wwNoJCiIg0sZs64y2KaNgm/9vaf15dOjBRQRkk9zmrp/6eLWcoDdh4vLKJm9dB2RYIstPxRkNY/E6PnlaRJg==, tarball: file:vendor/vormio-plugin-sdk-0.0.9.tgz}
-    version: 0.0.9
+  '@vormio/plugin-sdk@file:vendor/vormio-plugin-sdk-0.0.10-rc.1.tgz':
+    resolution: {integrity: sha512-moBI3ifftnA/F7rQyjw5IWgyiX2u9Bv3iGwYCh+ZlQ9u/16l2z5WNE8AafAJIpSCe+vMuDyYqL7dLvTns6m+oQ==, tarball: file:vendor/vormio-plugin-sdk-0.0.10-rc.1.tgz}
+    version: 0.0.10-rc.1
     engines: {node: '>=24.21.0'}
     hasBin: true
 
@@ -991,7 +991,7 @@ snapshots:
 
   '@types/webxr@0.5.24': {}
 
-  '@vormio/plugin-sdk@file:vendor/vormio-plugin-sdk-0.0.9.tgz':
+  '@vormio/plugin-sdk@file:vendor/vormio-plugin-sdk-0.0.10-rc.1.tgz':
     dependencies:
       zod: 4.6.6
 

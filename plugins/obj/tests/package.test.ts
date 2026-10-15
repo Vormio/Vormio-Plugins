@@ -29,7 +29,7 @@ after(() => rm(temporary, { recursive: true, force: true }))
 test('the build output is a valid plugin with the declared permissions', () => {
   const { manifest } = checked
   assert.equal(manifest.id, 'vormio-plugins.obj')
-  assert.equal(manifest.apiVersion, 4)
+  assert.equal(manifest.apiVersion, 5)
   const companions = ['mtl', 'png', 'jpg', 'jpeg', 'tga', 'bmp']
   for (const contribution of [
     ...manifest.contributions.thumbnails,
@@ -84,7 +84,7 @@ test('vormio-plugin pack turns the output into an installable .vormioplugin', as
   const cli = fileURLToPath(new URL('cli.js', import.meta.resolve('@vormio/plugin-sdk/node')))
   const target = join(temporary, 'obj.vormioplugin')
   const { stdout } = await promisify(execFile)(process.execPath, [cli, 'pack', directory, target])
-  assert.match(stdout, /vormio-plugins\.obj 0\.2\.0/)
+  assert.match(stdout, /vormio-plugins\.obj 0\.3\.0-r4\.1/)
   const archive = readPackageArchive(await readFile(target))
   assert.equal(archive.checked.digest, checked.digest)
 })

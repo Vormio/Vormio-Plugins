@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import { execFile } from 'node:child_process'
+import { createHash } from 'node:crypto'
 import { mkdtemp, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -29,8 +30,8 @@ after(() => rm(temporary, { recursive: true, force: true }))
 test('the build output declares atlases and skeletons; previews read what they draw', () => {
   const { manifest } = checked
   assert.equal(manifest.id, 'vormio-plugins.spine')
-  // References to subresources of other files need the contract of Vormio-Core 0.0.9.
-  assert.equal(manifest.apiVersion, 4)
+  // The agreement users accept before enabling needs the contract of Vormio-Core 0.0.10.
+  assert.equal(manifest.apiVersion, 5)
   const pages = ['png', 'jpg', 'jpeg']
   const skeleton = ['atlas', ...pages]
   assert.deepEqual(manifest.contributions.thumbnails, [
@@ -62,6 +63,28 @@ test('the license requirement comes first, and each runtime line ships its licen
   assert.match(
     checked.manifest.description,
     /^包含 Spine Runtimes：每个使用者都需要自己的 Spine Editor 许可证。/,
+  )
+  // The agreement the host shows before enabling is the current text of the license (the 2025
+  // version, which replaces all prior versions): the one the 4.3 runtime carries.
+  assert.ok(checked.agreement)
+  assert.equal(checked.agreement.title, 'Spine Runtimes 许可协议')
+  assert.equal(checked.agreement.file, 'licenses/SPINE-RUNTIMES.txt')
+  assert.match(
+    checked.agreement.text,
+    /^Spine Runtimes License Agreement\nLast updated April 5, 2025\./,
+  )
+  assert.equal(
+    checked.agreement.text,
+    await readFile(
+      fileURLToPath(new URL('../LICENSE', import.meta.resolve('spine-webgl-4.3'))),
+      'utf8',
+    ),
+  )
+  assert.equal(
+    checked.agreement.sha256,
+    createHash('sha256')
+      .update(await readFile(join(directory, 'licenses/SPINE-RUNTIMES.txt')))
+      .digest('hex'),
   )
   for (const line of ['3.7', '3.8', '4.0', '4.1', '4.2', '4.3']) {
     const shipped = await readFile(join(directory, `licenses/SPINE-RUNTIMES-${line}.txt`), 'utf8')
@@ -147,7 +170,7 @@ test('vormio-plugin pack turns the output into an installable .vormioplugin', as
   const cli = fileURLToPath(new URL('cli.js', import.meta.resolve('@vormio/plugin-sdk/node')))
   const target = join(temporary, 'spine.vormioplugin')
   const { stdout } = await promisify(execFile)(process.execPath, [cli, 'pack', directory, target])
-  assert.match(stdout, /vormio-plugins\.spine 0\.10\.0/)
+  assert.match(stdout, /vormio-plugins\.spine 0\.11\.0-r4\.1/)
   const archive = readPackageArchive(await readFile(target))
   assert.equal(archive.checked.digest, checked.digest)
 })
