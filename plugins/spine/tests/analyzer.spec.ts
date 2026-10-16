@@ -73,6 +73,22 @@ test('a JSON skeleton is analyzed from its text alone', async ({ page }) => {
   expect(host.requests).toEqual([...paths, 'preview/hero.json'].map((path) => `200 ${path}`))
 })
 
+test('a binary skeleton is analyzed with the runtime of its version', async ({ page }) => {
+  // 3.7 (the plugin's reader) and 3.8 (classic scripts, one at a time), and 4.0 to 4.3. The report
+  // is the JSON export's, without evidence: the Node tests check that in full.
+  const figures = ['wizard', 'ranger', 'scout', 'squire', 'hero', 'knight']
+  for (const figure of figures) {
+    const report = await analyze(page, `preview/${figure}.skel`)
+    const json = await expected(`preview/${figure}.json`)
+    const references = json.references.map(
+      ({ evidence: _evidence, ...each }: { evidence?: string }) => each,
+    )
+    expect(report, figure).toEqual({ ...json, references })
+  }
+  // Only the skeleton is read: neither the atlas of the same name nor its pages.
+  expect(host.requests).toEqual(figures.map((figure) => `200 preview/${figure}.skel`))
+})
+
 test('JSON that is not a Spine skeleton is not applicable', async ({ page }) => {
   // An object, an object whose `skeleton` is no skeleton, an array, and text that is not JSON.
   const paths = [
@@ -111,6 +127,24 @@ test('files that cannot be analyzed fail with the reason', async ({ page }) => {
     const result = await requestAnalysis(page, await host.input(path))
     expect(result.error, path).toMatch(message)
   }
+  // A binary skeleton is Spine's own format: one the package has no runtime for, one the runtime
+  // cannot read and one without a Spine header all fail with the reason.
+  const binaries: [string, RegExp][] = [
+    [
+      'preview/spine-3.6.skel',
+      /^Spine 3\.6\.\d+ 的数据：插件只包含这些版本的运行时：3\.7、3\.8、4\.0、4\.1、4\.2、4\.3。$/,
+    ],
+    ['preview/spine-5.0.skel', /^Spine 5\.0\.\d+ 的数据/],
+    ['preview/truncated.skel', /^Spine 运行时无法读取这个骨骼：/],
+  ]
+  for (const [path, message] of binaries) {
+    const result = await requestAnalysis(page, await host.input(path))
+    expect(result.error, path).toMatch(message)
+  }
+  const text = await host.input('problems/not-spine.json')
+  expect((await requestAnalysis(page, { ...text, extension: 'skel' })).error).toBe(
+    '不是 Spine 的二进制骨骼文件：文件开头没有 Spine 版本。',
+  )
   // A JSON file that cannot be read fails too: whether it is Spine is unknown.
   for (const path of ['basic/hero.atlas', 'problems/not-spine.json']) {
     const input = await host.input(path)

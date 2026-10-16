@@ -3,14 +3,19 @@ import { fileUri } from '../../../shared/uri.ts'
 import type { AtlasPage } from './atlas.ts'
 import { SpineError } from './errors.ts'
 
-/** The whole input file as text. */
-export async function readText(input: PluginInput, signal?: AbortSignal): Promise<string> {
+/** The whole input file. */
+export async function readBytes(input: PluginInput, signal?: AbortSignal): Promise<Uint8Array> {
   const response = await fetch(input.url, { signal }).catch(() => undefined)
   if (!response?.ok)
     throw new SpineError(
       response?.status === 409 ? '文件在磁盘上已变化，需要重新扫描。' : '无法读取这个文件。',
     )
-  return new TextDecoder().decode(await response.arrayBuffer())
+  return new Uint8Array(await response.arrayBuffer())
+}
+
+/** The whole input file as text. */
+export async function readText(input: PluginInput, signal?: AbortSignal): Promise<string> {
+  return new TextDecoder().decode(await readBytes(input, signal))
 }
 
 const reasons: Record<CompanionStatus | 'undecodable', string> = {

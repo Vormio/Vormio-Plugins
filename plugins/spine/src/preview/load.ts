@@ -1,9 +1,8 @@
 import { isNotApplicable, type NotApplicable, type PluginInput } from '@vormio/plugin-sdk'
-import { SpineError } from '../errors.ts'
 import type { Runtime } from './figure.ts'
 import { loadRuntime } from './runtimes.ts'
 import { readAtlas, readPage, readSkeleton, type PageImage, type SkeletonFile } from './source.ts'
-import { runtimeLine, runtimeLines } from './version.ts'
+import { requireRuntimeLine } from './version.ts'
 
 /** Everything a runtime needs to load a skeleton. */
 export interface Parts {
@@ -24,11 +23,7 @@ export async function readParts(
 ): Promise<Parts | NotApplicable> {
   const skeleton = await readSkeleton(input, signal)
   if (isNotApplicable(skeleton)) return skeleton
-  const line = runtimeLine(skeleton.version)
-  if (!line)
-    throw new SpineError(
-      `Spine ${skeleton.version} 的数据：插件只包含这些版本的运行时：${runtimeLines.join('、')}。`,
-    )
+  const line = requireRuntimeLine(skeleton.version)
   const atlas = await readAtlas(input)
   const runtime = await loadRuntime(line)
   const names = runtime.pageNames(atlas)

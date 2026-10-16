@@ -52,10 +52,10 @@ test('the build output declares atlases and skeletons; previews read what they d
       companionFormats: skeleton,
     },
   ])
-  // The analyzers read the file alone; one page serves both. Binary skeletons are not analyzed.
+  // The analyzers read the file alone; one page serves both, binary skeletons included.
   assert.deepEqual(manifest.contributions.analyzers, [
     { id: 'atlas', entry: 'analyzer.html', formats: ['atlas'], companionFormats: [] },
-    { id: 'skeleton', entry: 'analyzer.html', formats: ['json'], companionFormats: [] },
+    { id: 'skeleton', entry: 'analyzer.html', formats: ['json', 'skel'], companionFormats: [] },
   ])
 })
 
@@ -103,7 +103,7 @@ test('the license requirement comes first, and each runtime line ships its licen
   }
 })
 
-test('the pages and their scripts are in the package; only skeleton pages load a runtime', async () => {
+test('the pages and their scripts are in the package; the atlas pages load no runtime', async () => {
   const paths = new Set(checked.files.map((file) => file.path))
   const pages = [
     'analyzer.html',
@@ -134,7 +134,8 @@ test('the pages and their scripts are in the package; only skeleton pages load a
     }
     imports.set(path, found)
   }
-  // Each runtime is a chunk of its own, loaded only when a skeleton of its version is shown.
+  // Each runtime is a chunk of its own, loaded only when a skeleton of its version is shown or a
+  // binary skeleton of its version analyzed.
   const runtimes = [...paths].filter((path) => /^chunks\/runtime-\d\.\d-/.test(path))
   assert.equal(runtimes.length, 6)
   // 3.7 and 3.8 are classic scripts in the package, each loaded by its runtime chunk alone.
@@ -155,10 +156,10 @@ test('the pages and their scripts are in the package; only skeleton pages load a
     for (const next of imports.get(entry) ?? []) reachable(next, seen)
     return seen
   }
-  for (const entry of ['analyzer.js', 'thumbnail.js', 'viewer.js'])
+  for (const entry of ['thumbnail.js', 'viewer.js'])
     for (const runtime of runtimes)
       assert.ok(!reachable(entry).has(runtime), `${entry} reaches ${runtime}`)
-  for (const entry of ['skeleton-thumbnail.js', 'skeleton-viewer.js'])
+  for (const entry of ['skeleton-thumbnail.js', 'skeleton-viewer.js', 'analyzer.js'])
     for (const runtime of runtimes)
       assert.ok(reachable(entry).has(runtime), `${entry} cannot load ${runtime}`)
   const total = checked.files.reduce((sum, file) => sum + file.size, 0)
@@ -170,7 +171,7 @@ test('vormio-plugin pack turns the output into an installable .vormioplugin', as
   const cli = fileURLToPath(new URL('cli.js', import.meta.resolve('@vormio/plugin-sdk/node')))
   const target = join(temporary, 'spine.vormioplugin')
   const { stdout } = await promisify(execFile)(process.execPath, [cli, 'pack', directory, target])
-  assert.match(stdout, /vormio-plugins\.spine 0\.11\.0/)
+  assert.match(stdout, /vormio-plugins\.spine 0\.12\.0/)
   const archive = readPackageArchive(await readFile(target))
   assert.equal(archive.checked.digest, checked.digest)
 })
