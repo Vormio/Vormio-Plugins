@@ -172,11 +172,24 @@ export function summarizeObj(text: string): ObjSummary {
 }
 
 /**
+ * Hears of an analysis' vertices and faces as it reads them. A face goes to an object, to one of
+ * its groups when one is set, and uses a material when one is set: their positions in the report,
+ * `objects/<object>`, `groups/<group>` and `materials/<material>`.
+ */
+export interface ObjListener {
+  /** A `v` statement: what follows the keyword. */
+  vertex(rest: string): void
+  /** An `f` or `fo` statement: what follows the keyword. */
+  face(where: { object: number; group?: number; material?: number }, rest: string): void
+}
+
+/**
  * Builds the composition report of an OBJ from its statements: objects, the groups in them and the
  * materials they use, and the material libraries the file names. Call `statement` for each one,
  * then `report`, which throws NotObjError if none of them was an OBJ statement.
  */
 export class ObjAnalysis {
+  private readonly listener: ObjListener | undefined
   private readonly diagnostics = diagnosticList()
   private recognised = false
   private readonly counts = { v: 0, vt: 0, vn: 0 }
@@ -199,6 +212,11 @@ export class ObjAnalysis {
   private unknown = new Map<string, number>()
   private freeFormLine = 0
 
+  /** `listener` hears of each vertex and face as it is read, with where faces go. */
+  constructor(listener?: ObjListener) {
+    this.listener = listener
+  }
+
   statement({ keyword, rest, line }: Statement): void {
     if (statements.has(keyword)) this.recognised = true
     switch (keyword) {
@@ -206,6 +224,7 @@ export class ObjAnalysis {
       case 'vt':
       case 'vn':
         this.counts[keyword]++
+        if (keyword === 'v') this.listener?.vertex(rest)
         return
       case 'o':
         this.object = this.objects.push({ name: rest, faces: 0 }) - 1
@@ -280,6 +299,7 @@ export class ObjAnalysis {
 
   private face(rest: string, line: number): void {
     const object = this.currentObject()
+    this.listener?.face({ object, group: this.group, material: this.material }, rest)
     // An object counts the faces of its groups as well.
     this.objects[object]!.faces++
     if (this.group !== undefined) this.groups[this.group]!.faces++

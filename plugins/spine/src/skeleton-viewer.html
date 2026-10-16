@@ -8,6 +8,7 @@
   </head>
   <body>
     <canvas id="view" tabindex="0" aria-label="骨骼预览。拖动平移，滚轮缩放。"></canvas>
+    <canvas id="overlay" aria-hidden="true"></canvas>
     <ul id="warnings" class="panel warnings" role="status" hidden></ul>
     <div class="toolbar" role="toolbar" aria-label="预览">
       <select id="skin" aria-label="皮肤" hidden></select>
@@ -25,6 +26,10 @@
     <footer class="panel footer">
       <span id="info"></span>
       <span id="detail"></span>
+      <span id="focus" class="focus" hidden
+        ><span id="focus-label"></span
+        ><button id="focus-clear" type="button" title="去掉标记">清除</button></span
+      >
       <span id="license">包含 Spine Runtimes：每个使用者都需要自己的 Spine Editor 许可证</span>
     </footer>
   </body>

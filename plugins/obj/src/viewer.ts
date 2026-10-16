@@ -1,10 +1,11 @@
 import { notApplicable, viewer, type PluginInput } from '@vormio/plugin-sdk'
-import { PerspectiveCamera, Vector3, WebGLRenderer } from 'three'
+import { PerspectiveCamera, Vector3, WebGLRenderer, type Material, type Mesh } from 'three'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import { describeProblem, explainFailures } from '../../../shared/companions.ts'
 import { failureMessage } from './errors.ts'
+import { focusMesh, Highlight } from './focus.ts'
 import { defaultDirection, frameModel } from './framing.ts'
-import { loadModel, type Model } from './model.ts'
+import { loadModel, measure, type Model } from './model.ts'
 import { NotObjError } from './obj-file.ts'
 import { prepareRenderer, stageScene } from './stage.ts'
 
@@ -13,6 +14,9 @@ const info = document.querySelector<HTMLElement>('#info')!
 const warnings = document.querySelector<HTMLUListElement>('#warnings')!
 const fitButton = document.querySelector<HTMLButtonElement>('#fit')!
 const resetButton = document.querySelector<HTMLButtonElement>('#reset')!
+const focusBox = document.querySelector<HTMLElement>('#focus')!
+const focusLabel = document.querySelector<HTMLElement>('#focus-label')!
+const focusClear = document.querySelector<HTMLButtonElement>('#focus-clear')!
 
 const renderer = new WebGLRenderer({ canvas, antialias: true, alpha: true })
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2))
@@ -23,7 +27,7 @@ controls.enableDamping = true
 controls.screenSpacePanning = true
 controls.zoomToCursor = true
 
-let current: { model: Model; scene: ReturnType<typeof stageScene> } | undefined
+let current: { model: Model; input: PluginInput; scene: ReturnType<typeof stageScene> } | undefined
 let dirty = true
 /** Until the user moves the camera, a resize frames the model again for the new shape. */
 let userMoved = false
@@ -44,7 +48,10 @@ renderer.setAnimationLoop(() => {
 /** Frames the whole model, looking along `direction` (from the model towards the camera). */
 function frame(direction: Vector3): void {
   if (!current) return
-  const framing = frameModel(current.model, direction, camera.fov, camera.aspect, 1.25)
+  place(frameModel(current.model, direction, camera.fov, camera.aspect, 1.25))
+}
+
+function place(framing: ReturnType<typeof frameModel>): void {
   camera.position.copy(framing.position)
   camera.near = framing.near
   camera.far = framing.far
@@ -58,11 +65,13 @@ function frame(direction: Vector3): void {
 
 /** Frames again from the current viewing direction (F). */
 function fit(): void {
+  clearFocus()
   frame(camera.position.clone().sub(controls.target))
 }
 
 /** Back to the starting view (R). */
 function reset(): void {
+  clearFocus()
   userMoved = false
   frame(defaultDirection)
 }
@@ -89,6 +98,7 @@ addEventListener('keydown', (event) => {
 })
 
 function clear(): void {
+  clearFocus()
   current?.model.dispose()
   current = undefined
   info.textContent = ''
@@ -118,7 +128,7 @@ async function show(input: PluginInput, signal: AbortSignal) {
     return
   }
 
-  current = { model, scene: stageScene(environment, model.root) }
+  current = { model, input, scene: stageScene(environment, model.root) }
   userMoved = false
   frame(defaultDirection)
   fitButton.disabled = resetButton.disabled = false
@@ -141,4 +151,58 @@ async function show(input: PluginInput, signal: AbortSignal) {
   render()
 }
 
-viewer(show)
+// --- Focus ----------------------------------------------------------------------------------------
+
+const highlight = new Highlight()
+/** The faces the host asked to show, drawn over the model, until the next key, F, R or file. */
+let overlay: Mesh | undefined
+/** Only the latest request is shown when several overlap. */
+let request = 0
+
+function clearFocus(): void {
+  request++
+  highlight.clear()
+  if (overlay) {
+    overlay.removeFromParent()
+    overlay.geometry.dispose()
+    ;(overlay.material as Material).dispose()
+    overlay = undefined
+  }
+  focusBox.hidden = true
+  dirty = true
+}
+focusClear.addEventListener('click', clearFocus)
+
+/**
+ * Shows the object, group or material `key` of the analyzer's report: its faces are drawn in the
+ * highlight colour over the model, which is dimmed, and framed. The file is read again for them,
+ * with the analyzer's own reading, so they are the faces the report counts. Keys this file does not
+ * have are ignored.
+ */
+async function focus(key: string, input: PluginInput): Promise<void> {
+  if (!current || current.input.url !== input.url) return
+  const shown = current
+  const asked = ++request
+  const found = await focusMesh(input, key).catch(() => undefined)
+  if (!found || current !== shown || asked !== request) {
+    found?.mesh?.geometry.dispose()
+    return
+  }
+  clearFocus()
+  let label = `已定位：${found.label}`
+  if (found.mesh) {
+    overlay = found.mesh
+    shown.model.root.add(overlay)
+    highlight.apply(shown.model.root, [overlay])
+    const direction = camera.position.clone().sub(controls.target)
+    const part = measure(overlay)
+    const framing = frameModel(part, direction, camera.fov, camera.aspect, 1.25)
+    place(framing)
+    userMoved = true
+  } else label += '（画面中没有可以标出的面）'
+  focusLabel.textContent = label
+  focusBox.hidden = false
+  dirty = true
+}
+
+viewer(show, { focus })

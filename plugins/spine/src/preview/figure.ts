@@ -82,6 +82,17 @@ export interface Figure {
   /** The bounds of the setup pose, or of `animation` sampled over its length. */
   extent(animation?: string): Bounds | undefined
   render(camera: Camera, width: number, height: number): void
+  /** The data the runtime read, for finding its parts the way the analyzer names them. */
+  readonly data: unknown
+  /**
+   * What `slot` draws now, in world coordinates: the vertices (x, y pairs) of its region or mesh,
+   * with the mesh's triangles; undefined when it draws neither.
+   */
+  outline(slot: string): { vertices: number[]; triangles?: ArrayLike<number> } | undefined
+  /** Whether `slot` draws the attachment `key` of the skin `skin` now. */
+  draws(skin: string, slot: string, key: string): boolean
+  /** A bone from its origin to its tip (its length along its x axis), in world coordinates. */
+  bone(name: string): [number, number, number, number] | undefined
   dispose(): void
 }
 
@@ -282,10 +293,67 @@ export function createRuntime(line: RuntimeLine, spine: Spine, differ: Differenc
           differ.draw(scene, skeleton, pma)
           scene.end()
         },
+        data,
+        outline(name) {
+          const slot = loose(skeleton).findSlot(name)
+          if (!slot) return undefined
+          const attachment = currentAttachment(slot)
+          if (!attachment) return undefined
+          // Skeleton bounds go through the draw order and leave the last attachment's world
+          // vertices in the working array; with the draw order cut down to this slot, those are its
+          // own. The draw order is an array up to 4.2 and holds the applied one from 4.3.
+          const vertices: number[] = []
+          const holder = loose(skeleton)
+          const nested = !Array.isArray(holder.drawOrder)
+          const saved = nested ? holder.drawOrder.appliedPose : holder.drawOrder
+          if (nested) holder.drawOrder.appliedPose = [slot]
+          else holder.drawOrder = [slot]
+          try {
+            skeleton.getBounds(new spine.Vector2(), new spine.Vector2(), vertices)
+          } finally {
+            if (nested) holder.drawOrder.appliedPose = saved
+            else holder.drawOrder = saved
+          }
+          if (!vertices.length || !vertices.every(Number.isFinite)) return undefined
+          return { vertices, triangles: loose(attachment).triangles }
+        },
+        draws(skinName, slotName, key) {
+          const slot = loose(skeleton).findSlot(slotName)
+          const index = loose(data).findSlot(slotName)?.index
+          const skin = loose(data).findSkin(skinName)
+          const attachment = slot ? currentAttachment(slot) : undefined
+          return (
+            !!attachment && index !== undefined && skin?.getAttachment(index, key) === attachment
+          )
+        },
+        bone(name) {
+          const bone = loose(skeleton).findBone(name)
+          if (!bone) return undefined
+          // From 4.3 the world transform is on the applied pose.
+          const pose = bone.appliedPose ?? bone
+          const length = bone.data?.length ?? 0
+          return [
+            pose.worldX,
+            pose.worldY,
+            pose.worldX + pose.a * length,
+            pose.worldY + pose.c * length,
+          ]
+        },
         dispose() {
           atlas.dispose()
         },
       }
     },
   }
+}
+
+// The lines name some fields apart (a slot's attachment is on its applied pose from 4.3), so the
+// parts the focus outline reads are read loosely.
+type Loose = any
+const loose = (value: unknown): Loose => value
+
+/** The attachment a slot draws now: a field before 4.3, on the slot's applied pose from 4.3. */
+function currentAttachment(slot: Loose): unknown {
+  const pose = slot.appliedPose ?? slot
+  return pose.getAttachment?.() ?? pose.attachment ?? undefined
 }

@@ -4,6 +4,8 @@ import type { Figure, Runtime } from './preview/figure.ts'
 import { fitView, panView, zoomAt, type Bounds, type View } from './preview/framing.ts'
 import { readParts } from './preview/load.ts'
 import type { RuntimeLine } from './preview/version.ts'
+import { skeletonJson } from './skeleton-binary.ts'
+import { analyzeSkeleton, type SkeletonKey } from './skeleton.ts'
 
 const canvas = document.querySelector<HTMLCanvasElement>('#view')!
 const warnings = document.querySelector<HTMLUListElement>('#warnings')!
@@ -15,6 +17,10 @@ const speedSelect = document.querySelector<HTMLSelectElement>('#speed')!
 const fitButton = document.querySelector<HTMLButtonElement>('#fit')!
 const info = document.querySelector<HTMLElement>('#info')!
 const detail = document.querySelector<HTMLElement>('#detail')!
+const overlay = document.querySelector<HTMLCanvasElement>('#overlay')!
+const focusBox = document.querySelector<HTMLElement>('#focus')!
+const focusLabel = document.querySelector<HTMLElement>('#focus-label')!
+const focusClear = document.querySelector<HTMLButtonElement>('#focus-clear')!
 
 // One WebGL context for the canvas; each runtime line draws through a renderer of its own on it.
 const attributes: WebGLContextAttributes = {
@@ -34,6 +40,12 @@ function sceneFor(runtime: Runtime) {
 }
 
 let figure: Figure | undefined
+/** The shown file: what reads its keys back (see `keysOf`). */
+let shown: { input: PluginInput; runtime: Runtime; json?: Record<string, unknown> } | undefined
+/** What each key of the analyzer's report stands for, read when the host first asks. */
+let keys: Map<string, SkeletonKey> | undefined
+/** The part the host asked to show, until the next one, F or another file. */
+let focused: { entry: SkeletonKey; label: string } | undefined
 /** What the fitted view encloses: the setup pose, or the shown animation over its length. */
 let extent: Bounds | undefined
 let view: View = { x: 0, y: 0, scale: 1 }
@@ -57,6 +69,7 @@ function draw(): void {
   if (!figure) {
     gl?.clearColor(0, 0, 0, 0)
     gl?.clear(gl.COLOR_BUFFER_BIT)
+    drawFocus()
     return
   }
   figure.render(
@@ -64,6 +77,7 @@ function draw(): void {
     canvas.width,
     canvas.height,
   )
+  drawFocus()
 }
 
 function updateDetail(): void {
@@ -115,8 +129,8 @@ function fit(): void {
 }
 
 function resize(): void {
-  canvas.width = Math.max(1, Math.round(canvas.clientWidth * ratio()))
-  canvas.height = Math.max(1, Math.round(canvas.clientHeight * ratio()))
+  canvas.width = overlay.width = Math.max(1, Math.round(canvas.clientWidth * ratio()))
+  canvas.height = overlay.height = Math.max(1, Math.round(canvas.clientHeight * ratio()))
   if (!userMoved) fit()
   // Resizing clears the canvas; draw before the browser paints.
   draw()
@@ -213,6 +227,7 @@ canvas.addEventListener(
 )
 
 function refit(): void {
+  clearFocus()
   userMoved = false
   fit()
 }
@@ -254,6 +269,9 @@ function options(select: HTMLSelectElement, items: { value: string; label: strin
 }
 
 function clear(): void {
+  clearFocus()
+  shown = undefined
+  keys = undefined
   setPlaying(false)
   figure?.dispose()
   figure = extent = undefined
@@ -281,6 +299,11 @@ async function show(input: PluginInput, signal: AbortSignal): Promise<void | Not
     if (signal.aborted) return
     if (isNotApplicable(parts)) return parts
     loaded = parts.runtime.load(sceneFor(parts.runtime), parts.skeleton, parts.atlas, parts.pages)
+    shown = {
+      input,
+      runtime: parts.runtime,
+      json: parts.skeleton instanceof ArrayBuffer ? undefined : parts.skeleton,
+    }
   } catch (error) {
     if (signal.aborted) return
     throw new SpineError(failureMessage(error))
@@ -309,4 +332,145 @@ async function show(input: PluginInput, signal: AbortSignal): Promise<void | Not
   showAnimation(figure.animations[0]?.name)
 }
 
-viewer(show)
+// --- Focus ----------------------------------------------------------------------------------------
+
+/** The colour of the marks: amber, visible over most skeletons and on both themes. */
+const accent = '#f59e0b'
+
+/**
+ * What the keys of this file's report stand for. They are the analyzer's own: a JSON skeleton is
+ * analyzed as the analyzer page does; a binary one is written back as JSON the way the analyzer
+ * page writes it (skeleton-binary.ts), from the data this runtime read.
+ */
+function keysOf(): Map<string, SkeletonKey> | undefined {
+  if (keys || !shown || !figure) return keys
+  const json =
+    shown.json ??
+    skeletonJson(
+      shown.runtime.spine,
+      shown.runtime.line,
+      figure.data as Parameters<typeof skeletonJson>[2],
+    )
+  keys = new Map()
+  try {
+    analyzeSkeleton(json, shown.input.name, keys)
+  } catch {
+    // A skeleton the analyzer refuses has no keys the host could ask for.
+  }
+  return keys
+}
+
+function clearFocus(): void {
+  focused = undefined
+  focusBox.hidden = true
+  drawFocus()
+}
+focusClear.addEventListener('click', clearFocus)
+
+/**
+ * Shows the part `key` of the analyzer's report: switches to a skin, plays an animation, or marks
+ * an attachment, a slot or a bone on the skeleton; an attachment of another skin switches to that
+ * skin first. Keys this file does not have are ignored.
+ */
+function focus(key: string, input: PluginInput): void {
+  if (!figure || !shown || shown.input.url !== input.url) return
+  const entry = keysOf()?.get(key)
+  if (!entry) return
+  clearFocus()
+  const name = entry.written ?? entry.name
+  let label = `已定位：${entry.kind} ${entry.name}`
+  switch (entry.collection) {
+    case 'skins':
+      if (figure.skins.includes(name)) {
+        figure.setSkin(name)
+        skinSelect.value = name
+        showAnimation(figure.animation)
+      }
+      break
+    case 'animations':
+      if (figure.animations.some((each) => each.name === name)) showAnimation(name)
+      break
+    case 'attachments':
+      // Attachments of the default skin show under every skin.
+      if (entry.skin && entry.skin !== 'default' && entry.skin !== figure.skin) {
+        figure.setSkin(entry.skin)
+        skinSelect.value = entry.skin
+        showAnimation(figure.animation)
+      }
+      break
+    case 'slots':
+    case 'bones':
+      break
+    default:
+      label += '（画面中没有可以标出的部分）'
+  }
+  focused = { entry, label }
+  focusBox.hidden = false
+  drawFocus()
+}
+
+/** Draws the mark of the focused attachment, slot or bone over the skeleton, as it is now. */
+function drawFocus(): void {
+  const context = overlay.getContext('2d')
+  if (!context) return
+  context.setTransform(1, 0, 0, 1, 0, 0)
+  context.clearRect(0, 0, overlay.width, overlay.height)
+  if (!focused || !figure) return
+  const { entry } = focused
+  let note = ''
+  // Skeleton coordinates have y up; the view puts `view.x, view.y` at the centre of the canvas.
+  const scale = view.scale * ratio()
+  const toCanvas = (x: number, y: number): [number, number] => [
+    overlay.width / 2 + (x - view.x) * scale,
+    overlay.height / 2 - (y - view.y) * scale,
+  ]
+  context.strokeStyle = accent
+  context.fillStyle = 'rgb(245 158 11 / 25%)'
+  context.lineWidth = 2 * ratio()
+  context.lineJoin = 'round'
+
+  if (entry.collection === 'bones') {
+    const bone = figure.bone(entry.written ?? entry.name)
+    if (bone) {
+      const [x1, y1] = toCanvas(bone[0], bone[1])
+      const [x2, y2] = toCanvas(bone[2], bone[3])
+      context.beginPath()
+      context.arc(x1, y1, 4 * ratio(), 0, Math.PI * 2)
+      context.fill()
+      context.stroke()
+      context.beginPath()
+      context.moveTo(x1, y1)
+      context.lineTo(x2, y2)
+      context.stroke()
+    }
+  } else if (entry.collection === 'attachments' || entry.collection === 'slots') {
+    const slot = entry.collection === 'slots' ? (entry.written ?? entry.name) : entry.slot!
+    const drawn = entry.collection === 'slots' || figure.draws(entry.skin!, slot, entry.attachment!)
+    const outline = drawn ? figure.outline(slot) : undefined
+    if (outline) {
+      const { vertices, triangles } = outline
+      const point = (index: number) => toCanvas(vertices[index * 2]!, vertices[index * 2 + 1]!)
+      context.beginPath()
+      if (triangles?.length)
+        for (let index = 0; index + 2 < triangles.length; index += 3) {
+          const [a, b, c] = [triangles[index]!, triangles[index + 1]!, triangles[index + 2]!]
+          context.moveTo(...point(a))
+          context.lineTo(...point(b))
+          context.lineTo(...point(c))
+          context.closePath()
+        }
+      else {
+        context.moveTo(...point(0))
+        for (let index = 1; index < vertices.length / 2; index++) context.lineTo(...point(index))
+        context.closePath()
+      }
+      context.fill()
+      context.stroke()
+    } else
+      note =
+        entry.collection === 'slots' ? '（插槽现在没有可见的附件）' : '（这个附件现在没有显示）'
+  }
+  focusLabel.textContent = focused.label + note
+}
+
+viewer(show, { focus })

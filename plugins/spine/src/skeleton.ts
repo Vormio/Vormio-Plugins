@@ -127,8 +127,29 @@ export function atlasName(skeletonName: string): string {
   return `${dot > 0 ? skeletonName.slice(0, dot) : skeletonName}.atlas`
 }
 
-/** Analyzes a skeleton read by `readSkeletonJson`; `fileName` is the name of the skeleton file. */
-export function analyzeSkeleton(json: Json, fileName: string): CompositionReport {
+/** What a subresource key of the report stands for, for the viewer to find it again. */
+export interface SkeletonKey {
+  collection: string
+  /** As the report shows it. */
+  kind: string
+  name: string
+  /** For bones, slots, skins, constraints, events and animations: the name the file gives it. */
+  written?: string
+  /** For attachments: the skin, the slot and the key in the skin's map. */
+  skin?: string
+  slot?: string
+  attachment?: string
+}
+
+/**
+ * Analyzes a skeleton read by `readSkeletonJson`; `fileName` is the name of the skeleton file.
+ * `keys`, when given, gets what each subresource key stands for.
+ */
+export function analyzeSkeleton(
+  json: Json,
+  fileName: string,
+  keys?: Map<string, SkeletonKey>,
+): CompositionReport {
   const { diagnostics, diagnose } = diagnosticList()
   let partial = false
   const version = spineVersion(json)
@@ -168,11 +189,17 @@ export function analyzeSkeleton(json: Json, fileName: string): CompositionReport
     collection: Collection,
     index: number,
     name: string,
-    extra: { kind?: string; parent?: string } = {},
+    extra: { kind?: string; parent?: string; written?: string } = {},
   ) => {
     const key = keyOf(collection, index)
     const shown = plainText(name, limits.name)
     names.set(key, `${extra.kind ?? kinds[collection]} ${shown}`)
+    keys?.set(key, {
+      collection,
+      kind: extra.kind ?? kinds[collection],
+      name: shown,
+      written: extra.written ?? name,
+    })
     subresources.push(
       compact({ key, kind: extra.kind ?? kinds[collection], name: shown, parent: extra.parent }),
     )
@@ -447,6 +474,8 @@ export function analyzeSkeleton(json: Json, fileName: string): CompositionReport
               : [[lookup, evidence]]
         }
         const key = add('attachments', attachmentCount++, shown, { kind, parent: skinKey })
+        const known = keys?.get(key)
+        if (known) Object.assign(known, { written: name, skin: skin.name, slot, attachment: name })
         for (const [path, where] of lookups) draws(key, path, where)
         if (!kind) diagnose('warning', `附件 ${name} 的类型 ${type} 无法识别（${evidence}）。`, key)
         attachmentKeys.set(`${s}\0${slot}\0${name}`, key)
