@@ -1,3 +1,7 @@
 {
-  "plugins": ["gltf", "obj", "spine"]
+  "plugins": {
+    "gltf": { "version": "0.4.1", "acceptedOn": "0.0.9" },
+    "obj": { "version": "0.2.0", "acceptedOn": "0.0.9" },
+    "spine": { "version": "0.10.0", "acceptedOn": "0.0.9" }
+  }
 }
