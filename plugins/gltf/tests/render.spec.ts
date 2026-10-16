@@ -5,6 +5,7 @@ import { join } from 'node:path'
 import { expect, test, type Page } from '@playwright/test'
 import { startHost, type MockHost } from '../../../shared/testing/host.ts'
 import {
+  focusSubresource,
   installBridge,
   pageUrl,
   pixelDifference,
@@ -372,6 +373,70 @@ test.describe('viewer', () => {
     const square = await pixelStats(page, await settledCanvas(page))
     expect(square.width).toBe(square.height)
     expect(square.hues.yellow).toBeGreaterThan(0.001)
+  })
+
+  test('the host focuses nodes, meshes, materials, cameras and animations by their keys', async ({
+    page,
+  }) => {
+    const { input } = await openViewer(page, 'variants/showroom.glb')
+    const focusBox = page.locator('#focus')
+    const stats = async () => pixelStats(page, await settledCanvas(page))
+    const before = await settledCanvas(page)
+    const yellowBefore = (await pixelStats(page, before)).hues.yellow
+    await expect(focusBox).toBeHidden()
+
+    // The marker node: framed, so it fills more of the view, and the cube is dimmed.
+    await focusSubresource(page, input.url, 'nodes/1')
+    await expect(focusBox).toBeVisible()
+    await expect(page.locator('#focus-label')).toHaveText('已定位：节点 Marker')
+    const marker = await stats()
+    expect(marker.hues.yellow).toBeGreaterThan(yellowBefore * 2)
+
+    // Keys the file does not have, and keys for another file, change nothing.
+    const shown = await settledCanvas(page)
+    await focusSubresource(page, input.url, 'nodes/9')
+    await focusSubresource(page, `${input.url}x`, 'meshes/0')
+    expect(await pixelDifference(page, shown, await settledCanvas(page))).toBeLessThan(0.01)
+    await expect(page.locator('#focus-label')).toHaveText('已定位：节点 Marker')
+
+    // Clearing takes the dimming away and keeps the view.
+    await page.locator('#focus-clear').click()
+    await expect(focusBox).toBeHidden()
+    expect(await pixelDifference(page, shown, await settledCanvas(page))).toBeGreaterThan(0.001)
+
+    // A material no mesh shows says so; choosing the variant that uses it highlights the cube.
+    await focusSubresource(page, input.url, 'materials/2')
+    await expect(page.locator('#focus-label')).toHaveText(
+      '已定位：材质 Blue（画面中没有可以标出的部分）',
+    )
+    const unlit = (await stats()).hues.yellow
+    await page.locator('#variant').selectOption('1')
+    await expect.poll(async () => (await stats()).hues.blue).toBeGreaterThan(0.02)
+    // The marker is dimmed now: less of it is clearly yellow.
+    expect((await stats()).hues.yellow).toBeLessThan(unlit)
+
+    // A camera is looked through; an animation-less file ignores animation keys.
+    await focusSubresource(page, input.url, 'cameras/1')
+    await expect(page.locator('#camera')).toHaveValue('1')
+    await expect(page.locator('#focus-label')).toHaveText('已定位：相机 Side')
+
+    // F frames the whole model again and ends the focus.
+    await focusSubresource(page, input.url, 'meshes/1')
+    await expect(page.locator('#focus-label')).toHaveText('已定位：网格 Marker')
+    await page.locator('#view').focus()
+    await page.keyboard.press('f')
+    await expect(focusBox).toBeHidden()
+
+    // Another file ends it too, and its own keys work there.
+    const robot = await host.input('animated/robot.glb')
+    await switchInput(page, robot)
+    expect(await viewerOutcome(page, robot.url)).toEqual({ ready: true })
+    await expect(focusBox).toBeHidden()
+    await focusSubresource(page, input.url, 'nodes/1')
+    await expect(focusBox).toBeHidden()
+    await focusSubresource(page, robot.url, 'animations/1')
+    await expect(page.locator('#clip')).toHaveValue('1')
+    await expect(page.locator('#play')).toHaveText('暂停')
   })
 
   test('explains why a file cannot be shown', async ({ page }) => {

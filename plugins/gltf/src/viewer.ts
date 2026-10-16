@@ -1,6 +1,7 @@
 import { viewer, type PluginInput } from '@vormio/plugin-sdk'
 import {
   AnimationMixer,
+  Box3,
   LoopRepeat,
   OrthographicCamera,
   PerspectiveCamera,
@@ -8,11 +9,13 @@ import {
   WebGLRenderer,
   type AnimationAction,
   type Camera,
+  type Mesh,
 } from 'three'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import { describeProblem, explainFailures } from '../../../shared/companions.ts'
 import { failureMessage } from './errors.ts'
-import { defaultDirection, frameModel } from './framing.ts'
+import { Highlight, resolveFocus, type FocusTarget } from './focus.ts'
+import { defaultDirection, frameModel, type Framing } from './framing.ts'
 import { measure, ModelLoader, type Model } from './model.ts'
 import { prepareRenderer, stageScene } from './stage.ts'
 
@@ -28,6 +31,9 @@ const timeInput = document.querySelector<HTMLInputElement>('#time')!
 const clock = document.querySelector<HTMLElement>('#clock')!
 const variantSelect = document.querySelector<HTMLSelectElement>('#variant')!
 const cameraSelect = document.querySelector<HTMLSelectElement>('#camera')!
+const focusBox = document.querySelector<HTMLElement>('#focus')!
+const focusLabel = document.querySelector<HTMLElement>('#focus-label')!
+const focusClear = document.querySelector<HTMLButtonElement>('#focus-clear')!
 
 const renderer = new WebGLRenderer({ canvas, antialias: true, alpha: true })
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2))
@@ -59,6 +65,9 @@ let scrubbing = false
 let previousFrame: number | undefined
 /** A camera from the file the view looks through, until the user moves the view. */
 let fileCamera: Camera | undefined
+/** The subresource the host asked to show, until the next one, F, R or another file. */
+let focused: { key: string; target: FocusTarget } | undefined
+const highlight = new Highlight()
 
 function render(): void {
   dirty = false
@@ -87,7 +96,10 @@ renderer.setAnimationLoop((now: number) => {
 /** Frames the whole model, looking along `direction` (from the model towards the camera). */
 function frame(direction: Vector3): void {
   if (!current) return
-  const framing = frameModel(current.model, direction, camera.fov, camera.aspect, 1.25)
+  place(frameModel(current.model, direction, camera.fov, camera.aspect, 1.25))
+}
+
+function place(framing: Framing): void {
   camera.position.copy(framing.position)
   camera.near = framing.near
   camera.far = framing.far
@@ -101,6 +113,7 @@ function frame(direction: Vector3): void {
 
 /** Frames the current pose again from the current viewing direction (F). */
 function fit(): void {
+  clearFocus()
   if (fileCamera) takeOver()
   if (current?.action) Object.assign(current.model, measure(current.model.root))
   frame(camera.position.clone().sub(controls.target))
@@ -108,6 +121,7 @@ function fit(): void {
 
 /** Back to the starting view (R). */
 function reset(): void {
+  clearFocus()
   lookThrough(undefined)
   userMoved = false
   frame(defaultDirection)
@@ -213,8 +227,14 @@ variantSelect.addEventListener('change', async () => {
   const shown = current
   if (!shown) return
   const value = variantSelect.value
+  // A variant replaces materials, the dimmed copies included: the highlight is made again after.
+  highlight.clear()
   const failures = await shown.model.selectVariant(value === 'default' ? undefined : Number(value))
   if (current !== shown) return
+  if (focused) {
+    const again = resolveFocus(shown.model, focused.key, container(shown.input))
+    if (again) highlight.apply(shown.model.root, again.meshes)
+  }
   if (failures.length) showProblems(await explainFailures(shown.input, failures))
   dirty = true
 })
@@ -318,6 +338,7 @@ function prepareAnimations(model: Model): void {
 }
 
 function clear(): void {
+  clearFocus()
   current?.mixer?.stopAllAction()
   current?.mixer?.uncacheRoot(current.model.root)
   current?.model.dispose()
@@ -366,4 +387,74 @@ async function show(input: PluginInput, signal: AbortSignal): Promise<void> {
   render()
 }
 
-viewer(show)
+// --- Focus ----------------------------------------------------------------------------------------
+
+const container = (input: PluginInput) => (input.extension === 'glb' ? 'glb' : 'gltf')
+
+function clearFocus(): void {
+  highlight.clear()
+  focused = undefined
+  focusBox.hidden = true
+  dirty = true
+}
+focusClear.addEventListener('click', clearFocus)
+
+/** Frames `meshes` in their current pose from the current viewing direction. */
+function frameMeshes(meshes: Mesh[]): void {
+  const box = new Box3()
+  const points: Float32Array[] = []
+  let complete = true
+  for (const mesh of meshes) {
+    const part = measure(mesh)
+    box.union(part.box)
+    if (part.points) points.push(part.points)
+    else complete = false
+  }
+  if (box.isEmpty()) return
+  if (fileCamera) takeOver()
+  let all: Float32Array | undefined
+  if (complete) {
+    all = new Float32Array(points.reduce((sum, each) => sum + each.length, 0))
+    let offset = 0
+    for (const each of points) {
+      all.set(each, offset)
+      offset += each.length
+    }
+  }
+  const direction = camera.position.clone().sub(controls.target)
+  place(frameModel({ box, points: all }, direction, camera.fov, camera.aspect, 1.25))
+  userMoved = true
+}
+
+/**
+ * Shows the subresource `key` of the analyzer's report: frames and keeps the meshes it stands for
+ * while the rest is dimmed, looks through a camera, or plays an animation. Keys this file does not
+ * have are ignored.
+ */
+function focus(key: string, input: PluginInput): void {
+  if (!current || current.input.url !== input.url) return
+  const target = resolveFocus(current.model, key, container(input))
+  if (!target) return
+  clearFocus()
+  focused = { key, target }
+  let label = `已定位：${target.label}`
+  if (target.camera !== undefined) {
+    userMoved = true
+    lookThrough(target.camera)
+  } else if (target.animation !== undefined && current.mixer) {
+    clipSelect.value = String(target.animation)
+    choose(target.animation)
+    setPlaying(true)
+  } else if (target.whole) {
+    if (fileCamera) takeOver()
+    frame(camera.position.clone().sub(controls.target))
+  } else if (target.meshes.length) {
+    highlight.apply(current.model.root, target.meshes)
+    frameMeshes(target.meshes)
+  } else label += '（画面中没有可以标出的部分）'
+  focusLabel.textContent = label
+  focusBox.hidden = false
+  dirty = true
+}
+
+viewer(show, { focus })

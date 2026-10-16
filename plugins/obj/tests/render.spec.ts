@@ -12,6 +12,7 @@ import {
   switchInput,
   viewerOutcome,
 } from '../../../shared/testing/pages.ts'
+import { focusSubresource, pixelDifference } from '../../../shared/testing/pages.ts'
 
 const root = join(import.meta.dirname, '../../..')
 let host: MockHost
@@ -152,6 +153,55 @@ test.describe('viewer', () => {
     expect(await viewerOutcome(page, unknown.url)).toEqual({ ready: true })
     await expect(page.locator('#warnings')).toHaveText(/材质 Ghost（材质库中没有定义）/)
     await expect(page.locator('#warnings')).not.toContainText('absent')
+  })
+
+  test('the host focuses objects, groups and materials by their keys', async ({ page }) => {
+    const input = await host.input('basic/table.obj')
+    await page.goto(pageUrl(host.pluginOrigin, 'viewer.html', input))
+    expect(await viewerOutcome(page, input.url)).toEqual({ ready: true })
+    const focusBox = page.locator('#focus')
+    const label = page.locator('#focus-label')
+    const before = await settledCanvas(page)
+    const amber = async () => {
+      const { hues } = await pixelStats(page, await settledCanvas(page))
+      return hues.orange + hues.yellow
+    }
+
+    // A group: its faces are drawn in the highlight colour and framed; the rest is dimmed.
+    await focusSubresource(page, input.url, 'groups/1')
+    await expect(label).toHaveText(/^已定位：组 legs-front（\d+ 个面）$/)
+    // The wooden top is dimmed and the front legs are amber.
+    await expect.poll(amber).toBeGreaterThan(0.03)
+    const legs = await settledCanvas(page)
+    expect(await pixelDifference(page, before, legs)).toBeGreaterThan(0.02)
+
+    // Keys the file does not have, and keys for another file, change nothing.
+    await focusSubresource(page, input.url, 'groups/9')
+    await focusSubresource(page, input.url, 'material:Wood')
+    await focusSubresource(page, `${input.url}x`, 'objects/0')
+    await page.waitForTimeout(300)
+    expect(await pixelDifference(page, legs, await settledCanvas(page))).toBeLessThan(0.01)
+    await expect(label).toHaveText(/legs-front/)
+
+    // An object and a material, each replacing the one before.
+    await focusSubresource(page, input.url, 'objects/0')
+    await expect(label).toHaveText(/^已定位：对象 Top（\d+ 个面）$/)
+    await focusSubresource(page, input.url, 'materials/1')
+    await expect(label).toHaveText('已定位：材质 Metal')
+    const metal = await settledCanvas(page)
+
+    // Clearing takes the overlay and the dimming away and keeps the view.
+    await page.locator('#focus-clear').click()
+    await expect(focusBox).toBeHidden()
+    expect(await pixelDifference(page, metal, await settledCanvas(page))).toBeGreaterThan(0.01)
+
+    // R goes back to the starting view and ends the focus.
+    await focusSubresource(page, input.url, 'objects/1')
+    await expect(focusBox).toBeVisible()
+    await page.locator('#view').focus()
+    await page.keyboard.press('r')
+    await expect(focusBox).toBeHidden()
+    expect(await pixelDifference(page, before, await settledCanvas(page))).toBeLessThan(0.01)
   })
 
   test('answers not applicable for compiled object files, and explains broken files', async ({

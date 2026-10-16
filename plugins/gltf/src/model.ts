@@ -19,7 +19,12 @@ import { GLTFLoader, type GLTF } from 'three/addons/loaders/GLTFLoader.js'
 import { KTX2Loader } from 'three/addons/loaders/KTX2Loader.js'
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js'
 import { ModelError } from './errors.ts'
-import { animationNames, readGltf, unsupportedRequiredExtensions } from './gltf-file.ts'
+import {
+  animationNames,
+  readGltf,
+  unsupportedRequiredExtensions,
+  type GltfJson,
+} from './gltf-file.ts'
 import { readMainFile } from './source.ts'
 
 /** A loaded default scene and what it holds; `dispose` frees its GPU resources and images. */
@@ -42,7 +47,23 @@ export interface Model {
   cameras: { name: string; camera: Camera }[]
   /** Addresses of files and embedded images that could not be loaded. */
   failed: string[]
+  /** The file's JSON, for the names of the objects the host asks the viewer to show. */
+  json: GltfJson
+  /**
+   * The glTF element each object, material and texture of the default scene was made from:
+   * GLTFLoader's associations (node, mesh and primitive, material and texture indices).
+   */
+  associations: Map<object, GltfAssociation>
   dispose(): void
+}
+
+/** What GLTFLoader records for an object, material or texture it made. */
+export interface GltfAssociation {
+  nodes?: number
+  meshes?: number
+  primitives?: number
+  materials?: number
+  textures?: number
 }
 
 /**
@@ -128,6 +149,8 @@ export class ModelLoader {
       selectVariant: (index) => variants!.select(index),
       cameras: camerasIn(root),
       failed: [...failed],
+      json,
+      associations: gltf.parser.associations as Map<object, GltfAssociation>,
       dispose,
     }
   }

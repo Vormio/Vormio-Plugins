@@ -8,6 +8,7 @@ import { join } from 'node:path'
 import { expect, test, type Page } from '@playwright/test'
 import { startHost, type MockHost } from '../../../shared/testing/host.ts'
 import {
+  focusSubresource,
   installBridge,
   pageUrl,
   pixelDifference,
@@ -342,5 +343,77 @@ test.describe('viewer', () => {
     expect(await viewerOutcome(page, next.url)).toEqual({ ready: true })
     await expect(page.locator('#info')).toHaveText('Spine 4.1.24 · 4 根骨骼 · 3 个插槽')
     expect(await moves()).toBeGreaterThan(0.0005)
+  })
+
+  test('the host focuses skins, animations, attachments, slots and bones by their keys', async ({
+    page,
+  }) => {
+    const { input } = await openViewer(page, 'hero.json')
+    const label = page.locator('#focus-label')
+    /** Pixels marked on the overlay. */
+    const marked = () =>
+      page.evaluate(() => {
+        const overlay = document.querySelector<HTMLCanvasElement>('#overlay')!
+        const { data } = overlay.getContext('2d')!.getImageData(0, 0, overlay.width, overlay.height)
+        let count = 0
+        for (let index = 3; index < data.length; index += 4) if (data[index]) count++
+        return count
+      })
+    expect(await marked()).toBe(0)
+
+    // A skin and an animation are switched to.
+    await focusSubresource(page, input.url, 'skins/1')
+    await expect(page.locator('#skin')).toHaveValue('armored')
+    await expect(label).toHaveText('已定位：皮肤 armored')
+    await focusSubresource(page, input.url, 'animations/1')
+    await expect(page.locator('#animation')).toHaveValue('blink')
+    await expect(label).toHaveText('已定位：动画 blink')
+
+    // An attachment of the default skin is outlined; one of another skin switches to that skin.
+    await page.locator('#animation').selectOption('')
+    await page.locator('#skin').selectOption('default')
+    await focusSubresource(page, input.url, 'attachments/0')
+    await expect(label).toHaveText('已定位：区域附件 body')
+    await expect.poll(marked).toBeGreaterThan(100)
+    await focusSubresource(page, input.url, 'attachments/3')
+    await expect(page.locator('#skin')).toHaveValue('armored')
+    await expect(label).toHaveText('已定位：区域附件 head（区域 helmet）')
+    await expect.poll(marked).toBeGreaterThan(100)
+    // The head of the default skin is not shown under the armored skin, and says so.
+    await focusSubresource(page, input.url, 'attachments/2')
+    await expect(label).toHaveText('已定位：区域附件 head（这个附件现在没有显示）')
+    expect(await marked()).toBe(0)
+
+    // A slot and a bone are marked.
+    await focusSubresource(page, input.url, 'slots/1')
+    await expect(label).toHaveText('已定位：插槽 arm')
+    await expect.poll(marked).toBeGreaterThan(100)
+    await focusSubresource(page, input.url, 'bones/3')
+    await expect(label).toHaveText('已定位：骨骼 arm')
+    await expect.poll(marked).toBeGreaterThan(20)
+
+    // Keys the file does not have and keys for another file change nothing; clearing removes the
+    // mark, and F ends the focus as well.
+    await focusSubresource(page, input.url, 'bones/9')
+    await focusSubresource(page, `${input.url}x`, 'skins/0')
+    await expect(label).toHaveText('已定位：骨骼 arm')
+    await page.locator('#focus-clear').click()
+    await expect(page.locator('#focus')).toBeHidden()
+    expect(await marked()).toBe(0)
+    await focusSubresource(page, input.url, 'slots/0')
+    await expect(page.locator('#focus')).toBeVisible()
+    await page.locator('#view').focus()
+    await page.keyboard.press('f')
+    await expect(page.locator('#focus')).toBeHidden()
+
+    // A binary skeleton has the same keys, read back from what its runtime read.
+    const binary = await host.input('wizard.skel')
+    await switchInput(page, binary)
+    expect(await viewerOutcome(page, binary.url)).toEqual({ ready: true })
+    await expect(page.locator('#focus')).toBeHidden()
+    await page.locator('#animation').selectOption('')
+    await focusSubresource(page, binary.url, 'attachments/0')
+    await expect(label).toHaveText('已定位：区域附件 body')
+    await expect.poll(marked).toBeGreaterThan(100)
   })
 })

@@ -115,3 +115,18 @@ button:disabled {
     display: none;
   }
 }
+
+.focus {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text);
+}
+
+.focus[hidden] {
+  display: none;
+}
+
+.focus button {
+  padding: 0 6px;
+}

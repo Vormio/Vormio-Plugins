@@ -73,6 +73,46 @@ const objectAt = (value: unknown, ...path: string[]): Json | undefined => {
   return isObject(current) ? current : undefined
 }
 
+/** A subresource key the analyzer gives, read back: its collection, index, kind and name. */
+export interface KeyedElement {
+  collection: Collection
+  index: number
+  kind: string
+  name: string
+}
+
+/**
+ * Reads back a key of this analyzer's report (`<collection>/<index>`), with the kind and name the
+ * report gives the subresource; undefined for a key it does not give.
+ */
+export function readKey(
+  json: GltfJson,
+  key: string,
+  container: 'gltf' | 'glb',
+): KeyedElement | undefined {
+  const match = /^([a-z]+)\/(\d+)$/.exec(key)
+  const collection = match?.[1] as Collection | undefined
+  if (!collection || !(collection in kinds)) return undefined
+  const index = Number(match![2])
+  const list =
+    collection === 'lights'
+      ? objectAt(json, 'extensions', 'KHR_lights_punctual')?.lights
+      : (json as Json)[collection]
+  if (!Array.isArray(list) || index >= list.length) return undefined
+  const item = list[index]
+  const written = isObject(item) ? item.name : undefined
+  const name =
+    typeof written === 'string' && written.trim()
+      ? plainText(written, limits.name)
+      : collection === 'buffers' &&
+          container === 'glb' &&
+          index === 0 &&
+          !(isObject(item) && item.uri)
+        ? 'GLB 二进制块'
+        : `${kinds[collection]} ${index}`
+  return { collection, index, kind: kinds[collection], name }
+}
+
 /** Analyzes the JSON of a .gltf file or of a GLB's JSON chunk. */
 export function analyzeGltf(json: GltfJson, container: 'gltf' | 'glb'): CompositionReport {
   const { diagnostics, diagnose } = diagnosticList()
