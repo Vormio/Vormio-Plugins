@@ -1,6 +1,8 @@
 // The Spine version in the header of a binary skeleton, read without a runtime: which runtime can
 // read the rest depends on it. No DOM, so it runs in Node tests as well as in the plugin pages.
 
+import { SpineError } from '../errors.ts'
+
 /** The Spine runtimes in the package, by major and minor version. */
 export const runtimeLines = ['3.7', '3.8', '4.0', '4.1', '4.2', '4.3'] as const
 export type RuntimeLine = (typeof runtimeLines)[number]
@@ -46,6 +48,16 @@ export function skeletonVersion(bytes: Uint8Array): string | undefined {
   const legacy = hash && readString(bytes, hash.next)
   if (legacy && versionPattern.test(legacy.value)) return legacy.value
   return undefined
+}
+
+/** The runtime for data of `version`; throws the reason when the package has none. */
+export function requireRuntimeLine(version: string): RuntimeLine {
+  const line = runtimeLine(version)
+  if (!line)
+    throw new SpineError(
+      `Spine ${version} 的数据：插件只包含这些版本的运行时：${runtimeLines.join('、')}。`,
+    )
+  return line
 }
 
 /** The runtime for data of `version`, or undefined when the package has none. */

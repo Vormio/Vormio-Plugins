@@ -87,6 +87,8 @@ export interface Figure {
 
 export interface Runtime {
   readonly line: RuntimeLine
+  /** The runtime's namespace, typed as 4.3; the analyzer reads binary skeletons with it. */
+  readonly spine: Spine
   /** The page names of an atlas, in order. */
   pageNames(atlasText: string): string[]
   /**
@@ -131,6 +133,7 @@ export function createRuntime(line: RuntimeLine, spine: Spine, differ: Differenc
 
   return {
     line,
+    spine,
     pageNames: (atlasText) =>
       readAtlas(atlasText, () => placeholder).atlas.pages.map((page) => page.name),
 

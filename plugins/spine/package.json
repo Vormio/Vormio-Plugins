@@ -1,6 +1,6 @@
 {
   "name": "@vormio-plugins/spine",
-  "version": "0.11.0",
+  "version": "0.12.0",
   "private": true,
   "description": "Spine skeleton previews (rendered with the Spine Runtimes), skeleton JSON analysis, and texture atlas thumbnails, viewer and composition analyzer for Vormio",
   "type": "module",
