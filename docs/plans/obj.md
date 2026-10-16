@@ -1,6 +1,6 @@
 # OBJ 插件设计计划
 
-状态：**0.1.0 已实现**（2026-10-15，路线图“下一批”第 3 项），结论写进了[插件 README](../../plugins/obj/README.md)，待手工验收；§7 中多个材质库的场景在 #3 提出后，Core 另立为 Vormio/Vormio-Core#9。0.1.0 用 SDK 0.0.7（`apiVersion: 3`）。**0.2.0**（2026-10-15）：Core 0.0.9 解决了 R3，只有一个材质库时 `usemtl` 的材质连到 `.mtl` 中的材质（§7），SDK 0.0.9（`apiVersion: 4`），已在 Core 0.0.9 上手工验收（§9）。**0.3.0**（2026-10-15，试用中）：Core 0.0.10 承接 Vormio/Vormio-Core#9，多个材质库时每个材质把全部材质库列为候选（`uris`，后写的优先），SDK 预发布版 0.0.10-rc.1（`apiVersion: 5`），见 §11。**0.4.0**（2026-10-16，计划）：查看器响应宿主的定位请求（对象、组、材质），与 Spine、glTF 的查看器一起设计，见[查看器定位计划](viewer-focus.md)。
+状态：**0.1.0 已实现**（2026-10-15，路线图“下一批”第 3 项），结论写进了[插件 README](../../plugins/obj/README.md)，待手工验收；§7 中多个材质库的场景在 #3 提出后，Core 另立为 Vormio/Vormio-Core#9。0.1.0 用 SDK 0.0.7（`apiVersion: 3`）。**0.2.0**（2026-10-15）：Core 0.0.9 解决了 R3，只有一个材质库时 `usemtl` 的材质连到 `.mtl` 中的材质（§7），SDK 0.0.9（`apiVersion: 4`），已在 Core 0.0.9 上手工验收（§9）。**0.3.0**（2026-10-15）：Core 0.0.10 承接 Vormio/Vormio-Core#9，多个材质库时每个材质把全部材质库列为候选（`uris`，后写的优先），先用 SDK 预发布版 0.0.10-rc.1 试用，Core 0.0.10 发布后（2026-10-16）已换成正式版 SDK 0.0.10（`apiVersion: 5`），待在 Core 0.0.10 上手工验收，见 §11。**0.4.0**（2026-10-16，计划）：查看器响应宿主的定位请求（对象、组、材质），与 Spine、glTF 的查看器一起设计，见[查看器定位计划](viewer-focus.md)。
 
 实施时与草案的不同：
 
@@ -96,10 +96,10 @@ textures/wood.png
 
 ## 7. 等 Core 的部分
 
-| 需求                                                      | Core issue           | 状态                                              | 补齐之前插件的做法                                                                                         |
-| --------------------------------------------------------- | -------------------- | ------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
-| R3：`usemtl` 引用指向 `.mtl` 报告中的材质（跨文件子资源） | Vormio/Vormio-Core#3 | Core 0.0.9 已解决，SDK 0.0.9                      | （已解决）0.2.0 起只有一个材质库时连到材质，见下                                                           |
-| 多个材质库时，引用的目标在几个文件之一中                  | Vormio/Vormio-Core#9 | Core 0.0.10 承接，SDK 预发布版 0.0.10-rc.1 试用中 | 0.3.0 起用 `uris` 列出全部材质库作候选（§11）；0.2.0 多个材质库时不报告 `uriKey`，只报告材质名与各个材质库 |
+| 需求                                                      | Core issue           | 状态                                                        | 补齐之前插件的做法                                                                                         |
+| --------------------------------------------------------- | -------------------- | ----------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| R3：`usemtl` 引用指向 `.mtl` 报告中的材质（跨文件子资源） | Vormio/Vormio-Core#3 | Core 0.0.9 已解决，SDK 0.0.9                                | （已解决）0.2.0 起只有一个材质库时连到材质，见下                                                           |
+| 多个材质库时，引用的目标在几个文件之一中                  | Vormio/Vormio-Core#9 | Core 0.0.10 已解决，SDK 0.0.10；待在 Core 0.0.10 上手工验收 | 0.3.0 起用 `uris` 列出全部材质库作候选（§11）；0.2.0 多个材质库时不报告 `uriKey`，只报告材质名与各个材质库 |
 
 R3 试用时，`.mtl` 分析器的材质 key 改为基于材质名（与 Spine 图集区域按名称的 key 相同的规则），OBJ 分析器的材质引用带 `uriKey`。`usemtl` 可能在多个材质库中查找，所以目标文件只能是推断的：这个场景（一个引用的目标在多个文件之一中）在 #3 提出后另立为 Vormio/Vormio-Core#9。
 
@@ -145,7 +145,7 @@ R3 试用时，`.mtl` 分析器的材质 key 改为基于材质名（与 Spine �
 
 ## 11. 材质在几个材质库之一中（0.3.0）
 
-状态：**已实现，SDK 预发布版 0.0.10-rc.1 试用中**（2026-10-15）。Core 0.0.10 承接 Vormio/Vormio-Core#9（R3b），先为 #5 与 #9 发布了 SDK 预发布版 0.0.10-rc.1（npm 标签 `next`），插件线在分支 `r4-agreement-candidates` 上试用，与 Spine 的 R4 试用（[Spine 设计计划](spine.md) §17）同一次。契约（`apiVersion: 5`）：引用可以用 `uris` 给出 2–16 个不重复的候选地址，必须带 `uriKey`，与 `uri`、`key` 三者只给一个，可以是推断的；只有一个候选时仍用 `uri`。优先规则固定一种：插件把会被采用的文件排在最前。宿主在查询时按顺序逐个看候选，只连接同一插件同一构建的分析结果：候选不存在就跳过；分析结果中有这个 key 就解析到它并显示是哪个文件；完整的分析结果中没有就看下一个；其他情况（忽略、越界、尚未分析、过期、失败、部分完成且没有这个 key、另一个构建）整条引用为“未知”并注明是哪个候选，不越过它解析到后面的候选；全部看完仍没有时写明的引用为缺失（只算一条），推断的为未找到。反查只把引用列在实际解析到的那个文件下。语义以 SDK README 的 “References that look in one of several files” 为准。
+状态：**已实现，已换成正式版 SDK 0.0.10，待在 Core 0.0.10 上手工验收**（2026-10-16）。Core 0.0.10 承接 Vormio/Vormio-Core#9（R3b），先为 #5 与 #9 发布了 SDK 预发布版 0.0.10-rc.1（npm 标签 `next`），插件线在分支 `r4-agreement-candidates` 上试用，与 Spine 的 R4 试用（[Spine 设计计划](spine.md) §17）同一次；Core 0.0.10 与 SDK 0.0.10 于 2026-10-16 发布（#5 与 #9 随之关闭），SDK 的 `dist/` 与 rc.1 逐字节相同。契约（`apiVersion: 5`）：引用可以用 `uris` 给出 2–16 个不重复的候选地址，必须带 `uriKey`，与 `uri`、`key` 三者只给一个，可以是推断的；只有一个候选时仍用 `uri`。优先规则固定一种：插件把会被采用的文件排在最前。宿主在查询时按顺序逐个看候选，只连接同一插件同一构建的分析结果：候选不存在就跳过；分析结果中有这个 key 就解析到它并显示是哪个文件；完整的分析结果中没有就看下一个；其他情况（忽略、越界、尚未分析、过期、失败、部分完成且没有这个 key、另一个构建）整条引用为“未知”并注明是哪个候选，不越过它解析到后面的候选；全部看完仍没有时写明的引用为缺失（只算一条），推断的为未找到。反查只把引用列在实际解析到的那个文件下。语义以 SDK README 的 “References that look in one of several files” 为准。
 
 **决定**：
 
@@ -159,7 +159,7 @@ R3 试用时，`.mtl` 分析器的材质 key 改为基于材质名（与 Spine �
 
 **测试**：`tests/analysis.test.ts` 用 `fixtures/obj/layout/`（两个材质库，`Body` 在两个库中都有，`Label` 只在后一个）核对：`Body` 与 `Label` 的引用都是 `uris: ['../materials/paint.mtl', 'base.mtl']`，每个 `uriKey` 都是两个材质库报告中的 key；`a b a` 的顺序；16 个候选的上限与 17 个时的诊断；每份报告都用 SDK 的 `parseReport` 校验。`tests/analyzer.spec.ts` 在 Chromium 中得到相同的报告。`pnpm run lint`、`pnpm run typecheck` 与 `pnpm test` 全部通过（2026-10-15）。
 
-**rc.1 在 `fixtures/obj/layout/` 上的结果**（Node 中的分析器，与 Chromium 相同）：`model/crate.obj` 报告两条材质库引用（`base.mtl` 第 1 行，`../materials/paint.mtl` 第 2 行）、两条材质定义（`materials/0` → `uris: ['../materials/paint.mtl', 'base.mtl']` ▸ `material:Body`，第 4 行；`materials/1` → 同样的候选 ▸ `material:Label`，第 29 行）与两条内部的“使用材质”。按 Core 写明的判定，`Body` 与 `Label` 都应解析到 `../materials/paint.mtl`，`base.mtl` 中的 `Body` 不列出这个 OBJ；删去 `paint.mtl` 中的 `Body` 后应解析到 `base.mtl`。没有在宿主中核对：没有加载 `apiVersion: 5` 的 Core 发布版本。试用构建的包摘要见 Spine 设计计划 §17（OBJ 0.3.0-r4.1 `6483caf1…`）。
+**rc.1 在 `fixtures/obj/layout/` 上的结果**（Node 中的分析器，与 Chromium 相同）：`model/crate.obj` 报告两条材质库引用（`base.mtl` 第 1 行，`../materials/paint.mtl` 第 2 行）、两条材质定义（`materials/0` → `uris: ['../materials/paint.mtl', 'base.mtl']` ▸ `material:Body`，第 4 行；`materials/1` → 同样的候选 ▸ `material:Label`，第 29 行）与两条内部的“使用材质”。按 Core 写明的判定，`Body` 与 `Label` 都应解析到 `../materials/paint.mtl`，`base.mtl` 中的 `Body` 不列出这个 OBJ；删去 `paint.mtl` 中的 `Body` 后应解析到 `base.mtl`。没有在宿主中核对：没有加载 `apiVersion: 5` 的 Core 发布版本。试用构建的包摘要见 Spine 设计计划 §17（OBJ 0.3.0-r4.1 `6483caf1…`），正式版 SDK 0.0.10 的构建 OBJ 0.3.0 也记在那里。
 
 **对 #9 的评审**（2026-10-15，已回复到 Vormio/Vormio-Core#9）：
 

@@ -1,10 +1,10 @@
 # glTF 模型
 
-插件 ID `vormio-plugins.gltf`，版本 0.4.2-r4.1（试用构建）。为 glTF 2.0 与 GLB 文件提供网格缩略图、只读三维查看器和组成分析。
+插件 ID `vormio-plugins.gltf`，版本 0.4.2。为 glTF 2.0 与 GLB 文件提供网格缩略图、只读三维查看器和组成分析。
 
-- **宿主**：Vormio-Core 0.0.10 起（插件契约 `apiVersion: 5`）。宿主只加载与自己契约版本相同的插件：0.4.2 与 0.4.1、0.4.0 的代码相同，只换了契约；Core 0.0.9 用 0.4.1（`apiVersion: 4`），Core 0.0.7 与 0.0.8 用 0.4.0（`apiVersion: 3`）。0.2.3 与 0.2.1、0.2.0 的代码相同，只换了契约，0.3.0 起查看器播放动画，0.4.0 起切换材质变体与文件中的相机；Core 0.0.6 用 0.2.1（`apiVersion: 2`），Core 0.0.3 至 0.0.5 用 0.2.0（`apiVersion: 1`），0.0.2 只认识缩略图和查看器，用 0.1.0。0.2.2 是同样的代码用 SDK 预发布版构建的包，只交给 Core 验收，没有发布。SDK 使用 [`vendor/`](../../vendor/README.md) 中固定的 0.0.10-rc.1 打包产物。
+- **宿主**：Vormio-Core 0.0.10 起（插件契约 `apiVersion: 5`）。宿主只加载与自己契约版本相同的插件：0.4.2 与 0.4.1、0.4.0 的代码相同，只换了契约；Core 0.0.9 用 0.4.1（`apiVersion: 4`），Core 0.0.7 与 0.0.8 用 0.4.0（`apiVersion: 3`）。0.2.3 与 0.2.1、0.2.0 的代码相同，只换了契约，0.3.0 起查看器播放动画，0.4.0 起切换材质变体与文件中的相机；Core 0.0.6 用 0.2.1（`apiVersion: 2`），Core 0.0.3 至 0.0.5 用 0.2.0（`apiVersion: 1`），0.0.2 只认识缩略图和查看器，用 0.1.0。0.2.2 是同样的代码用 SDK 预发布版构建的包，只交给 Core 验收，没有发布。SDK 使用 [`vendor/`](../../vendor/README.md) 中固定的 0.0.10 打包产物。
 - **不修改任何文件**：只读取宿主绑定的模型文件，以及它引用的、扩展名在声明范围内的配套文件。
-- 0.4.2-r4.1 是 SDK 预发布版 0.0.10-rc.1（Vormio/Vormio-Core#5 与 #9）的试用构建：只换插件契约（`apiVersion: 5`），代码与 0.4.1 相同；只交给 Core，不发布。Core 0.0.10 发布后换成正式版 SDK，版本 0.4.2。
+- 0.4.2 只换插件契约（`apiVersion: 5`），代码与 0.4.1 相同。试用构建 0.4.2-r4.1 用 SDK 预发布版 0.0.10-rc.1（Vormio/Vormio-Core#5 与 #9）构建，只交给了 Core；已换成正式版 SDK 0.0.10，待在 Core 0.0.10 上手工验收后发布。
 - 从 0.4.0 升级到 0.4.1：只换插件契约（`apiVersion: 4`），给 Core 0.0.9 起的宿主；代码没有变化。
 - 从 0.3.0 升级到 0.4.0：查看器可以切换材质变体（`KHR_materials_variants`）与文件中的相机。声明的格式与配套格式没有变化，不用重新启用。
 - 从 0.2.3 升级到 0.3.0：查看器播放动画。声明的格式与配套格式没有变化，不用重新启用。
@@ -94,13 +94,13 @@ buffer 与图像可以是外部文件（相对模型文件的路径，可以用 
 
 打进插件包的代码：
 
-| 组件                                                                               | 版本        | 许可证     | 位置                                            |
-| ---------------------------------------------------------------------------------- | ----------- | ---------- | ----------------------------------------------- |
-| three.js（含 GLTFLoader、DRACOLoader、KTX2Loader、OrbitControls、RoomEnvironment） | 0.186.1     | MIT        | 打包进 `viewer.js`、`thumbnail.js` 与 `chunks/` |
-| meshoptimizer 解码器（随 three.js 发布）                                           | 1.1         | MIT        | 打包进 `chunks/`                                |
-| Draco glTF 解码器（随 three.js 发布）                                              | —           | Apache-2.0 | `decoders/draco/`，原样复制                     |
-| Basis Universal 转码器（随 three.js 发布）                                         | —           | Apache-2.0 | `decoders/basis/`，原样复制                     |
-| `@vormio/plugin-sdk` 运行时                                                        | 0.0.10-rc.1 | MIT        | 打包进 `chunks/`                                |
+| 组件                                                                               | 版本    | 许可证     | 位置                                            |
+| ---------------------------------------------------------------------------------- | ------- | ---------- | ----------------------------------------------- |
+| three.js（含 GLTFLoader、DRACOLoader、KTX2Loader、OrbitControls、RoomEnvironment） | 0.186.1 | MIT        | 打包进 `viewer.js`、`thumbnail.js` 与 `chunks/` |
+| meshoptimizer 解码器（随 three.js 发布）                                           | 1.1     | MIT        | 打包进 `chunks/`                                |
+| Draco glTF 解码器（随 three.js 发布）                                              | —       | Apache-2.0 | `decoders/draco/`，原样复制                     |
+| Basis Universal 转码器（随 three.js 发布）                                         | —       | Apache-2.0 | `decoders/basis/`，原样复制                     |
+| `@vormio/plugin-sdk` 运行时                                                        | 0.0.10  | MIT        | 打包进 `chunks/`                                |
 
 许可证全文与说明随包放在 `licenses/`（`THREE.txt`、`MESHOPTIMIZER.txt`、`APACHE-2.0.txt`、`NOTICE.txt`）。只在开发与测试中使用的工具见仓库 [README](../../README.md#依赖与许可证)。
 
@@ -118,7 +118,7 @@ pnpm run build gltf
 pnpm run package gltf
 ```
 
-生成 `artifacts/vormio-plugins.gltf-0.4.2-r4.1.vormioplugin`（内部调用 `vormio-plugin pack`）。
+生成 `artifacts/vormio-plugins.gltf-0.4.2.vormioplugin`（内部调用 `vormio-plugin pack`）。
 
 测试（`pnpm test` 会先构建）：
 
