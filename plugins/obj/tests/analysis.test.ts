@@ -30,8 +30,8 @@ const names = (report: CompositionReport) =>
   )
 const references = (report: CompositionReport) =>
   report.references.map((each) =>
-    each.uri !== undefined
-      ? `${each.from ?? '文件'} → ${each.uri}${each.uriKey ? ` ▸ ${each.uriKey}` : ''}（${each.role}，${each.evidence}）`
+    each.uri !== undefined || each.uris !== undefined
+      ? `${each.from ?? '文件'} → ${each.uri ?? each.uris!.join(' | ')}${each.uriKey ? ` ▸ ${each.uriKey}` : ''}（${each.role}，${each.evidence}）`
       : `${each.from} → ${each.key}（${each.role}，${each.evidence}）`,
   )
 const messages = (report: CompositionReport) => report.diagnostics.map((each) => each.message)
@@ -64,7 +64,10 @@ test('two libraries, one in a sibling folder; faces outside groups belong to the
   assert.deepEqual(references(report), [
     '文件 → base.mtl（材质库，第 1 行）',
     '文件 → ../materials/paint.mtl（材质库，第 2 行）',
-    // With two, which one defines a material is not written in the OBJ: no material is connected.
+    // With two, which one defines a material is not written in the OBJ: both are candidates, the
+    // last one first, as the previews take the last library that defines a material.
+    'materials/0 → ../materials/paint.mtl | base.mtl ▸ material:Body（材质定义，第 4 行）',
+    'materials/1 → ../materials/paint.mtl | base.mtl ▸ material:Label（材质定义，第 29 行）',
     'objects/0 → materials/0（使用材质，第 4 行）',
     'objects/0 → materials/1（使用材质，第 29 行）',
   ])
@@ -101,6 +104,52 @@ test('materials are connected to the one library by the keys its MTL report give
     twice.references.flatMap((each) => (each.uriKey ? [`${each.from} ▸ ${each.uriKey}`] : [])),
     ['materials/2 ▸ material:Ok'],
   )
+})
+
+test('with several libraries, each material lists them as candidates, the last one first', async () => {
+  // Every candidate's report has the keys (Vormio/Vormio-Core#9: the host resolves to the first).
+  const report = await obj('layout/model/crate.obj')
+  const definitions = report.references.filter((each) => each.uris !== undefined)
+  assert.deepEqual(
+    definitions.map((each) => [each.from, each.uriKey, each.uris]),
+    [
+      ['materials/0', 'material:Body', ['../materials/paint.mtl', 'base.mtl']],
+      ['materials/1', 'material:Label', ['../materials/paint.mtl', 'base.mtl']],
+    ],
+  )
+  for (const path of ['layout/materials/paint.mtl', 'layout/model/base.mtl']) {
+    const keys = new Set((await mtl(path)).subresources.map((each) => each.key))
+    for (const each of definitions) assert.ok(keys.has(each.uriKey!), `${path} ${each.uriKey}`)
+  }
+  // A library named again keeps its first place, as the previews read each library once.
+  const again = accepted(
+    analyzeObj('mtllib a.mtl\nmtllib b.mtl\nmtllib a.mtl\nusemtl M\nf 1 1 1\n'),
+  )
+  assert.deepEqual(again.references.find((each) => each.uris)?.uris, ['b.mtl', 'a.mtl'])
+  // At most 16 candidates; a file naming more connects no material and says so.
+  const naming = (count: number) =>
+    accepted(
+      analyzeObj(
+        [
+          ...Array.from({ length: count }, (_, i) => `mtllib lib${i}.mtl`),
+          'usemtl M',
+          'v 0 0 0',
+          'f 1 1 1',
+        ].join('\n'),
+      ),
+    )
+  assert.equal(
+    naming(reportLimits.candidates).references.find((each) => each.uris)?.uris?.length,
+    16,
+  )
+  const tooMany = naming(reportLimits.candidates + 1)
+  assert.equal(
+    tooMany.references.some((each) => each.uriKey !== undefined),
+    false,
+  )
+  assert.deepEqual(messages(tooMany), [
+    '文件指定了 17 个材质库，超过 16 个，没有把材质连到材质库中的定义。',
+  ])
 })
 
 test('library names: Windows separators become /, and %, ? and # are encoded', () => {

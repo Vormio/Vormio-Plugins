@@ -8,6 +8,7 @@ test('the limits match the SDK', () => {
   assert.equal(limits.references, reportLimits.references)
   assert.equal(limits.diagnostics, reportLimits.diagnostics)
   assert.equal(limits.size, reportLimits.bytes)
+  assert.equal(limits.candidates, reportLimits.candidates)
 })
 
 test('subresources are dropped in drop order, file references kept, the report marked partial', () => {

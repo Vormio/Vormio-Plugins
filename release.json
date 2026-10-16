@@ -1,7 +1,7 @@
 {
   "plugins": {
-    "gltf": { "version": "0.4.1", "acceptedOn": "0.0.9" },
-    "obj": { "version": "0.2.0", "acceptedOn": "0.0.9" },
-    "spine": { "version": "0.10.0", "acceptedOn": "0.0.9" }
+    "gltf": { "version": "0.4.2", "acceptedOn": "0.0.10" },
+    "obj": { "version": "0.3.0", "acceptedOn": "0.0.10" },
+    "spine": { "version": "0.11.0", "acceptedOn": "0.0.10" }
   }
 }

@@ -17,6 +17,7 @@
     "skeleton-viewer.css": "src/skeleton-viewer.css",
     "runtimes/spine-webgl-3.7.js": "../../vendor/spine-ts-3.7/spine-webgl.js",
     "runtimes/spine-webgl-3.8.js": "../../vendor/spine-ts-3.8/spine-webgl.js",
+    "licenses/SPINE-RUNTIMES.txt": "node_modules/spine-webgl-4.3/LICENSE",
     "licenses/SPINE-RUNTIMES-3.7.txt": "../../vendor/spine-ts-3.7/LICENSE",
     "licenses/SPINE-RUNTIMES-3.8.txt": "../../vendor/spine-ts-3.8/LICENSE",
     "licenses/SPINE-RUNTIMES-4.0.txt": "node_modules/spine-webgl-4.0/LICENSE",

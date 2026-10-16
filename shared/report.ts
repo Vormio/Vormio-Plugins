@@ -20,6 +20,8 @@ export const limits = {
   /** Serialized size: UTF-8 bytes of the report as JSON, as the host measures it. */
   size: 4 * 1024 * 1024,
   uri: 2048,
+  /** Candidate files of one reference (`uris`). */
+  candidates: 16,
   /** A subresource key, and so the `uriKey` of a reference to one. */
   key: 200,
   name: 200,

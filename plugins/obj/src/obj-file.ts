@@ -355,19 +355,26 @@ export class ObjAnalysis {
         compact({ key: `materials/${index}`, kind: '材质', name: shown(name, '（无名称）') }),
       ),
     )
-    // With one library, each material is the one of that name in it, by the key the MTL analyzer
-    // gives it. With several, the OBJ does not say which library defines a material (the previews
-    // take the last library that does), so materials are not connected.
-    const libraries = new Set(this.libraries.map((each) => each.uri))
+    // Each material is the one of its name in a library, by the key the MTL analyzer gives it. The
+    // OBJ does not say which of several libraries defines a material: the previews read them in
+    // order, each once, and the last that defines it wins, so the reference lists every library as
+    // a candidate with the last one first. A file naming more libraries than a reference may carry
+    // connects no material.
+    const libraries = [...new Set(this.libraries.map((each) => each.uri!))]
     const definitions: ReportReference[] = []
-    if (libraries.size === 1) {
-      const [uri] = libraries
+    if (libraries.length > limits.candidates)
+      diagnose(
+        'info',
+        `文件指定了 ${libraries.length} 个材质库，超过 ${limits.candidates} 个，没有把材质连到材质库中的定义。`,
+      )
+    else if (libraries.length) {
+      const candidates = libraries.toReversed()
       this.materials.forEach((name, index) => {
         const uriKey = materialNameKey(name)
         if (uriKey)
           definitions.push({
             from: `materials/${index}`,
-            uri: uri!,
+            ...(candidates.length === 1 ? { uri: candidates[0]! } : { uris: candidates }),
             uriKey,
             role: '材质定义',
             evidence: `第 ${this.materialLines[index]} 行`,
